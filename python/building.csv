@@ -1,0 +1,6 @@
+Gallery name;Parent;Folder;width;length;height;#items N;#items S;#items W;#items E
+root;none;;20;20;4;1;1;1;1
+Antartida;root;/gallery1;25;40;4;3;5;7;7
+PeruBolivia;root;/gallery2;25;40;4;1;4;8;8
+Africa;root;/gallery3;25;45;4;0;5;11;11
+Pakistan;root;/gallery4;25;45;4;4;4;10;10

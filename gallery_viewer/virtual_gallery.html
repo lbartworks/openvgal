@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>LB Artworks</title>
+
+    <style>
+		html,
+		body {
+		overflow: hidden;
+		width: 100%;
+		height: 100%;
+		margin: 0;
+		padding: 0;
+		}
+
+		#renderCanvas {
+		width: 100%;
+		height: 100%;
+		touch-action: none;
+		}
+		#loader {
+		  width: 100%;
+		  height: 100%;
+		  background: slategrey;
+		  margin: auto;
+		  display: flex;
+		  flex-direction: column;
+		  justify-content: center;
+		  align-items: center;
+		  font-size: 30px;
+		  font-family: Arial, Helvetica, sans-serif;
+		  
+		}
+		#loaded {
+		  opacity: 0;
+		  transition: opacity 1s ease;
+		}	  
+		#loadingContainer {
+		  width: 30%;
+		  height: 2rem;
+		  background: rgba(255, 255, 255, 0.75);
+		  border-radius: 6px;
+		  margin: 0.5rem;
+		}
+		#loadingBar {
+		  height: 100%;
+		  background: green;
+		  border-radius: 6px;
+		  width: 0%;
+		}
+
+    </style>
+
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <script src="https://code.jquery.com/pep/0.4.3/pep.js"></script>
+  </head>
+
+  <body>
+  	<div id="loader">
+		<p>Loading gallery</p>
+		<div id="loadingContainer">
+			<div id="loadingBar"></div>
+		</div>
+		<p id="percentLoaded">0%</p>
+	</div>
+  
+    <canvas id="renderCanvas" touch-action="none"></canvas>
+    <!-- touch-action="none" for best results from PEP -->
+
+
+
+
+    <script>
+    // user custom variables that you need to modify
+	const asset_location="/";
+	const config_file_name="/building.json";
+	
+	//user custom variables that are not modified in general
+	const add_light=true;
+	const debug_scene=false;
+	
+	//program constants
+	const regul_exp_door=/^d_/;
+	const regul_exp_tail= /_[0-9]*$/;
+	
+	//declarations
+	var canvas = document.getElementById("renderCanvas");
+	var sceneToRender = null;
+	let config_file_content;
+	var galleries=new Object();
+	var scene=null;
+	var current_gallery;
+
+	//loads the gallery file and updates the loading bar
+	var loadAsset = async(file, scene)=>{
+		return new Promise((res,rej)=>{
+			
+			if (document.getElementById("loaded")!=undefined) {
+				document.getElementById("loaded").id= "loader";
+				document.getElementById("loader").style.display = "flex";
+				document.getElementById("loadingBar").style.width="0%";
+			};
+			BABYLON.SceneLoader.LoadAssetContainer(asset_location, file, scene, function (container) {
+				document.getElementById("loader").style.display = "none";
+				document.getElementById("loader").id= "loaded";
+				setTimeout(()=>{document.getElementById("loaded").style.display = "none";}, 1000);
+				if (container.cameras){
+					container.cameras.pop();
+				}
+				res(container)
+			},
+			function (evt) {
+			// onProgress
+				var loadedPercent = 0;
+				if (evt.lengthComputable) {
+					let total=evt.total;
+					//if (evt.srcElement.getResponseHeader('content-encoding')){
+					//compressed content assume 25% compression
+					//	total=total*0.75;
+					//}
+					loadedPercent = (evt.loaded * 100 / total).toFixed();
+				} 
+
+				document.getElementById("percentLoaded").innerHTML = `${loadedPercent}%`;
+				document.getElementById("loadingBar").style.width =`${loadedPercent}%`;
+
+		});
+	})
+	
+	
+	}
+	
+	window.initFunction = async function() {
+		var createDefaultEngine = function() { 
+			return new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true,  disableWebGL2Support: false}); 
+		};		
+				
+		var asyncEngineCreation = async function() {
+			try {
+				return createDefaultEngine();
+			} catch(e) {
+				console.log("the available createEngine function failed. Creating the default engine instead");
+			return createDefaultEngine();
+			}
+		}
+		
+
+	
+	
+	    var startRenderLoop = function (engine, canvas) {
+            engine.runRenderLoop(function () {
+                if (sceneToRender && sceneToRender.activeCamera) {
+                    sceneToRender.render();
+                }
+            });
+        }
+        var createScene =  function () {
+            var scene = new BABYLON.Scene(engine);
+			
+			//add default camera
+			const camera = new BABYLON.UniversalCamera("camera", new BABYLON.Vector3(0, 2, 0), scene);
+			camera.attachControl();
+
+			camera.applyGravity = true;
+			camera.checkCollisions = true;
+
+			camera.ellipsoid = new BABYLON.Vector3(1, 1, 1);
+
+			camera.minZ = 0.45;
+			camera.speed = 0.25;
+			camera.angularSensibility = 4000;
+
+			camera.keysUp.push(87);
+			camera.keysLeft.push(65);
+			camera.keysDown.push(83);
+			camera.keysRight.push(68);
+			
+			if (add_light){
+				var light = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
+				light.intensity=3;
+				}
+
+			scene.clearColor = new BABYLON.Color3(0.2, 0.3, 0.4);
+			if (debug_scene) {
+				scene.debugLayer.show();
+				}
+            return scene;
+        }
+	
+		//receives the events to switch galleries
+		let galleryManager=async function (evt){ 
+				console.log(evt);
+
+				//assets should not be removed at boot up
+				if (galleries[current_gallery]!=undefined){
+					galleries[current_gallery].removeAllFromScene();
+				}
+				
+				//the current gallery is updated with the user choice
+				current_gallery=evt.source.id;
+				current_gallery_file=current_gallery.replace(regul_exp_tail,"");
+				current_gallery_file=current_gallery_file.replace(regul_exp_door, "");
+				
+				//the new gallery assets are loaded unless they are already in memory
+				if (galleries[current_gallery]==undefined){
+					galleries[current_gallery]=await loadAsset(current_gallery_file + ".glb", scene);
+				}
+				galleries[current_gallery].addAllToScene();
+				
+				//reset camera position
+				scene.cameras[0].position=new BABYLON.Vector3(0, 2, 0);
+				
+				//locate doors to setup the action manager
+				gallery_doors=[];
+				scene.meshes.map((mesh) => {
+					mesh.checkCollisions = true;
+					if (regul_exp_door.test(mesh.name)){
+						gallery_doors.push(mesh.name);
+					}
+					});
+					
+				for (const door of gallery_doors){
+					console.log('action manager de '+ door);
+					
+					scene.getMeshByName(door).actionManager = new BABYLON.ActionManager();
+					scene.getMeshByName(door).actionManager.registerAction(new BABYLON.ExecuteCodeAction(
+									BABYLON.ActionManager.OnPickTrigger, galleryManager	));
+				}
+		}
+		
+		// MAIN CODE /////////////////////////////////////
+		//read json file
+		let response = await fetch (config_file_name);
+		config_file_content = await response.json();
+		galleries=Object.keys(config_file_content);
+
+		window.engine = await asyncEngineCreation();
+		if (!engine) throw 'engine should not be null.';
+		startRenderLoop(engine, canvas);
+		
+		//crete the scene
+		window.current_gallery="root"
+		scene=createScene();
+		const framesPerSecond = 60;
+		const gravity = -9.81;
+		scene.gravity = new BABYLON.Vector3(0, gravity / framesPerSecond, 0);
+		scene.collisionsEnabled = true;
+
+		
+	
+		//trigger a dummy event to render the root gallery
+		let evt={source:{id:"d_root"}};
+		evt.source.id="d_root"
+		await galleryManager(evt);
+		
+	}
+	
+	initFunction().then(() => {sceneToRender = scene });
+
+		
+
+	
+	  
+    </script>
+  </body>
+</html>
