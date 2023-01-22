@@ -121,7 +121,10 @@
 					//	total=total*0.75;
 					//}
 					loadedPercent = (evt.loaded * 100 / total).toFixed();
-				} 
+				} else {
+					//assume a 50MB file
+					loadedPercent = (evt.loaded * 100 / 50000000).toFixed();
+					};
 
 				document.getElementById("percentLoaded").innerHTML = `${loadedPercent}%`;
 				document.getElementById("loadingBar").style.width =`${loadedPercent}%`;
