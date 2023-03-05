@@ -55,6 +55,7 @@
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
     <script src="https://code.jquery.com/pep/0.4.3/pep.js"></script>
+	<script src="/vgal/hall_builder/room_builder_aux.js"></script>
   </head>
 
   <body>
@@ -76,6 +77,8 @@
     // user custom variables that you need to modify
 	const asset_location="/";
 	const config_file_name="/building.json";
+	const materials_folder='/vgal/materials';
+	const hallspics_prefix= '/vgal';
 	
 	//user custom variables that are not modified in general
 	const add_light=true;
@@ -133,6 +136,18 @@
 	})
 	
 	
+	}
+	
+	function doesFileExist(urlToFile) {
+		var xhr = new XMLHttpRequest();
+		xhr.open('HEAD', urlToFile, false);
+		xhr.send();
+		 
+		if (xhr.status == "404") {
+			return false;
+		} else {
+			return true;
+		}
 	}
 	
 	window.initFunction = async function() {
@@ -195,11 +210,28 @@
 		//receives the events to switch galleries
 		let galleryManager=async function (evt){ 
 				console.log(evt);
-
-				//assets should not be removed at boot up
-				if (galleries[current_gallery]!=undefined){
-					galleries[current_gallery].removeAllFromScene();
+				
+				//only in the first run
+				if ('first' in evt){
+					console.log('Root gallery booting');
+				} else {
+					//move elements from scene unless previously cached
+					
+					var keepAssets = new BABYLON.KeepAssets();
+					keepAssets.cameras.push(scene.cameras[0]);
+					keepAssets.lights.push(scene.lights[0]);
+					
+					if (galleries[current_gallery]==undefined) {
+						galleries[current_gallery]=new BABYLON.AssetContainer(scene);
+						galleries[current_gallery].moveAllFromScene(keepAssets);
+					} else {
+						//if cached simply drop them
+						//let temp_assetcontainer=new BABYLON.AssetContainer(scene);
+						//temp_assetcontainer.moveAllFromScene(keepAssets);
+						galleries[current_gallery].removeFromScene();
+					}
 				}
+				
 				
 				//the current gallery is updated with the user choice
 				current_gallery=evt.source.id;
@@ -208,9 +240,29 @@
 				
 				//the new gallery assets are loaded unless they are already in memory
 				if (galleries[current_gallery]==undefined){
-					galleries[current_gallery]=await loadAsset(current_gallery_file + ".glb", scene);
+					//check if glb file exists
+					if (doesFileExist(asset_location + current_gallery_file + ".glb")){
+						console.log("Loading glb for gallery " + current_gallery_file);
+						let temp_assetcontainer=await loadAsset(current_gallery_file + ".glb", scene);
+						temp_assetcontainer.addAllToScene();
+					} else {
+						console.log("Building from scratch " + current_gallery_file);
+						rb(config_file_content, current_gallery_file, scene);
+					}
+					
+					
+					
+					
+					//await scene.executeWhenReady(()=>{
+						
+					//});
+					
+				} else {
+					galleries[current_gallery]._wasAddedToScene=false;
+					galleries[current_gallery].addAllToScene();
 				}
-				galleries[current_gallery].addAllToScene();
+				
+				
 				
 				//reset camera position
 				scene.cameras[0].position=new BABYLON.Vector3(0, 2, 0);
@@ -237,7 +289,7 @@
 		//read json file
 		let response = await fetch (config_file_name);
 		config_file_content = await response.json();
-		galleries=Object.keys(config_file_content);
+		//galleries=Object.keys(config_file_content);
 
 		window.engine = await asyncEngineCreation();
 		if (!engine) throw 'engine should not be null.';
@@ -251,11 +303,13 @@
 		scene.gravity = new BABYLON.Vector3(0, gravity / framesPerSecond, 0);
 		scene.collisionsEnabled = true;
 
-		
+		/////luis
+		document.getElementById("loader").style.display = "none";
 	
 		//trigger a dummy event to render the root gallery
 		let evt={source:{id:"d_root"}};
 		evt.source.id="d_root"
+		evt.first=1;
 		await galleryManager(evt);
 		
 	}
