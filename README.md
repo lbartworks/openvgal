@@ -1,9 +1,10 @@
 https://user-images.githubusercontent.com/121262093/217638296-9f3effbe-312f-401f-8c92-5fa71377bc3d.mp4
-# Open Vgal
+# OpenVgal v0.2
 
 
  (Open source Virtual Gallery)
 Virtual 3D gallery for art showcase. Based on Babylon.js
+Update (5 March 2023). ON-the-fly built incorporated. If the .glb objects are not available the code will try to build the hall from scratch based on the images. Of course the images and materials need to be available in the web server.
 
 Open Vgal started in June 2022 as a personal project to provide anyone a way to build a virtual gallery programmatically. What this means is that you do not need to design the hall or halls of the galleries, or deal with the 3D work, or the browser code to move around it if you do not want. You just need to describe the dimensions of the halls and the folders with the artwork images. 
 
