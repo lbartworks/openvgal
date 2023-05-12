@@ -11,7 +11,7 @@
     ],
     "parent": "none",
     "Antartida": {
-      "resource": "Antartida.glb",
+      "resource": "T_Antartida.glb",
       "resource_type": "door",
       "width": 1,
       "height": 2

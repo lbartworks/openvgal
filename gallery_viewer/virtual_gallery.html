@@ -246,8 +246,19 @@
 						let temp_assetcontainer=await loadAsset(current_gallery_file + ".glb", scene);
 						temp_assetcontainer.addAllToScene();
 					} else {
-						console.log("Building from scratch " + current_gallery_file);
-						rb(config_file_content, current_gallery_file, scene);
+					
+						if (doesFileExist(asset_location + "t_" + current_gallery_file + ".glb")){
+							console.log("loading template");
+							let temp_assetcontainer=await loadAsset("t_" + current_gallery_file + ".glb", scene);
+							temp_assetcontainer.addAllToScene();
+							populate_template(config_file_content, current_gallery_file, scene);
+							console.log("template populated");
+							
+							
+						} else {
+							console.log("Building from scratch " + current_gallery_file);
+							rb(config_file_content, current_gallery_file, scene);
+						}
 					}
 					
 					
