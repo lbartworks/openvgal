@@ -1,18 +1,24 @@
 https://user-images.githubusercontent.com/121262093/217638296-9f3effbe-312f-401f-8c92-5fa71377bc3d.mp4
-# OpenVgal v0.2
+# OpenVgal v0.3
 
 
  (Open source Virtual Gallery)
 Virtual 3D gallery for art showcase. Based on Babylon.js
 
+:new: **Update (12 May 2023).** :new: 
+
+An existing .glb template (hall) can now be populated with existing place-holders. This enables high-quality rendering and/or texture baking while the asset remain in the server and are loaded in real time.
+
 :new: **Update (5 March 2023).** :new: 
 
 ON-the-fly built incorporated. If the .glb objects are not available the code will try to build the hall from scratch based on the images. Of course the images and materials need to be available in the web server.
 
+-----------------------------------------
+
 Open Vgal started in June 2022 as a personal project to provide anyone a way to build a virtual gallery programmatically. What this means is that you do not need to design the hall or halls of the galleries, or deal with the 3D work, or the browser code to move around it if you do not want. You just need to describe the dimensions of the halls and the folders with the artwork images. 
 
 A demonstration of the gallery can be seen here:
-https://nostromophoto.com/virtual/virtual_gallery.html
+https://nostromophoto.com/virtual/gallery_viewer/virtual_gallery.html
 
 At the current stage you still need some effort/skills to create it. I hope it gets simplified in the following versions and with the help of the community. This is currently needed to use Vgal:
 -	A web server to host the final virtual gallery/ies
@@ -157,10 +163,8 @@ The gallery viewer is an html page with javascript code to start the babylon eng
 - Swap the scene contents but keep in memory the previous halls for faster interaction if the user returns to previously visited halls.
 
 	
-## Recommended steps to create a gallery:
-
-
-Preparatory work
+## 4. Steps to create a gallery:
+### 4.0 Preparatory work
 1. Organize each of the artwork images for each hall on a different folder. Put all the images (1 Mpix advised) of each hall in one folder. If you do not want to use your own files, I provide a zip file with examples.
 2. Create a spreadsheet (see [example](building.csv)) with the .csv fields and save it. You can follow along with that csv file and the example halls.
 3. Install a local webserver. A simple and light option available in different operative systems is [Devd](https://github.com/cortesi/devd). If you do not want to compile it you can download a portable version [here](https://www.downloadcrew.com/article/33851-devd). Once you download it, uncompress it and place it in some folder you fancy. You can run it from the command line with the command `"devd -ol ."` (the double quotes are not needed). To access the server simply type in your browser http://localhost.
@@ -184,7 +188,9 @@ Json file creation
 	csv_separator=';'
 ```
 
-Hall builder
+In the following steps there are three possible options: to create a fully configured glb file (hall and artwork) with Babylon, to create a glb file (just the hall plus placeholders for the artwork) with some 3D tool, or do not create any glb file and render everything on the fly. The following 3 subsections discuss the 3 options
+
+### 4.1 Hall builder (create a full glb file with babylon)
 
 8. If you do not have a web browser open already, do it and type in http://locahost. Navigate to the hall builder (if you follow along this installation it would be [/vgal/hall_builder/room_processor.html](room_processor.html). Upon loading, if all goes well, the page will inform that 5 halls are created (the root hall and the 4 gallery halls). Their corresponding files will be downloaded. The first javascript section of the html file has some variable to customize the location of the input / output files (see below)
 
@@ -202,26 +208,46 @@ Hall builder
 ```
 13. Optionally you can check with the [babylon sandbox](https://sandbox.babylonjs.com/) that the halls show up as expected.
 
-Visualize the gallery
+### 4.2 Hall template (create a glb hall with placeholders with some 3D tool)
+The previous option comes with some drawbacks like the large size of the glb files and the limitations of Babylon to create scenes compared to other 3D modelling tools like Blender. As an alternative:
+- You can use blender to design a higher quality hall. That can include baked textures for a more efficient way to include complex lighting.
+- You can include placeholders for the artwork. The gallery viewer will retrieve the images and render them in the placeholders
+
+In order to work in the way, this is necessary:
+- The `resource` glb file will need to have the T_ prefix. If the gallery viewer detects a hall resource with such prefix it will not include any element or material except the textures of the placeholders
+- The placeholders will need to be named using the same criterion of option 4.2 (ImageName + "_" + number)
+
+The gallery Antarctica (https://nostromophoto.com/virtual/gallery_viewer/virtual_gallery.html) has been generated in this way. You can also check the blender file with python code to create the hall and placeholders. Notice that you would need to manually bake the textures. This options is only advised for seasoned Blender users.
+
+### 4.3 On the fly creation (no glb file)
+The third and easiest option is to simply skip steps 4.1 and 4.2 and DO NOT create a glb file. The gallery_viewer will create the hall on the fly completely using the information from the json file. 
+
+The galleries "Pakistan" and "PeruBolivia" are created in this way. Notice that the images (your artwork) will need to be uploaded into the server. You will need to configure the header parameters in the `gallery_viewer.html` file.
+
+### 4.4 Visualize the gallery
 
 12. Open another web browser tab and go to http://localhost/vgal/gallery_viewer/virtual_gallery.html. 
 13. Again the first javascript lines contain code with path options in case that the `buliding.json` or the .glb files are placed in a different location.
 14. If all goes well you should be able to navigate the virtual root hall and jump into the additional halls
 
-Upload it to the internet
+### 4.5 Upload it to the internet
 
 15. Finally if you want anyone to see the contents, you will need to make them available into your own managed server or via a hosting service. Notice that the large files may be rejected by some suppliers (I found some have 10 MB size limits for each file).
 
 ## FAQ
 -	Can the items be larger? Currently the width/height comes as a relative factor on a global size hardcoded in javascript (details)
--	Could lights/shadows be incorporated? The best way to do that would be generating the halls with blender and bake (precalculate) the textures. That is in the TODO list.
+-	Could lights/shadows be incorporated? The best way to do that would be generating the halls with blender and bake (precalculate) the textures. 
 
 
 ## TODO
-- [ ] A blender based hall builder with baked textures. I have some starting point without the texture baking.
+- [x] On the fly rendering of the hall and items (pure babylon.js)
+- [x] Hybrid mode where you load a glb with the hall but the items are loaded in real time
+- [x] A blender based hall builder with textures baked manually.
+- [ ] A blender based hall builder with baked textures automated.
 - [ ]	GUI to interactively get all the inputs and get visual feedback of the appearance.
 - [ ]	Customization of materials via input files
 - [ ]	Alternative hall templates, not simply a rectangular hall.
 - [ ]	Better management of mobile devices
 - [ ]	Framing for artwork, titles and information
+- [ ]	Support for VR devices
 -	[ ] Code to detect overlapping artwork or erroneous configurations
