@@ -24,6 +24,7 @@ async function read_styles (filename){
 
 					if(style.materialType === "PBR") {
 						material = new BABYLON.PBRMaterial(style.styleName, scene);
+						material.maxSimultaneousLights = 5;
 						//material.specularColor=new BABYLON.Color3(0,0,0);
 						if (style.textureFiles) {
 							if (style.textureFiles.bump) {
@@ -42,16 +43,17 @@ async function read_styles (filename){
 						}
 					} else {
 						material = new BABYLON.StandardMaterial(style.styleName, scene);
+						material.maxSimultaneousLights = 5;
 						material.specularColor=new BABYLON.Color3(0,0,0);
 						if (style.color) {
 							material.diffuseColor = new BABYLON.Color3.FromHexString(style.color);
 							material.reflectivityColor=new BABYLON.Color3(0,0,0);
 						}
 					}
-					if (style.uvScaling) {
-						material.uScale = style.uvScaling.uScale;
-						material.vScale = style.uvScaling.vScale;
-					}
+					// if (style.uvScaling) {
+						// material.uScale = style.uvScaling.uScale;
+						// material.vScale = style.uvScaling.vScale;
+					// }
 					materials[style.styleName] = material;
 				});
 			});
@@ -76,12 +78,19 @@ async function read_styles (filename){
 			if (!header_material) {
 				console.warn(`Style ${data.chosenStyles.chosenHeaderStyle} not found in materials.`);
 			}
+			style_file_content=data;
 		});
 
 }
 
 var item_builder= function(name, item_position, item_size, vector, material,scene){
+	//every "item" is based on a plane as a base object
+	//some objects have additional elements:
+	// - doors (name start with d_) will have a 3D text in additional
+	// - non architectural elements (artwork) will have a white frameElement
+	
 	var base_vector=new BABYLON.Vector3(0, 0, 0);
+	const north_vector=new BABYLON.Vector3(0, 0, -1);
 	var abstractPlane = BABYLON.Plane.FromPositionAndNormal(base_vector,vector );
 	var item = BABYLON.MeshBuilder.CreatePlane(name, {sourcePlane: abstractPlane, width:item_size.width, height: item_size.height, sideOrientation: BABYLON.Mesh.SINGLESIDE},scene);
 	item.position=new BABYLON.Vector3(item_position.x, item_position.y, item_position.z);
@@ -92,7 +101,7 @@ var item_builder= function(name, item_position, item_size, vector, material,scen
 	}
 	if (name.startsWith("d_")){
 		//create 3d text
-		if (name.toLowerCase() =="d_root"){
+		if (name.toLowerCase().startsWith("d_root")){
 			texto='Entrance';
 		} else {
 			texto=name.replace(/d_(.+)_\d+/, "$1");;
@@ -106,26 +115,52 @@ var item_builder= function(name, item_position, item_size, vector, material,scen
 		//place it
 		myText.position=new BABYLON.Vector3(item_position.x, item_position.y, item_position.z);
 		
-		//rotare
-		let angleRad = Math.atan2(vector.x, vector.z) + Math.PI;
-		myText.rotation.y=angleRad;
+		//rotate
+		var crossProduct = BABYLON.Vector3.Cross(north_vector, vector);
+		let angle=Math.acos(BABYLON.Vector3.Dot(north_vector, vector)) * Math.sign(crossProduct.y);;
+		myText.rotate(BABYLON.Axis.Y, angle  , BABYLON.Space.LOCAL);
 		
 		//assign material
 		myText.material = header_material;
+		
 		// myText.material.albedoColor=new BABYLON.Color3(0.3,0.3,0.3);
 		// myText.material.reflectivityColor=new BABYLON.Color3(0,0,0);
+	}
+	else {
+		let setOfStrings = ["wall_n", "wall_s", "wall_e", "wall_w", "floor", "ceiling"];
+
+	if (!setOfStrings.includes(name)){
+
+		// Create the box at the position of the base vector with the plane's rotation
+		let item2 = BABYLON.MeshBuilder.CreateBox("box" +name, {
+			size: 1, 
+			updatable: true
+		}, scene);
+
+		// Set the position, rotation and scale of the box
+		item2.position = new BABYLON.Vector3(item_position.x, item_position.y, item_position.z).add(vector.scale(-item_separation/2-0.001));
+		item2.rotate(BABYLON.Axis.Y,  Math.acos(BABYLON.Vector3.Dot(vector, north_vector)), BABYLON.Space.LOCAL);
+		item2.scaling = new BABYLON.Vector3(item_size.width+margin, item_size.height+margin, item_separation); // Set the box's scaling, replace `thickness` with your desired thickness
+		
+		//check if the mesh that merges all the frames is already created
+		let existing_frame_object=scene.getMeshByName('frames');
+		if (existing_frame_object){
+			var merged_mesh = BABYLON.Mesh.MergeMeshes([existing_frame_object, item2], true);
+			merged_mesh.name="frames";
+		} else {
+			item2.name="frames";
+		}
+
+	}
+
+
 	}
 	return item
 }
 
 function populate_template(config_file, room_name,scene){
-	// init
-	
-	//customizable parameters of the construction
-	let door_height=3;		// dimensions of the door to the parent gallery
-	let door_width=2;
-	let item_separation=0.1; //this prevents that items and walls are co-planar		
-	let item_size=2;		 //parameter controlling the scale of the items
+
+    let item_size=config_file["Technical"]["scaleFactor"];		 //parameter controlling the scale of the items
 	
 	const vector_n=new BABYLON.Vector3(0, 0, -1);
 	const vector_s=new BABYLON.Vector3(0, 0, 1);
@@ -144,7 +179,6 @@ function populate_template(config_file, room_name,scene){
 	let NW=config_file[room_name]["geometry"][5];
 	let NE=config_file[room_name]["geometry"][6];
 
-	with_door=true;
 	var items_material=new Array(NN+NS+NW+NE);
 	var item_names=new Array(NN+NS+NW+NE);
 	var item_width=new Array(NN+NS+NW+NE);
@@ -154,17 +188,10 @@ function populate_template(config_file, room_name,scene){
 	
 	//the root gallery has some differences with any other gallery
 	for (k=2; k<dict_items.length; k++){
+
 		items_material[k-2]=new BABYLON.StandardMaterial("item_mat"+k);
 		items_material[k-2].specularColor=new BABYLON.Color3(0,0,0);
-		if (room_name=='root'){
-			//only doors
-			let tex=new BABYLON.DynamicTexture("DynamicTexture", {width:500, height:300}, scene, false);
-			items_material[k-2].diffuseTexture=tex;
-			tex.drawText(dict_items[k], null, null, font, "#000000", "#ffffff", true);
-			item_vposition=door_height/2;
-			item_names[k-2]="d_" + dict_items[k] + "_";
-			with_door=false;
-		} else {
+		if ( config_file[room_name][dict_items[k]]["resource_type"]=='image'){
 			
 			let tex=new BABYLON.Texture(hallspics_prefix + config_file[room_name][dict_items[k]]["resource"]);
 			items_material[k-2].diffuseTexture=tex;
@@ -185,9 +212,9 @@ function populate_template(config_file, room_name,scene){
 	// console.log(item_names);
 	for (var i in scene.meshes) {
 		scene.meshes[i].checkCollisions = true;
-			// if (regex.test(scene.meshes[i].name)) {
-				// scene.meshes[i].material=items_material[i];
-			// }
+			 if (regex.test(scene.meshes[i].name)) {
+				scene.meshes[i].material=items_material[i];
+			 }
 	}
 	
 	//door
@@ -205,10 +232,7 @@ function populate_template(config_file, room_name,scene){
 function rb(config_file, room_name, scene) {
 
         //customizable parameters of the construction
-		let door_height=3;		// dimensions of the door to the parent gallery
-        let door_width=2;
-		let item_separation=0.1; //this prevents that items and walls are co-planar		
-        let item_size=3;		 //parameter controlling the scale of the items
+        let item_size=config_file["Technical"]["scaleFactor"];		 //parameter controlling the scale of the items
 		
 		const vector_n=new BABYLON.Vector3(0, 0, -1);
         const vector_s=new BABYLON.Vector3(0, 0, 1);
@@ -221,7 +245,7 @@ function rb(config_file, room_name, scene) {
 		let H=config_file[room_name]["geometry"][2];
   
 
-		let item_vposition= 1+item_size/2; // vertical position
+		//let item_vposition= 1+item_size/2; // vertical position
 
         let NN=config_file[room_name]["geometry"][3];
         let NS=config_file[room_name]["geometry"][4];
@@ -251,12 +275,11 @@ function rb(config_file, room_name, scene) {
 		//the root gallery has some differences with any other gallery
 		//k=0 and 1 are the geometry and parent.
 		for (k=2; k<dict_items.length; k++){
-			
-			if (room_name=='root'){
+			resource_type=config_file[room_name][dict_items[k]]["resource_type"]
+			if (resource_type=='door'){
 				items_material[k-2]=root_doorMaterial;
-				item_vposition=door_height/2;
 				item_names[k-2]="d_" + dict_items[k] + "_";
-				with_door=false;
+				
 			} else {
 				items_material[k-2]=new BABYLON.StandardMaterial("item_mat"+k);
 				let tex=new BABYLON.Texture(hallspics_prefix + config_file[room_name][dict_items[k]]["resource"]);
@@ -292,54 +315,44 @@ function rb(config_file, room_name, scene) {
         //crate west wall
         let west_wall=item_builder("wall_w",{x:W/2, y:H/2, z:0}, {width:L, height:H}, vector_w, concrete,scene);
        
-        if (with_door){
-            door=item_builder("d_root",{x:0, y:door_height/2, z:L/2-item_separation}, {width:door_width, height:door_height}, vector_n, root_doorMaterial,scene);
-
-        }
-
 
         //place user items
         j=0;
-        //north
-        if (with_door){
-                if (NN%2 ==0){
-                    NR=NN/2;
-                    NL=NN/2;
-                } else {
-                    NR=Math.floor(NN/2);
-                    NL=Math.ceil(NN/2);
-                }
-                for (i=1; i<=NL; i++){
-                    //place left
-                    delta=(W/2-door_width/2)/(NL+1);
-                    item=item_builder(item_names[j] + j,{x:-W/2+delta*i, y:item_vposition, z:L/2-item_separation}, {width:item_size*item_width[j], height:item_size*item_height[j]}, vector_n, items_material[j], scene);
-                    j++;
-                }
 
-                for (i=1; i<=NR; i++){
-                    //place right
-                    delta=(W/2-door_width/2)/(NR+1);
-                    item=item_builder(item_names[j] + j,{x:W/2-delta*i, y:item_vposition, z:L/2-item_separation}, {width:item_size*item_width[j], height:item_size*item_height[j]}, vector_n, items_material[j], scene);                    
-                    j++;
-                }
-
-            } else {
-                    for (i=1; i<=NN; i++){
-                        //place north
-                        delta=W/(NN+1);
-                        item=item_builder(item_names[j] + j,{x:-W/2+delta*i, y:item_vposition, z:L/2-item_separation}, {width:item_size*item_width[j], height:item_size*item_height[j]}, vector_n, items_material[j], scene); 
-                        j++;
-                    }
+		
 
 
-            }
-
-
+		//north
+		for (i=1; i<=NN; i++){
+			//place left
+			delta=W/(NN+1);
+			if (item_names[j].startsWith("d_")){
+				item_vposition=door_height/2;
+				scaled_width=door_width;
+				scaled_height=door_height;
+			} else {
+				item_vposition=H*config_file["Technical"]["verticalPosition"];
+				scaled_width=item_size*item_width[j];
+				scaled_height=item_size*item_height[j];
+			}
+			item=item_builder(item_names[j] + j,{x:-W/2+delta*i, y:item_vposition, z:L/2-item_separation}, {width:scaled_width, height:scaled_height}, vector_n, items_material[j], scene);
+			j++;
+		}
+			
         //south
         for (i=1; i<=NS; i++){
             //place south
             delta=W/(NS+1);
-            item=item_builder(item_names[j] + j,{x:-W/2+delta*i, y:item_vposition, z:-L/2+item_separation}, {width:item_size*item_width[j], height:item_size*item_height[j]}, vector_s, items_material[j], scene); 
+			if (item_names[j].startsWith("d_")){
+				item_vposition=door_height/2;
+				scaled_width=door_width;
+				scaled_height=door_height;
+			} else {
+				item_vposition=H*config_file["Technical"]["verticalPosition"];
+				scaled_width=item_size*item_width[j];
+				scaled_height=item_size*item_height[j];
+			}
+            item=item_builder(item_names[j] + j,{x:-W/2+delta*i, y:item_vposition, z:-L/2+item_separation}, {width:scaled_width, height:scaled_height}, vector_s, items_material[j], scene); 
             j++;
         }        
 
@@ -347,17 +360,36 @@ function rb(config_file, room_name, scene) {
         for (i=1; i<=NE; i++){
             //place east
             delta=L/(NE+1);
-            item=item_builder(item_names[j] + j,{x:-W/2+item_separation, y:item_vposition, z:-L/2+delta*i}, {width:item_size*item_width[j], height:item_size*item_height[j]}, vector_e, items_material[j], scene); 
+			if (item_names[j].startsWith("d_")){
+				item_vposition=door_height/2;
+				scaled_width=door_width;
+				scaled_height=door_height;
+			} else {
+				item_vposition=H*config_file["Technical"]["verticalPosition"];
+				scaled_width=item_size*item_width[j];
+				scaled_height=item_size*item_height[j];
+			}
+            item=item_builder(item_names[j] + j,{x:-W/2+item_separation, y:item_vposition, z:-L/2+delta*i}, {width:scaled_width, height:scaled_height}, vector_e, items_material[j], scene); 
             j++;
         }   
         //west
         for (i=1; i<=NW; i++){
             //place west
             delta=L/(NW+1);
-            item=item_builder(item_names[j] + j,{x:W/2-item_separation, y:item_vposition, z:-L/2+delta*i}, {width:item_size*item_width[j], height:item_size*item_height[j]}, vector_w, items_material[j], scene); 
+			if (item_names[j].startsWith("d_")){
+				item_vposition=door_height/2;
+				scaled_width=door_width;
+				scaled_height=door_height;
+			} else {
+				item_vposition=H*config_file["Technical"]["verticalPosition"];
+				scaled_width=item_size*item_width[j];
+				scaled_height=item_size*item_height[j];
+			}
+            item=item_builder(item_names[j] + j,{x:W/2-item_separation, y:item_vposition, z:-L/2+delta*i}, {width:scaled_width, height:scaled_height}, vector_w, items_material[j], scene); 
             j++;
         }   
 		
-
+		//adjust uvscale
+		auto_uv_scale(room_name);
     }
 	

@@ -55,7 +55,6 @@
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
     <script src="https://code.jquery.com/pep/0.4.3/pep.js"></script>
-	<script src="/vgal/hall_builder/room_builder_aux.js"></script>
 	<script src="https://unpkg.com/earcut@2.1.1/dist/earcut.min.js">
   </head>
 
@@ -79,13 +78,22 @@
 	const materials_folder='/vgal/materials';
 	const hallspics_prefix= '/vgal';
 	
-
+	const aux_javascript= '/vgal/hall_builder/room_builder_aux.js';
+	// -------------------------------------------------------
+	
+	
+	var script = document.createElement('script');
+	script.src = aux_javascript;
+	document.body.appendChild(script);
 	
 	//user custom variables that are not modified in general
 	const add_light=true;
 	const debug_scene=true;
 	const with_ceiling = true;
-	const light_intensity=25;
+	const margin=0.2; 			//frame margin
+	const item_separation=0.1; 	//separation from the wall
+	const door_height=3; // dimensions of the door to the parent gallery
+	const door_width=2;
 	
 		
 	//program constants
@@ -98,6 +106,7 @@
 	var canvas = document.getElementById("renderCanvas");
 	var sceneToRender = null;
 	let config_file_content;
+	let style_file_content;
 	let fontContent;
 	var galleries=new Object();
 	var scene=null;
@@ -144,6 +153,48 @@
 	})
 	
 	
+	}
+	
+	function reposition_lights(room_name){
+		let L=config_file_content[room_name]["geometry"][1];
+		let H=config_file_content[room_name]["geometry"][2];
+		scene.getLightByName("pointlight").position=new BABYLON.Vector3(0, H-0.5,0);
+		scene.getLightByName("pointlight2").position=new BABYLON.Vector3(0, H-0.5,(L/2)*0.75);
+		scene.getLightByName("pointlight3").position=new BABYLON.Vector3(0, H-0.5,-(L/2)*0.75);
+	}
+	
+	function auto_uv_scale(room_name){
+		let W=config_file_content[room_name]["geometry"][0];
+		let L=config_file_content[room_name]["geometry"][1];
+		let H=config_file_content[room_name]["geometry"][2];
+		
+		//scale floor
+		var material = scene.getMeshByName("floor").material;
+		var floor_style=style_file_content.chosenStyles.chosenFloorStyle;
+		var floor_style_data = style_file_content.styles.floorStyles.find(style => style.styleName === floor_style);
+				
+		// Get all the available textures from the material
+		var textures = material.getActiveTextures();
+
+		// Loop through the textures array
+		for (var i = 0; i < textures.length; i++) {
+			textures[i].uScale=floor_style_data.uvScaling.uScale;
+			textures[i].vScale=floor_style_data.uvScaling.vScale;
+		}
+		
+		//scale walls
+		var material = scene.getMeshByName("wall_n").material;
+		var wall_style=style_file_content.chosenStyles.chosenWallStyle;
+		var wall_style_data = style_file_content.styles.wallStyles.find(style => style.styleName === wall_style);
+				
+		// Get all the available textures from the material
+		var textures = material.getActiveTextures();
+
+		// Loop through the textures array
+		for (var i = 0; i < textures.length; i++) {
+			textures[i].uScale=wall_style_data.uvScaling.uScale;
+			textures[i].vScale=wall_style_data.uvScaling.vScale;
+		}
 	}
 	
 	function doesFileExist(urlToFile) {
@@ -205,13 +256,16 @@
 			
 			if (add_light){
 				var light0 = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
+				var light00 = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, -1, 0), scene);
+
 				var light = new BABYLON.PointLight("pointlight", new BABYLON.Vector3(0, 3, 0), scene);
 				var light2 = new BABYLON.PointLight("pointlight2", new BABYLON.Vector3(0, 3, 4), scene);
 				var light3 = new BABYLON.PointLight("pointlight3", new BABYLON.Vector3(0, 3, -4), scene);
-				light.intensity=light_intensity/100;
-				light.intensity=light_intensity;
-				light2.intensity=light_intensity;
-				light3.intensity=light_intensity;
+				light0.intensity=config_file_content["Technical"]["ambientLight"];
+				light00.intensity=config_file_content["Technical"]["ambientLight"]/2;
+				light.intensity=config_file_content["Technical"]["pointLight"];
+				light2.intensity=config_file_content["Technical"]["pointLight"];
+				light3.intensity=config_file_content["Technical"]["pointLight"];
 				}
 
 			scene.clearColor = new BABYLON.Color3(0.2, 0.3, 0.4);
@@ -229,7 +283,7 @@
 				if ('first' in evt){
 					console.log('Root gallery booting');
 				} else {
-					//move elements from scene unless previously cached
+					//move elements away from scene unless previously cached
 					
 					var keepAssets = new BABYLON.KeepAssets();
 					keepAssets.cameras.push(scene.cameras[0]);
@@ -237,6 +291,7 @@
 					keepAssets.lights.push(scene.lights[1]);
 					keepAssets.lights.push(scene.lights[2]);
 					keepAssets.lights.push(scene.lights[3]);
+					keepAssets.lights.push(scene.lights[4]);
 					
 					if (galleries[current_gallery]==undefined) {
 						galleries[current_gallery]=new BABYLON.AssetContainer(scene);
@@ -252,6 +307,9 @@
 				
 				//the current gallery is updated with the user choice
 				current_gallery=evt.source.id;
+				current_gallery=current_gallery.replace(regul_exp_tail,"");
+				
+				
 				current_gallery_file=current_gallery.replace(regul_exp_tail,"");
 				current_gallery_file=current_gallery_file.replace(regul_exp_door, "");
 				
@@ -275,8 +333,15 @@
 						} else {
 							console.log("Building from scratch " + current_gallery_file);
 							rb(config_file_content, current_gallery_file, scene);
+							//remove the loading bar if visible
+							if (document.getElementById("loader") != undefined){document.getElementById("loader").style.display = "none";}
 						}
 					}
+					
+					//reposition lights
+					reposition_lights(current_gallery_file);
+					
+
 					
 					
 					
@@ -323,6 +388,7 @@
 		config_file_content = await response.json();
 		
 
+
 		//galleries=Object.keys(config_file_content);
 
 		window.engine = await asyncEngineCreation();
@@ -341,11 +407,11 @@
 		await read_styles(styles_file_name);
 
 		/////luis
-		document.getElementById("loader").style.display = "none";
+		
 	
 		//trigger a dummy event to render the root gallery
-		let evt={source:{id:"d_root"}};
-		evt.source.id="d_root"
+		let evt={source:{id:"d_root_1"}};
+		//evt.source.id="d_root"
 		evt.first=1;
 		await galleryManager(evt);
 		
