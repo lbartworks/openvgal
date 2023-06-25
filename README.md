@@ -273,7 +273,8 @@ The galleries "Pakistan" and "PeruBolivia" are created in this way. Notice that 
 - [X]	Customization of materials via input files
 - [ ]	Alternative hall templates, not simply a rectangular hall.
 - [ ]	Better management of mobile devices
-- [ ]	Framing for artwork, titles and information
+- [X]	Framing for artwork
+- [ ]	Titles and information for the artwork
 - [ ]	Support for VR devices
 - [ ] Code to detect overlapping artwork or erroneous configurations
 - [ ] Baking lightmaps
