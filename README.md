@@ -1,9 +1,16 @@
-https://user-images.githubusercontent.com/121262093/217638296-9f3effbe-312f-401f-8c92-5fa71377bc3d.mp4
-# OpenVgal v0.3
+https://github.com/lbartworks/openvgal/assets/121262093/20b033a0-1287-4b3e-b937-0c9155014fa9
+
+
+
+# OpenVgal v0.4
 
 
  (Open source Virtual Gallery)
 Virtual 3D gallery for art showcase. Based on Babylon.js
+
+:new: **Update (25 June 2023).** :new: 
+
+Great visual improvement aspect of automatic galleries. The materials for the walls and floor are now on a style.json file. Less parameters hardwired into the code. More general way to generate the doors, they are one additional item in the north wall. Light position is dynamically adapted to the dimensions of the hall. White frames for the artworks.
 
 :new: **Update (12 May 2023).** :new: 
 
@@ -18,8 +25,7 @@ ON-the-fly built incorporated. If the .glb objects are not available the code wi
 Open Vgal started in June 2022 as a personal project to provide anyone a way to build a virtual gallery programmatically. What this means is that you do not need to design the hall or halls of the galleries, or deal with the 3D work, or the browser code to move around it if you do not want. You just need to describe the dimensions of the halls and the folders with the artwork images. 
 
 A demonstration of the gallery can be seen here:
-https://nostromophoto.com/virtual/gallery_viewer/virtual_gallery.html
-
+[https://nostromophoto.com/virtual/virtual.html](https://nostromophoto.com/virtual/virtual.html)
 At the current stage you still need some effort/skills to create it. I hope it gets simplified in the following versions and with the help of the community. This is currently needed to use Vgal:
 -	A web server to host the final virtual gallery/ies
 -	(optional) A working installation of python to generate the .json file
@@ -112,6 +118,13 @@ Each of the **items** (`item1`, `item2`, etc...) consist of a level 3 dictionary
 }
 ```
 
+At the bottom the file contains a technical section:
+  "Technical": {
+    "ambientLight": 1,
+    "pointLight": 20,
+    "scaleFactor": 3,
+    "verticalPosition": 0.4
+  }
 
 ## 1. Json file creation
 
@@ -144,26 +157,38 @@ Most of the job is done at the `rb(config_file, room_name, scene)` subroutine. I
 ```
 They control the size of the parent doors, as well as a general scale parameter for the items. 
 
-The materials for floor and walls are currently fixed. The textures are available in the repository (/materials folder). Then it will go through all the items in the hall (doors or artworks) and will create planes with one of these two materials:
+The materials for floor and walls are read from the styles.json. The textures are available in the repository (/materials folder). Then it will go through all the items in the hall (doors or artworks) and will create planes with one of these two materials:
 - a plain color + text for the doors
 - a texture with the images of the artwork
 
 All the halls, except the root one, will have an additional item always: the door to get back to their parent hall.
 
 Depending on the size of the halls and the number of them, there may be some issues with the file size or the memory usage. Halls of less than 50 images (1M pix resolution aprox) have worked well so far. 
+Notice that with the addition of "on-the-fly" generation the role of the gallery builder is secondary. See next section.
 
 
 ## 3. Gallery viewer
 
 The gallery viewer is an html page with javascript code to start the babylon engine and handle the following tasks:
-- Read the `building.json` file and pull up the root hall from a web server
+- Read the `building.json` file and create the root hall. For the root hall, or any other hall:
+	- 	First it will try to to pull from the server a glb file with the name of the "resoure" field
+ 	- 	If it does not exist, it will try to pull up a glb file with a template version ("T_" prefix) of the "resource" field
+  	-	If none exist is will generate it on the fly 	 
 - Creaate a kebyboard controller and camera to navigate the galleries in a first-person shooter style. You can rotate with the mouse and move in the four directions with the arrow keys.
 - Create an event listener for each door in a hall. When the visitor hovers on those doors the mouse icon changes. The user can teleport from one hall to another by clicking on the door
 - If the user chooses another hall, the code pulls up in the background the .glb file and show a progress bar screen.
 - Swap the scene contents but keep in memory the previous halls for faster interaction if the user returns to previously visited halls.
 
-	
-## 4. Steps to create a gallery:
+The glb files can be generated with the Gallery builder or any other software. In the latter case, you need to follow this convention:
+- If the glb file is a full gallery (no "T_" prefix), the mesh representing the door will have a name with the form "d_XXX", where XXX is the hall to which the door takes you (d_root for the main hall)
+- If the glb file is a template gallery, i.e. it only misses the textures of the artworks:
+	- you must create a door mesh and name is as in the previous point
+  	- you must identify the planes where to put the textures by naming them YYYYYY_N, where "YYYYYY" will be the name of the resource (image name) and "N" a sequence number.
+
+The gallery shown on the video or in my website has one main (root) hall created in Blender and with all textures baked. The other 6 galleries are generated on the fly. I also have a template GLB file created with Blender (not updated in this repo yet).
+
+ 
+## 4. Steps to create a gallery: (This is a tutorial from v0.1, some aspects may need some review).
 ### 4.0 Preparatory work
 1. Organize each of the artwork images for each hall on a different folder. Put all the images (1 Mpix advised) of each hall in one folder. If you do not want to use your own files, I provide a zip file with examples.
 2. Create a spreadsheet (see [example](building.csv)) with the .csv fields and save it. You can follow along with that csv file and the example halls.
@@ -245,9 +270,10 @@ The galleries "Pakistan" and "PeruBolivia" are created in this way. Notice that 
 - [x] A blender based hall builder with textures baked manually.
 - [ ] A blender based hall builder with baked textures automated.
 - [ ]	GUI to interactively get all the inputs and get visual feedback of the appearance.
-- [ ]	Customization of materials via input files
+- [X]	Customization of materials via input files
 - [ ]	Alternative hall templates, not simply a rectangular hall.
 - [ ]	Better management of mobile devices
 - [ ]	Framing for artwork, titles and information
 - [ ]	Support for VR devices
--	[ ] Code to detect overlapping artwork or erroneous configurations
+- [ ] Code to detect overlapping artwork or erroneous configurations
+- [ ] Baking lightmaps
