@@ -24,6 +24,7 @@ async function read_styles (filename){
 
 					if(style.materialType === "PBR") {
 						material = new BABYLON.PBRMaterial(style.styleName, scene);
+						material.freeze(); //test code
 						material.maxSimultaneousLights = 5;
 						//material.specularColor=new BABYLON.Color3(0,0,0);
 						if (style.textureFiles) {
@@ -43,6 +44,7 @@ async function read_styles (filename){
 						}
 					} else {
 						material = new BABYLON.StandardMaterial(style.styleName, scene);
+						material.freeze();
 						material.maxSimultaneousLights = 5;
 						material.specularColor=new BABYLON.Color3(0,0,0);
 						if (style.color) {
@@ -127,31 +129,31 @@ var item_builder= function(name, item_position, item_size, vector, material,scen
 		// myText.material.reflectivityColor=new BABYLON.Color3(0,0,0);
 	}
 	else {
-		let setOfStrings = ["wall_n", "wall_s", "wall_e", "wall_w", "floor", "ceiling"];
+		let setOfStrings = ["wall_n", "wall_s", "wall_e", "wall_w", "floor", "ceiling", "Cube"];
 
-	if (!setOfStrings.includes(name)){
+		if (!setOfStrings.includes(name)){
 
-		// Create the box at the position of the base vector with the plane's rotation
-		let item2 = BABYLON.MeshBuilder.CreateBox("box" +name, {
-			size: 1, 
-			updatable: true
-		}, scene);
+			// Create the box at the position of the base vector with the plane's rotation
+			let item2 = BABYLON.MeshBuilder.CreateBox("box" +name, {
+				size: 1, 
+				updatable: true
+			}, scene);
 
-		// Set the position, rotation and scale of the box
-		item2.position = new BABYLON.Vector3(item_position.x, item_position.y, item_position.z).add(vector.scale(-item_separation/2-0.001));
-		item2.rotate(BABYLON.Axis.Y,  Math.acos(BABYLON.Vector3.Dot(vector, north_vector)), BABYLON.Space.LOCAL);
-		item2.scaling = new BABYLON.Vector3(item_size.width+margin, item_size.height+margin, item_separation); // Set the box's scaling, replace `thickness` with your desired thickness
-		
-		//check if the mesh that merges all the frames is already created
-		let existing_frame_object=scene.getMeshByName('frames');
-		if (existing_frame_object){
-			var merged_mesh = BABYLON.Mesh.MergeMeshes([existing_frame_object, item2], true);
-			merged_mesh.name="frames";
-		} else {
-			item2.name="frames";
+			// Set the position, rotation and scale of the box
+			item2.position = new BABYLON.Vector3(item_position.x, item_position.y, item_position.z).add(vector.scale(-item_separation/2-0.001));
+			item2.rotate(BABYLON.Axis.Y,  Math.acos(BABYLON.Vector3.Dot(vector, north_vector)), BABYLON.Space.LOCAL);
+			item2.scaling = new BABYLON.Vector3(item_size.width+margin, item_size.height+margin, item_separation); 
+			
+			//check if the mesh that merges all the frames is already created
+			let existing_frame_object=scene.getMeshByName('frames');
+			if (existing_frame_object){
+				var merged_mesh = BABYLON.Mesh.MergeMeshes([existing_frame_object, item2], true);
+				merged_mesh.name="frames";
+			} else {
+				item2.name="frames";
+			}
+
 		}
-
-	}
 
 
 	}
@@ -190,6 +192,7 @@ function populate_template(config_file, room_name,scene){
 	for (k=2; k<dict_items.length; k++){
 
 		items_material[k-2]=new BABYLON.StandardMaterial("item_mat"+k);
+		items_material[k-2].freeze();
 		items_material[k-2].specularColor=new BABYLON.Color3(0,0,0);
 		if ( config_file[room_name][dict_items[k]]["resource_type"]=='image'){
 			
@@ -206,26 +209,28 @@ function populate_template(config_file, room_name,scene){
 	}
 		
 
-	const regex = /_\d{1,2}$/;
+	const regex = /^(?!d_).*_\d{1,2}$/;
 
 	// console.log(scene.meshes);
 	// console.log(item_names);
 	for (var i in scene.meshes) {
 		scene.meshes[i].checkCollisions = true;
-			 if (regex.test(scene.meshes[i].name)) {
-				scene.meshes[i].material=items_material[i];
-			 }
+			 // if (regex.test(scene.meshes[i].name)) {
+				// scene.meshes[i].material=items_material[i];
+			 // }
 	}
+	
+
 	
 	//door
 	//door material
-	var root_doorMaterial = new BABYLON.StandardMaterial("doorMaterial", scene);
-	var font = "bold " + 48 + "px Arial";
+	// var root_doorMaterial = new BABYLON.StandardMaterial("doorMaterial", scene);
+	// var font = "bold " + 48 + "px Arial";
 
-	root_door_tex=new BABYLON.DynamicTexture("DynamicTexture", {width:500, height:300}, scene, false);
-	root_doorMaterial.diffuseTexture = root_door_tex;
-	root_door_tex.drawText("Entrance", null, null, font, "#000000", "#ffffff", true);
-	door=item_builder("d_root",{x:0, y:door_height/2, z:L/2-item_separation}, {width:door_width, height:door_height}, vector_n, root_doorMaterial, scene);
+	// root_door_tex=new BABYLON.DynamicTexture("DynamicTexture", {width:500, height:300}, scene, false);
+	// root_doorMaterial.diffuseTexture = root_door_tex;
+	// root_door_tex.drawText("Entrance", null, null, font, "#000000", "#ffffff", true);
+	// door=item_builder("d_root",{x:0, y:door_height/2, z:L/2-item_separation}, {width:door_width, height:door_height}, vector_n, root_doorMaterial, scene);
 }	
 
 

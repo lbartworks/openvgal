@@ -55,7 +55,7 @@
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
     <script src="https://code.jquery.com/pep/0.4.3/pep.js"></script>
-	<script src="https://unpkg.com/earcut@2.1.1/dist/earcut.min.js">
+	<script src="https://unpkg.com/earcut@2.1.1/dist/earcut.min.js"></script>
   </head>
 
   <body>
@@ -88,7 +88,7 @@
 	
 	//user custom variables that are not modified in general
 	const add_light=true;
-	const debug_scene=true;
+	const debug_scene=false;
 	const with_ceiling = true;
 	const margin=0.2; 			//frame margin
 	const item_separation=0.1; 	//separation from the wall
@@ -243,7 +243,7 @@
 			camera.applyGravity = true;
 			camera.checkCollisions = true;
 
-			camera.ellipsoid = new BABYLON.Vector3(1, 1, 1);
+			camera.ellipsoid = new BABYLON.Vector3(1, 1.2, 1);
 
 			camera.minZ = 0.45;
 			camera.speed = 0.25;
@@ -257,6 +257,7 @@
 			if (add_light){
 				var light0 = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
 				var light00 = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, -1, 0), scene);
+
 
 				var light = new BABYLON.PointLight("pointlight", new BABYLON.Vector3(0, 3, 0), scene);
 				var light2 = new BABYLON.PointLight("pointlight2", new BABYLON.Vector3(0, 3, 4), scene);
@@ -358,7 +359,7 @@
 				
 				
 				//reset camera position
-				scene.cameras[0].position=new BABYLON.Vector3(0, 2, 0);
+				scene.cameras[0].position=new BABYLON.Vector3(0, 2.4, 0);
 				
 				//locate doors to setup the action manager
 				gallery_doors=[];

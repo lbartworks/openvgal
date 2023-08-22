@@ -3,49 +3,67 @@
     "geometry": [
       20,
       20,
-      4,
-      1,
-      1,
-      1,
-      1
+      6,
+      0,
+      0,
+      3,
+      3
     ],
     "parent": "none",
-    "Antartida": {
-      "resource": "T_Antartida.glb",
+    "Antarctica": {
+      "resource": "Antarctica.glb",
       "resource_type": "door",
-      "width": 1,
-      "height": 2
+      "width": 2,
+      "height": 3
     },
     "PeruBolivia": {
       "resource": "PeruBolivia.glb",
       "resource_type": "door",
-      "width": 1,
-      "height": 2
+      "width": 2,
+      "height": 3
     },
     "Africa": {
       "resource": "Africa.glb",
       "resource_type": "door",
-      "width": 1,
-      "height": 2
+      "width": 2,
+      "height": 3
     },
     "Pakistan": {
       "resource": "Pakistan.glb",
       "resource_type": "door",
-      "width": 1,
-      "height": 2
+      "width": 2,
+      "height": 3
+    },
+    "Argentina": {
+      "resource": "Argentina.glb",
+      "resource_type": "door",
+      "width": 2,
+      "height": 3
+    },
+    "DeconstructedImages": {
+      "resource": "DeconstructedImages.glb",
+      "resource_type": "door",
+      "width": 2,
+      "height": 3
     }
   },
-  "Antartida": {
+  "Antarctica": {
     "geometry": [
-      25,
-      40,
-      4,
-      3,
-      5,
-      7,
-      7
+      50,
+      80,
+      6,
+      10,
+      9,
+      20,
+      20
     ],
     "parent": "root",
+    "AdeliePenguin": {
+      "resource": "/gallery1/AdeliePenguin.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
     "AdeliePenguin2": {
       "resource": "/gallery1/AdeliePenguin2.jpg",
       "resource_type": "image",
@@ -63,6 +81,12 @@
       "resource_type": "image",
       "width": "1.00",
       "height": "0.67"
+    },
+    "root": {
+      "resource": "root.glb",
+      "resource_type": "door",
+      "width": "2.00",
+      "height": "3.00"
     },
     "AdeliesSalto2": {
       "resource": "/gallery1/AdeliesSalto2.jpg",
@@ -82,44 +106,26 @@
       "width": "1.00",
       "height": "1.00"
     },
-    "AlbatrosColony": {
-      "resource": "/gallery1/AlbatrosColony.jpg",
-      "resource_type": "image",
-      "width": "0.67",
-      "height": "1.00"
-    },
-    "AlbatrosNido": {
-      "resource": "/gallery1/AlbatrosNido.jpg",
+    "AlbatrosPareja2": {
+      "resource": "/gallery1/AlbatrosPareja2.jpg",
       "resource_type": "image",
       "width": "1.00",
       "height": "0.67"
     },
-    "Amanecer": {
-      "resource": "/gallery1/Amanecer.jpg",
+    "AlbatrosViento2": {
+      "resource": "/gallery1/AlbatrosViento2.jpg",
       "resource_type": "image",
       "width": "1.00",
-      "height": "0.57"
+      "height": "0.67"
+    },
+    "AlbatrosVuelo": {
+      "resource": "/gallery1/AlbatrosVuelo.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.55"
     },
     "BarcaLagoFagnano": {
       "resource": "/gallery1/BarcaLagoFagnano.jpg",
-      "resource_type": "image",
-      "width": "1.00",
-      "height": "0.67"
-    },
-    "BarcaLagoFagnano2": {
-      "resource": "/gallery1/BarcaLagoFagnano2.jpg",
-      "resource_type": "image",
-      "width": "1.00",
-      "height": "0.67"
-    },
-    "Barco": {
-      "resource": "/gallery1/Barco.jpg",
-      "resource_type": "image",
-      "width": "1.00",
-      "height": "0.67"
-    },
-    "CapePetrels": {
-      "resource": "/gallery1/CapePetrels.jpg",
       "resource_type": "image",
       "width": "1.00",
       "height": "0.67"
@@ -154,26 +160,254 @@
       "width": "1.00",
       "height": "0.67"
     },
-    "Colonia": {
-      "resource": "/gallery1/Colonia.jpg",
-      "resource_type": "image",
-      "width": "1.00",
-      "height": "0.67"
-    },
-    "Colony": {
-      "resource": "/gallery1/Colony.jpg",
-      "resource_type": "image",
-      "width": "1.00",
-      "height": "0.67"
-    },
     "Crabeaterseal2": {
       "resource": "/gallery1/Crabeaterseal2.jpg",
       "resource_type": "image",
       "width": "1.00",
       "height": "0.67"
     },
-    "Detalle": {
-      "resource": "/gallery1/Detalle.jpg",
+    "ElefanteMarinoFrontal": {
+      "resource": "/gallery1/ElefanteMarinoFrontal.jpg",
+      "resource_type": "image",
+      "width": "0.67",
+      "height": "1.00"
+    },
+    "ElefanteMarinoHerido": {
+      "resource": "/gallery1/ElefanteMarinoHerido.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Espejo2": {
+      "resource": "/gallery1/Espejo2.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Fiordo": {
+      "resource": "/gallery1/Fiordo.jpg",
+      "resource_type": "image",
+      "width": "0.67",
+      "height": "1.00"
+    },
+    "FocaHerida": {
+      "resource": "/gallery1/FocaHerida.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "GlaciarDrygalski": {
+      "resource": "/gallery1/GlaciarDrygalski.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "GlaciarPetrel": {
+      "resource": "/gallery1/GlaciarPetrel.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "GlaciarReflejo": {
+      "resource": "/gallery1/GlaciarReflejo.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "GrytvikenBarco": {
+      "resource": "/gallery1/GrytvikenBarco.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "GrytvikenBarcos": {
+      "resource": "/gallery1/GrytvikenBarcos.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "GrytvikenChatarra2": {
+      "resource": "/gallery1/GrytvikenChatarra2.jpg",
+      "resource_type": "image",
+      "width": "0.67",
+      "height": "1.00"
+    },
+    "GrytvikenChatarra3": {
+      "resource": "/gallery1/GrytvikenChatarra3.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "GrytvikenChatarra4": {
+      "resource": "/gallery1/GrytvikenChatarra4.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "GrytvikenChatarra5": {
+      "resource": "/gallery1/GrytvikenChatarra5.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Halo2": {
+      "resource": "/gallery1/Halo2.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Hielo2": {
+      "resource": "/gallery1/Hielo2.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "iceberg": {
+      "resource": "/gallery1/iceberg.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Iceberg3": {
+      "resource": "/gallery1/Iceberg3.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "IcebergDetalle": {
+      "resource": "/gallery1/IcebergDetalle.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "IcebergDetalle2": {
+      "resource": "/gallery1/IcebergDetalle2.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "IcebergDetalle4": {
+      "resource": "/gallery1/IcebergDetalle4.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "IcebergPajaro": {
+      "resource": "/gallery1/IcebergPajaro.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "IcebergPajaros": {
+      "resource": "/gallery1/IcebergPajaros.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.32"
+    },
+    "LarsenHarbour": {
+      "resource": "/gallery1/LarsenHarbour.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "MarHielo": {
+      "resource": "/gallery1/MarHielo.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Nubes2": {
+      "resource": "/gallery1/Nubes2.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Orilla": {
+      "resource": "/gallery1/Orilla.jpg",
+      "resource_type": "image",
+      "width": "0.67",
+      "height": "1.00"
+    },
+    "ParejaRoyal": {
+      "resource": "/gallery1/ParejaRoyal.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.44"
+    },
+    "ParejaRoyal2": {
+      "resource": "/gallery1/ParejaRoyal2.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "PlayaPano": {
+      "resource": "/gallery1/PlayaPano.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.37"
+    },
+    "PuestaSol": {
+      "resource": "/gallery1/PuestaSol.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Quark": {
+      "resource": "/gallery1/Quark.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Royal2": {
+      "resource": "/gallery1/Royal2.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "RoyalPareja2": {
+      "resource": "/gallery1/RoyalPareja2.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Tormenta2": {
+      "resource": "/gallery1/Tormenta2.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Tormenta3": {
+      "resource": "/gallery1/Tormenta3.jpg",
+      "resource_type": "image",
+      "width": "0.67",
+      "height": "1.00"
+    },
+    "Weddel2": {
+      "resource": "/gallery1/Weddel2.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "WildIceberg": {
+      "resource": "/gallery1/WildIceberg.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "WildMar": {
+      "resource": "/gallery1/WildMar.jpg",
+      "resource_type": "image",
+      "width": "0.67",
+      "height": "1.00"
+    },
+    "WildRocas": {
+      "resource": "/gallery1/WildRocas.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "WillisIsland": {
+      "resource": "/gallery1/WillisIsland.jpg",
       "resource_type": "image",
       "width": "1.00",
       "height": "0.67"
@@ -181,13 +415,13 @@
   },
   "PeruBolivia": {
     "geometry": [
-      25,
-      40,
-      4,
-      1,
-      4,
-      8,
-      8
+      35,
+      55,
+      6,
+      7,
+      7,
+      10,
+      10
     ],
     "parent": "root",
     "Altiplano Descanso": {
@@ -208,6 +442,18 @@
       "width": "1.00",
       "height": "0.67"
     },
+    "root": {
+      "resource": "root.glb",
+      "resource_type": "door",
+      "width": "2.00",
+      "height": "3.00"
+    },
+    "CataratasAlcamayoEscarabajoBisBis": {
+      "resource": "/gallery2/CataratasAlcamayoEscarabajoBisBis.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
     "ChivayNina": {
       "resource": "/gallery2/ChivayNina.jpg",
       "resource_type": "image",
@@ -216,6 +462,18 @@
     },
     "ChivayRestaurante": {
       "resource": "/gallery2/ChivayRestaurante.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "ColcaManos": {
+      "resource": "/gallery2/ColcaManos.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "CuscoTorre": {
+      "resource": "/gallery2/CuscoTorre.jpg",
       "resource_type": "image",
       "width": "1.00",
       "height": "0.67"
@@ -238,8 +496,20 @@
       "width": "1.00",
       "height": "0.67"
     },
+    "LagunaVerdeBis": {
+      "resource": "/gallery2/LagunaVerdeBis.jpg",
+      "resource_type": "image",
+      "width": "0.67",
+      "height": "1.00"
+    },
     "LaPazNina": {
       "resource": "/gallery2/LaPazNina.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "LaPazVendedora": {
+      "resource": "/gallery2/LaPazVendedora.jpg",
       "resource_type": "image",
       "width": "1.00",
       "height": "0.67"
@@ -262,8 +532,38 @@
       "width": "1.00",
       "height": "0.67"
     },
+    "MachuTarde": {
+      "resource": "/gallery2/MachuTarde.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "PuntoBaileBis": {
+      "resource": "/gallery2/PuntoBaileBis.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "RocasCamello": {
+      "resource": "/gallery2/RocasCamello.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "RocasHombre": {
+      "resource": "/gallery2/RocasHombre.jpg",
+      "resource_type": "image",
+      "width": "0.67",
+      "height": "1.00"
+    },
     "Sabancaya": {
       "resource": "/gallery2/Sabancaya.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "SalarCoche": {
+      "resource": "/gallery2/SalarCoche.jpg",
       "resource_type": "image",
       "width": "1.00",
       "height": "0.67"
@@ -282,6 +582,18 @@
     },
     "Titicaca": {
       "resource": "/gallery2/Titicaca.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Trenes": {
+      "resource": "/gallery2/Trenes.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "TupizaVicuna": {
+      "resource": "/gallery2/TupizaVicuna.jpg",
       "resource_type": "image",
       "width": "1.00",
       "height": "0.67"
@@ -319,13 +631,13 @@
   },
   "Africa": {
     "geometry": [
-      25,
-      45,
-      4,
-      0,
-      5,
-      11,
-      11
+      35,
+      55,
+      6,
+      7,
+      7,
+      12,
+      12
     ],
     "parent": "root",
     "CanyonRoadhouse": {
@@ -345,6 +657,18 @@
       "resource_type": "image",
       "width": "1.00",
       "height": "0.67"
+    },
+    "root": {
+      "resource": "root.glb",
+      "resource_type": "door",
+      "width": "2.00",
+      "height": "3.00"
+    },
+    "Chobe_RF_elef": {
+      "resource": "/gallery3/Chobe_RF_elef.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.30"
     },
     "Chobe_RF_impala": {
       "resource": "/gallery3/Chobe_RF_impala.jpg",
@@ -400,8 +724,26 @@
       "width": "1.00",
       "height": "0.67"
     },
+    "KubuPuesta": {
+      "resource": "/gallery3/KubuPuesta.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "KubuPuesta2": {
+      "resource": "/gallery3/KubuPuesta2.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
     "Kubu_noche": {
       "resource": "/gallery3/Kubu_noche.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "mahango_juncos2": {
+      "resource": "/gallery3/mahango_juncos2.jpg",
       "resource_type": "image",
       "width": "1.00",
       "height": "0.67"
@@ -414,6 +756,18 @@
     },
     "savuti_elef2": {
       "resource": "/gallery3/savuti_elef2.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "savuti_elef3": {
+      "resource": "/gallery3/savuti_elef3.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "savuti_leon4": {
+      "resource": "/gallery3/savuti_leon4.jpg",
       "resource_type": "image",
       "width": "1.00",
       "height": "0.67"
@@ -436,6 +790,12 @@
       "width": "0.67",
       "height": "1.00"
     },
+    "sesriem8": {
+      "resource": "/gallery3/sesriem8.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
     "sesriem_deadvlei2": {
       "resource": "/gallery3/sesriem_deadvlei2.jpg",
       "resource_type": "image",
@@ -444,6 +804,12 @@
     },
     "sesriem_deadvlei3": {
       "resource": "/gallery3/sesriem_deadvlei3.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "sesriem_deadvlei4": {
+      "resource": "/gallery3/sesriem_deadvlei4.jpg",
       "resource_type": "image",
       "width": "1.00",
       "height": "0.67"
@@ -466,6 +832,12 @@
       "width": "1.00",
       "height": "0.67"
     },
+    "skeleton5": {
+      "resource": "/gallery3/skeleton5.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
     "skeleton_arena": {
       "resource": "/gallery3/skeleton_arena.jpg",
       "resource_type": "image",
@@ -484,6 +856,12 @@
       "width": "1.00",
       "height": "0.67"
     },
+    "Walvis-sesriem6": {
+      "resource": "/gallery3/Walvis-sesriem6.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
     "Walvis-sesriem7": {
       "resource": "/gallery3/Walvis-sesriem7.jpg",
       "resource_type": "image",
@@ -493,23 +871,53 @@
   },
   "Pakistan": {
     "geometry": [
-      25,
-      45,
-      4,
-      4,
-      4,
-      10,
-      10
+      40,
+      60,
+      6,
+      9,
+      8,
+      14,
+      14
     ],
     "parent": "root",
+    "Askoki Group 2": {
+      "resource": "/gallery4/Askoki Group 2.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
     "Askoli": {
       "resource": "/gallery4/Askoli.jpg",
       "resource_type": "image",
       "width": "1.00",
       "height": "0.67"
     },
+    "Baltoro from Urdukas": {
+      "resource": "/gallery4/Baltoro from Urdukas.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
     "Baltoro Morraine": {
       "resource": "/gallery4/Baltoro Morraine.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "root": {
+      "resource": "root.glb",
+      "resource_type": "door",
+      "width": "2.00",
+      "height": "3.00"
+    },
+    "Baltoro Morraine2": {
+      "resource": "/gallery4/Baltoro Morraine2.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Baltoro Morraine3": {
+      "resource": "/gallery4/Baltoro Morraine3.jpg",
       "resource_type": "image",
       "width": "1.00",
       "height": "0.67"
@@ -532,8 +940,20 @@
       "width": "1.00",
       "height": "0.67"
     },
+    "Broad Glacier": {
+      "resource": "/gallery4/Broad Glacier.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
     "Concordia Clouds": {
       "resource": "/gallery4/Concordia Clouds.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Concordia Storm": {
+      "resource": "/gallery4/Concordia Storm.jpg",
       "resource_type": "image",
       "width": "1.00",
       "height": "0.67"
@@ -592,6 +1012,12 @@
       "width": "1.00",
       "height": "0.67"
     },
+    "Liligo Glacier2": {
+      "resource": "/gallery4/Liligo Glacier2.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
     "Marble Peak": {
       "resource": "/gallery4/Marble Peak.jpg",
       "resource_type": "image",
@@ -600,6 +1026,24 @@
     },
     "Muztagh Glacier": {
       "resource": "/gallery4/Muztagh Glacier.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Paiju Clouds": {
+      "resource": "/gallery4/Paiju Clouds.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Paiju Sunset": {
+      "resource": "/gallery4/Paiju Sunset.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "RoadAskoli": {
+      "resource": "/gallery4/RoadAskoli.jpg",
       "resource_type": "image",
       "width": "1.00",
       "height": "0.67"
@@ -640,8 +1084,26 @@
       "width": "1.00",
       "height": "0.67"
     },
+    "Skardu5": {
+      "resource": "/gallery4/Skardu5.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Tiny figures Baltoro": {
+      "resource": "/gallery4/Tiny figures Baltoro.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
     "Trango Glaciar Morraine": {
       "resource": "/gallery4/Trango Glaciar Morraine.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Trango Towers Jan": {
+      "resource": "/gallery4/Trango Towers Jan.jpg",
       "resource_type": "image",
       "width": "1.00",
       "height": "0.67"
@@ -651,6 +1113,12 @@
       "resource_type": "image",
       "width": "0.67",
       "height": "1.00"
+    },
+    "Uli Biafo Glaciar": {
+      "resource": "/gallery4/Uli Biafo Glaciar.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
     },
     "Vigne Glacier": {
       "resource": "/gallery4/Vigne Glacier.jpg",
@@ -669,6 +1137,468 @@
       "resource_type": "image",
       "width": "1.00",
       "height": "0.67"
+    },
+    "Way to Jhola": {
+      "resource": "/gallery4/Way to Jhola.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Way to Jhola2": {
+      "resource": "/gallery4/Way to Jhola2.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
     }
+  },
+  "Argentina": {
+    "geometry": [
+      35,
+      70,
+      6,
+      9,
+      7,
+      16,
+      16
+    ],
+    "parent": "root",
+    "Buenos Aires 2": {
+      "resource": "/gallery5/Buenos Aires 2.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Buenos Aires 3": {
+      "resource": "/gallery5/Buenos Aires 3.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Buenos Aires Caminito 2": {
+      "resource": "/gallery5/Buenos Aires Caminito 2.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Buenos Aires Caminito 4": {
+      "resource": "/gallery5/Buenos Aires Caminito 4.jpg",
+      "resource_type": "image",
+      "width": "0.67",
+      "height": "1.00"
+    },
+    "root": {
+      "resource": "root.glb",
+      "resource_type": "door",
+      "width": "2.00",
+      "height": "3.00"
+    },
+    "Buenos Aires Caminito": {
+      "resource": "/gallery5/Buenos Aires Caminito.jpg",
+      "resource_type": "image",
+      "width": "0.67",
+      "height": "1.00"
+    },
+    "Buenos Aires": {
+      "resource": "/gallery5/Buenos Aires.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Cardones 2": {
+      "resource": "/gallery5/Cardones 2.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Cardones 3": {
+      "resource": "/gallery5/Cardones 3.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Cardones 4": {
+      "resource": "/gallery5/Cardones 4.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Cardones": {
+      "resource": "/gallery5/Cardones.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "CerroTorre 2": {
+      "resource": "/gallery5/CerroTorre 2.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "CerroTorre 3": {
+      "resource": "/gallery5/CerroTorre 3.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Crucero": {
+      "resource": "/gallery5/Crucero.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Fitz Roy Silueta": {
+      "resource": "/gallery5/Fitz Roy Silueta.jpg",
+      "resource_type": "image",
+      "width": "0.67",
+      "height": "1.00"
+    },
+    "FitzRoy Laguna Sucia": {
+      "resource": "/gallery5/FitzRoy Laguna Sucia.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Glaciar Spegazzini 6": {
+      "resource": "/gallery5/Glaciar Spegazzini 6.jpg",
+      "resource_type": "image",
+      "width": "0.67",
+      "height": "1.00"
+    },
+    "Glaciar Spegazzini 7": {
+      "resource": "/gallery5/Glaciar Spegazzini 7.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Glaciar Spegazzini 8": {
+      "resource": "/gallery5/Glaciar Spegazzini 8.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Glaciar Viedma 4": {
+      "resource": "/gallery5/Glaciar Viedma 4.jpg",
+      "resource_type": "image",
+      "width": "0.67",
+      "height": "1.00"
+    },
+    "Glaciar Viedma": {
+      "resource": "/gallery5/Glaciar Viedma.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Humahuaca 3": {
+      "resource": "/gallery5/Humahuaca 3.jpg",
+      "resource_type": "image",
+      "width": "0.67",
+      "height": "1.00"
+    },
+    "Iguazu Garganta 2": {
+      "resource": "/gallery5/Iguazu Garganta 2.jpg",
+      "resource_type": "image",
+      "width": "0.67",
+      "height": "1.00"
+    },
+    "Iguazu Garganta 3": {
+      "resource": "/gallery5/Iguazu Garganta 3.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Iguazu Garganta": {
+      "resource": "/gallery5/Iguazu Garganta.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Iguazu Hoja": {
+      "resource": "/gallery5/Iguazu Hoja.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Iguazu Hotel": {
+      "resource": "/gallery5/Iguazu Hotel.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Iguazu Inferior": {
+      "resource": "/gallery5/Iguazu Inferior.jpg",
+      "resource_type": "image",
+      "width": "0.67",
+      "height": "1.00"
+    },
+    "Iguazu Lagarto 2": {
+      "resource": "/gallery5/Iguazu Lagarto 2.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Iguazu Lagarto": {
+      "resource": "/gallery5/Iguazu Lagarto.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Iguazu Mariposa 3": {
+      "resource": "/gallery5/Iguazu Mariposa 3.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Iguazu Mariposa 4": {
+      "resource": "/gallery5/Iguazu Mariposa 4.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Iguazu Mariposa": {
+      "resource": "/gallery5/Iguazu Mariposa.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Iguazu Superior 3": {
+      "resource": "/gallery5/Iguazu Superior 3.jpg",
+      "resource_type": "image",
+      "width": "0.67",
+      "height": "1.00"
+    },
+    "Iguazu Superior 6": {
+      "resource": "/gallery5/Iguazu Superior 6.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Iguazu Superior 7": {
+      "resource": "/gallery5/Iguazu Superior 7.jpg",
+      "resource_type": "image",
+      "width": "0.67",
+      "height": "1.00"
+    },
+    "Laguna Cerro Torre Pano": {
+      "resource": "/gallery5/Laguna Cerro Torre Pano.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.72"
+    },
+    "Perito Moreno 3": {
+      "resource": "/gallery5/Perito Moreno 3.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "perito pano": {
+      "resource": "/gallery5/perito pano.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.31"
+    },
+    "perito pano2": {
+      "resource": "/gallery5/perito pano2.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.35"
+    },
+    "Perito Seracs": {
+      "resource": "/gallery5/Perito Seracs.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Purmamarca 2": {
+      "resource": "/gallery5/Purmamarca 2.jpg",
+      "resource_type": "image",
+      "width": "0.67",
+      "height": "1.00"
+    },
+    "Purmamarca 5": {
+      "resource": "/gallery5/Purmamarca 5.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Purmamarca 6": {
+      "resource": "/gallery5/Purmamarca 6.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Purmamarca 7": {
+      "resource": "/gallery5/Purmamarca 7.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.42"
+    },
+    "Purmamarca 8": {
+      "resource": "/gallery5/Purmamarca 8.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.66"
+    },
+    "Purmamarca Coca": {
+      "resource": "/gallery5/Purmamarca Coca.jpg",
+      "resource_type": "image",
+      "width": "0.68",
+      "height": "1.00"
+    },
+    "Salinas Grandes 2": {
+      "resource": "/gallery5/Salinas Grandes 2.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "Salinas Grandes 3": {
+      "resource": "/gallery5/Salinas Grandes 3.jpg",
+      "resource_type": "image",
+      "width": "0.67",
+      "height": "1.00"
+    },
+    "Salinas Grandes Conchi": {
+      "resource": "/gallery5/Salinas Grandes Conchi.jpg",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    }
+  },
+  "DeconstructedImages": {
+    "geometry": [
+      30,
+      40,
+      6,
+      4,
+      4,
+      6,
+      6
+    ],
+    "parent": "root",
+    "10_0.15_kiss2": {
+      "resource": "/gallery6/10_0.15_kiss2.png",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "1.00"
+    },
+    "root": {
+      "resource": "root.glb",
+      "resource_type": "door",
+      "width": "2.00",
+      "height": "3.00"
+    },
+    "11_0.15_senoras2": {
+      "resource": "/gallery6/11_0.15_senoras2.png",
+      "resource_type": "image",
+      "width": "0.97",
+      "height": "1.00"
+    },
+    "12_0.15_jardindelicias": {
+      "resource": "/gallery6/12_0.15_jardindelicias.png",
+      "resource_type": "image",
+      "width": "0.94",
+      "height": "1.00"
+    },
+    "12_0.15_modriani": {
+      "resource": "/gallery6/12_0.15_modriani.png",
+      "resource_type": "image",
+      "width": "0.99",
+      "height": "1.00"
+    },
+    "12_0.15_yaol": {
+      "resource": "/gallery6/12_0.15_yaol.png",
+      "resource_type": "image",
+      "width": "0.80",
+      "height": "1.00"
+    },
+    "13_0.15_001": {
+      "resource": "/gallery6/13_0.15_001.png",
+      "resource_type": "image",
+      "width": "0.83",
+      "height": "1.00"
+    },
+    "14_0.15_monalisa": {
+      "resource": "/gallery6/14_0.15_monalisa.png",
+      "resource_type": "image",
+      "width": "0.67",
+      "height": "1.00"
+    },
+    "15_0.15_meninas2": {
+      "resource": "/gallery6/15_0.15_meninas2.png",
+      "resource_type": "image",
+      "width": "0.87",
+      "height": "1.00"
+    },
+    "16_1.5_jardindelicias": {
+      "resource": "/gallery6/16_1.5_jardindelicias.png",
+      "resource_type": "image",
+      "width": "0.93",
+      "height": "1.00"
+    },
+    "17_0.15_jardindelicias": {
+      "resource": "/gallery6/17_0.15_jardindelicias.png",
+      "resource_type": "image",
+      "width": "0.94",
+      "height": "1.00"
+    },
+    "18_0.15_jardindelicias": {
+      "resource": "/gallery6/18_0.15_jardindelicias.png",
+      "resource_type": "image",
+      "width": "0.94",
+      "height": "1.00"
+    },
+    "19_0.015_GrytvikenChatarra4": {
+      "resource": "/gallery6/19_0.015_GrytvikenChatarra4.png",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.67"
+    },
+    "2_1.5_the-starry-night_002": {
+      "resource": "/gallery6/2_1.5_the-starry-night_002.png",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.79"
+    },
+    "3_1.5_the-starry-night_002": {
+      "resource": "/gallery6/3_1.5_the-starry-night_002.png",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.79"
+    },
+    "4_0.15_the-starry-night_002": {
+      "resource": "/gallery6/4_0.15_the-starry-night_002.png",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.79"
+    },
+    "5_0.15_the-starry-night_002": {
+      "resource": "/gallery6/5_0.15_the-starry-night_002.png",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.79"
+    },
+    "6_0.15_the-starry-night_002": {
+      "resource": "/gallery6/6_0.15_the-starry-night_002.png",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.79"
+    },
+    "8_0.15_sunrise2": {
+      "resource": "/gallery6/8_0.15_sunrise2.png",
+      "resource_type": "image",
+      "width": "1.00",
+      "height": "0.78"
+    },
+    "9_0.15_scream2": {
+      "resource": "/gallery6/9_0.15_scream2.png",
+      "resource_type": "image",
+      "width": "0.81",
+      "height": "1.00"
+    }
+  },
+  "Technical": {
+    "ambientLight": 1,
+    "pointLight": 20,
+    "scaleFactor": 3,
+    "verticalPosition": 0.4
   }
 }
