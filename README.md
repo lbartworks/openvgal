@@ -7,7 +7,9 @@ https://github.com/lbartworks/openvgal/assets/121262093/20b033a0-1287-4b3e-b937-
 
  (Open source Virtual Gallery)
 Virtual 3D gallery for art showcase. Based on Babylon.js
+
 :new: **Update (22 August 2023).** :new: 
+
 consistency updates in the repository 
 
 :new: **Update (25 June 2023).** :new: 
