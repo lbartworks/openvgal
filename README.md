@@ -2,11 +2,13 @@ https://github.com/lbartworks/openvgal/assets/121262093/20b033a0-1287-4b3e-b937-
 
 
 
-# OpenVgal v0.4
+# OpenVgal v0.41
 
 
  (Open source Virtual Gallery)
 Virtual 3D gallery for art showcase. Based on Babylon.js
+:new: **Update (22 August 2023).** :new: 
+consistency updates in the repository 
 
 :new: **Update (25 June 2023).** :new: 
 
@@ -200,7 +202,7 @@ The gallery shown on the video or in my website has one main (root) hall created
 <img src="https://user-images.githubusercontent.com/121262093/212482584-acf41f9e-6620-4e4c-b9bf-16beaf7a1a81.png">
 </p>
 
-7. If you want to use the example galleries, download this [zip file](https://mega.nz/file/mko2zKAR#P_5nhIO2CCpOEJ3qL9euduRySfu9iMsBgWJEOcYpWGs). Uncompress the zip archive in the vgal/python folder. You will notice that 4 folders (gallery1, gallery2, gallery3 and gallery4) will be created. This example has, hence, 4 halls. If you want to create your own halls you will need to replace these folder with you own folders.
+7. If you want to use the example galleries, download this [zip file](https://mega.nz/file/ThxWUJqJ#dFo9w7eMpXGKTGHbFG9RM8AeEB8UIrOHBVfurwaNoZs). Uncompress the zip archive in the vgal/python folder. You will notice that 4 folders (gallery1, gallery2, gallery3 and gallery4) will be created. This example has, hence, 4 halls. If you want to create your own halls you will need to replace these folder with you own folders.
 
 Json file creation
 
