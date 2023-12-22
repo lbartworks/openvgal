@@ -49,6 +49,67 @@
 		  border-radius: 6px;
 		  width: 0%;
 		}
+		
+		#infoBox {
+			background-color: rgba(0, 0, 0, 0.7);
+			color: white;
+			font-family: 'Arial', sans-serif;
+			font-size: 24px;
+			padding: 20px;
+			position: fixed;
+			bottom: 10px;
+			left: 50%;
+			transform: translateX(-50%);
+			max-width: 600px;
+			border-radius: 10px;
+		}
+
+
+
+		#artTitle {
+			margin: 0;  /* Remove default margins */
+		}
+		
+		#overlay {
+		   display: none; /* Initially hidden */
+		   position: fixed;
+		   top: 0;
+		   left: 0;
+		   width: 100%;
+		   height: 100%;
+		   background-color: rgba(0, 0, 0, 0.7); /* Semi-transparent black */
+		   z-index: 10; /* Ensure it's above other elements */
+		   display: none;
+		   flex-direction: column; /* Stack children vertically */
+		   justify-content: flex-end; /* Align children to the bottom */
+		}
+
+		#imageContainer {
+		   display: flex;
+		   justify-content: center; /* Center items horizontally */
+		   align-items: center; /* Center items vertically */
+		   width: 100%; /* Full width */
+		   height: 30%;
+		   position: absolute;
+		   bottom: 0;
+		   padding: 10px; /* Padding at the bottom */
+		}
+		@keyframes pulse {
+			0% { transform: scale(1); }
+			50% { transform: scale(1.05); }
+			100% { transform: scale(1); }
+		}
+		.instruction-image {
+		   max-width: 40%; /* Limit width to 40% of screen width */
+		   max-height: 100%; /* Ensures the image doesn't exceed container's height */
+		   height: auto; /* Maintain aspect ratio */
+		   margin: 0 10px; /* Add space between images */
+		   animation: pulse 0.5s infinite ease-in-out;
+		}
+
+
+
+
 
     </style>
 
@@ -59,6 +120,17 @@
   </head>
 
   <body>
+  
+	<div id="overlay">
+	   <div id="imageContainer">
+		  <img id="image1" alt="Instruction 1" class="instruction-image">
+		  <img id="image2" alt="Instruction 2" class="instruction-image">
+	   </div>
+	</div>
+
+
+
+  
   	<div id="loader">
 		<p>Loading gallery</p>
 		<div id="loadingContainer">
@@ -66,6 +138,12 @@
 		</div>
 		<p id="percentLoaded">0%</p>
 	</div>
+	
+	<div id="infoBox" style="display: none;">
+		<p id="artTitle"></p>
+	</div>
+
+
   
     <canvas id="renderCanvas" touch-action="none"></canvas>
     <!-- touch-action="none" for best results from PEP -->
@@ -88,7 +166,7 @@
 	
 	//user custom variables that are not modified in general
 	const add_light=true;
-	const debug_scene=false;
+	const debug_scene=true;
 	const with_ceiling = true;
 	const margin=0.2; 			//frame margin
 	const item_separation=0.1; 	//separation from the wall
@@ -99,6 +177,7 @@
 	//program constants
 	const regul_exp_door=/^d_/;
 	const regul_exp_tail= /_[0-9]*$/;
+	const regul_exp_artworks=/^(?!d_).*_\d{2}$/;
 
 	
 	
@@ -112,6 +191,23 @@
 	var scene=null;
 	var current_gallery;
 	var door_material, wall_material, floor_material, header_material;
+	
+	//device detections
+	var isTouchDevice = false;
+
+	if (('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0)) {
+	  isTouchDevice = true;
+	      document.getElementById('image1').src = "/vgal/icons/touch_move.png";
+			document.getElementById('image2').src = "/vgal/icons/touch_pan.png";
+	} else {
+	    document.getElementById('image1').src = "/vgal/icons/keyboard_move.png";
+		document.getElementById('image2').src = "/vgal/icons/keyboard_pan.png";
+	}
+	
+
+
+	var deviceAgent = navigator.userAgent.toLowerCase();
+	isTouchDevice = (deviceAgent.match(/(iphone|ipod|ipad)/) || deviceAgent.match(/(android)/) || deviceAgent.match(/(iemobile)/) || deviceAgent.match(/iphone/i) || deviceAgent.match(/ipad/i) || deviceAgent.match(/ipod/i) || deviceAgent.match(/blackberry/i) || deviceAgent.match(/bada/i));
 
 	//loads the gallery file and updates the loading bar
 	var loadAsset = async(file, scene)=>{
@@ -154,6 +250,14 @@
 	
 	
 	}
+	
+	
+	// ******************************************new
+	function showInfoBox(title) {
+		document.getElementById("artTitle").innerText = title;
+		document.getElementById("infoBox").style.display = "block";
+	}
+
 	
 	function reposition_lights(room_name){
 		let L=config_file_content[room_name]["geometry"][1];
@@ -245,14 +349,28 @@
 
 			camera.ellipsoid = new BABYLON.Vector3(1, 1.2, 1);
 
-			camera.minZ = 0.45;
-			camera.speed = 0.25;
-			camera.angularSensibility = 4000;
+			if (isTouchDevice) {
+				camera.minZ = 0.045;
+				camera.speed = 0.25;
+				//camera.angularSensibility = 4000;
 
-			camera.keysUp.push(87);
-			camera.keysLeft.push(65);
-			camera.keysDown.push(83);
-			camera.keysRight.push(68);
+				camera.touchAngularSensibility=15000; //higher is slower
+				camera.touchMoveSensibility=600;
+
+				
+			} else {
+				camera.minZ = 0.45;
+				camera.speed = 0.25;
+				camera.angularSensibility = 4000;	
+
+				camera.keysUp.push(87);
+				camera.keysLeft.push(65);
+				camera.keysDown.push(83);
+				camera.keysRight.push(68);				
+			}
+			
+
+
 			
 			if (add_light){
 				var light0 = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
@@ -322,7 +440,7 @@
 						let temp_assetcontainer=await loadAsset(current_gallery_file + ".glb", scene);
 						temp_assetcontainer.addAllToScene();
 					} else {
-					
+						//template to fill in
 						if (doesFileExist(asset_location + "t_" + current_gallery_file + ".glb")){
 							console.log("loading template");
 							let temp_assetcontainer=await loadAsset("t_" + current_gallery_file + ".glb", scene);
@@ -330,12 +448,14 @@
 							populate_template(config_file_content, current_gallery_file, scene);
 							console.log("template populated");
 							
-							
+						//on the fly hall	
 						} else {
 							console.log("Building from scratch " + current_gallery_file);
 							rb(config_file_content, current_gallery_file, scene);
 							//remove the loading bar if visible
-							if (document.getElementById("loader") != undefined){document.getElementById("loader").style.display = "none";}
+							if (document.getElementById("loader") != undefined){
+								document.getElementById("loader").style.display = "none";
+								document.getElementById("loader").id= "loaded";}
 						}
 					}
 					
@@ -343,11 +463,6 @@
 					reposition_lights(current_gallery_file);
 					
 
-					
-					
-					
-					
-					//await scene.executeWhenReady(()=>{
 						
 					//});
 					
@@ -361,13 +476,16 @@
 				//reset camera position
 				scene.cameras[0].position=new BABYLON.Vector3(0, 2.4, 0);
 				
-				//locate doors to setup the action manager
+				//************************************************************new
+				//locate doors and artwork to setup the action manager
 				gallery_doors=[];
+				gallery_artworks=[];
 				scene.meshes.map((mesh) => {
 					mesh.checkCollisions = true;
 					if (regul_exp_door.test(mesh.name)){
 						gallery_doors.push(mesh.name);
-					}
+					} else if (regul_exp_artworks.test(mesh.name))
+						gallery_artworks.push(mesh.name);
 					});
 					
 				for (const door of gallery_doors){
@@ -376,6 +494,31 @@
 					scene.getMeshByName(door).actionManager = new BABYLON.ActionManager();
 					scene.getMeshByName(door).actionManager.registerAction(new BABYLON.ExecuteCodeAction(
 									BABYLON.ActionManager.OnPickTrigger, galleryManager	));
+				}
+				
+				for (const artwork of gallery_artworks){
+					scene.getMeshByName(artwork).actionManager= new BABYLON.ActionManager();
+					scene.getMeshByName(artwork).actionManager.registerAction(
+						new BABYLON.ExecuteCodeAction(
+							{ trigger: BABYLON.ActionManager.OnPointerOverTrigger },
+							function() {
+								showInfoBox("Title:  " + artwork);
+							}
+						));
+					scene.getMeshByName(artwork).actionManager.registerAction(
+						new BABYLON.ExecuteCodeAction(
+							{ trigger: BABYLON.ActionManager.OnPointerOutTrigger },
+							function() {
+								document.getElementById("infoBox").style.display = "none";
+							}
+						));
+					
+				}
+				if ('first' in evt){
+					document.getElementById("overlay").style.display = "flex";
+					setTimeout(function() {
+						  document.getElementById("overlay").style.display = "none";
+					   }, 3000);
 				}
 		}
 		
@@ -407,7 +550,7 @@
 		//materials
 		await read_styles(styles_file_name);
 
-		/////luis
+
 		
 	
 		//trigger a dummy event to render the root gallery

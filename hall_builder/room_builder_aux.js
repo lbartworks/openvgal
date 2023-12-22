@@ -186,24 +186,32 @@ function populate_template(config_file, room_name,scene){
 	var item_width=new Array(NN+NS+NW+NE);
 	var item_height=new Array(NN+NS+NW+NE);
 	
-	const dict_items=Object.keys(config_file[room_name]);
+	const dict_items=Object.keys(config_file[room_name]).filter(key => key !== "root");;
+	
+	//remove the door
 	
 	//the root gallery has some differences with any other gallery
+	//fix materials (artwork) on the placeholders
 	for (k=2; k<dict_items.length; k++){
 
-		items_material[k-2]=new BABYLON.StandardMaterial("item_mat"+k);
-		items_material[k-2].freeze();
-		items_material[k-2].specularColor=new BABYLON.Color3(0,0,0);
+
+		
+		//door materials and size are not changed
 		if ( config_file[room_name][dict_items[k]]["resource_type"]=='image'){
-			
+			items_material[k-2]=new BABYLON.StandardMaterial("item_mat"+k);
+			items_material[k-2].freeze();
+			items_material[k-2].specularColor=new BABYLON.Color3(0,0,0);
+		
 			let tex=new BABYLON.Texture(hallspics_prefix + config_file[room_name][dict_items[k]]["resource"]);
 			items_material[k-2].diffuseTexture=tex;
 			item_names[k-2]=dict_items[k] + "_" + (k-2);
 			item_mesh=scene.getMeshByName(item_names[k-2]);
 			item_mesh.material=items_material[k-2];
+			
+			item_width[k-2]=config_file[room_name][dict_items[k]]["width"];
+			item_height[k-2]=config_file[room_name][dict_items[k]]["height"];
 		}
-		item_width[k-2]=config_file[room_name][dict_items[k]]["width"];
-		item_height[k-2]=config_file[room_name][dict_items[k]]["height"];
+
 		
 
 	}
