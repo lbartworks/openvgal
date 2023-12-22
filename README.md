@@ -9,7 +9,9 @@ https://github.com/lbartworks/openvgal/assets/121262093/20b033a0-1287-4b3e-b937-
 Virtual 3D gallery for art showcase. Based on Babylon.js
 
 :new: **Update (22 December 2023).** :new: 
+
 Touch devices are now detected and better supported. Instruction on how to move around on the initial screen. Info field when hovering on the artwork.
+Im starting to do gallery designs. See below.
 
 :new: **Update (22 August 2023).** :new: 
 
@@ -38,9 +40,14 @@ At the current stage you still need some effort/skills to create it. I hope it g
 -	(optional) A working installation of python to generate the .json file
 -	A local webserver to generate the galleries and do the tests
 
-🎨 If you want to create your own galleries you can go directly to the [How to create your gallery](#recommended-steps-to-create-a-gallery) section. Currently there is no video tutorial but I can create if there is demand for it. 
+🎨 If you want to create your own galleries you can go directly to the [How to create your gallery](#4.-Steps-to-create-a-gallery) section. Currently there is no video tutorial but I can create if there is demand for it. 
 
-🛠️ If you want to contribute or further develop the following sections explain some of the internal working of the code. You may look at the [TODO list](#todo)
+💥 I have started creating gallery designs in Blender. You can see my Antarctica gallery, a template with ~100 placeholders.
+You can also purchase the Kraken gallery:
+[https://oncyber.io/marketplace?buy=thekrakengallery](https://oncyber.io/marketplace?buy=thekrakengallery)
+
+
+🛠️ If you want to contribute or further develop, the following sections explain some of the internal working of the code. You may look at the [TODO list](#todo)
 
 *Disclaimer:* I am not an expert in javascript or Babylon.js. If you find parts of the code that can be written in a more academic way, feel free to help.
 
@@ -195,7 +202,8 @@ The glb files can be generated with the Gallery builder or any other software. I
 The gallery shown on the video or in my website has one main (root) hall created in Blender and with all textures baked. The other 6 galleries are generated on the fly. I also have a template GLB file created with Blender (not updated in this repo yet).
 
  
-## 4. Steps to create a gallery: (This is a tutorial from v0.1, some aspects may need some review).
+## 4. Steps to create a gallery
+(This is a tutorial from v0.1, some aspects may need some review).
 ### 4.0 Preparatory work
 1. Organize each of the artwork images for each hall on a different folder. Put all the images (1 Mpix advised) of each hall in one folder. If you do not want to use your own files, I provide a zip file with examples.
 2. Create a spreadsheet (see [example](building.csv)) with the .csv fields and save it. You can follow along with that csv file and the example halls.
@@ -268,7 +276,7 @@ The galleries "Pakistan" and "PeruBolivia" are created in this way. Notice that 
 
 ## FAQ
 -	Can the items be larger? Currently the width/height comes as a relative factor on a global size hardcoded in javascript (details)
--	Could lights/shadows be incorporated? The best way to do that would be generating the halls with blender and bake (precalculate) the textures. 
+-	Could lights/shadows be incorporated? The best way to do that would be generating the halls with blender and bake (precalculate) the textures. I have some experiments baking lightmaps, you can check them in this youtube [video](https://www.youtube.com/watch?v=mZzMPlagnQk)
 
 
 ## TODO
