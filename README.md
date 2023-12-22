@@ -40,7 +40,7 @@ At the current stage you still need some effort/skills to create it. I hope it g
 -	(optional) A working installation of python to generate the .json file
 -	A local webserver to generate the galleries and do the tests
 
-🎨 If you want to create your own galleries you can go directly to the [How to create your gallery](#4.-Steps-to-create-a-gallery) section. Currently there is no video tutorial but I can create if there is demand for it. 
+🎨 If you want to create your own galleries you can go directly to the [How to create your gallery](#4-steps-to-create-a-gallery) section. Currently there is no video tutorial but I can create if there is demand for it. 
 
 💥 I have started creating gallery designs in Blender. You can see my Antarctica gallery, a template with ~100 placeholders.
 You can also purchase the Kraken gallery:
