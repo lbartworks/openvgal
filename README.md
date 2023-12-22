@@ -2,11 +2,14 @@ https://github.com/lbartworks/openvgal/assets/121262093/20b033a0-1287-4b3e-b937-
 
 
 
-# OpenVgal v0.41
+# OpenVgal v0.5
 
 
  (Open source Virtual Gallery)
 Virtual 3D gallery for art showcase. Based on Babylon.js
+
+:new: **Update (22 December 2023).** :new: 
+Touch devices are now detected and better supported. Instruction on how to move around on the initial screen. Info field when hovering on the artwork.
 
 :new: **Update (22 August 2023).** :new: 
 
@@ -276,9 +279,9 @@ The galleries "Pakistan" and "PeruBolivia" are created in this way. Notice that 
 - [ ]	GUI to interactively get all the inputs and get visual feedback of the appearance.
 - [X]	Customization of materials via input files
 - [ ]	Alternative hall templates, not simply a rectangular hall.
-- [ ]	Better management of mobile devices
+- [X]	Better management of mobile devices
 - [X]	Framing for artwork
-- [ ]	Titles and information for the artwork
+- [X]	Titles and information for the artwork
 - [ ]	Support for VR devices
 - [ ] Code to detect overlapping artwork or erroneous configurations
 - [ ] Baking lightmaps
