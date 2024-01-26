@@ -2,7 +2,7 @@ https://github.com/lbartworks/openvgal/assets/121262093/20b033a0-1287-4b3e-b937-
 
 
 
-# OpenVgal v0.5
+# OpenVgal v0.5.1
 
 
  (Open source Virtual Gallery)
@@ -230,7 +230,7 @@ Json file creation
 
 In the following steps there are three possible options: to create a fully configured glb file (hall and artwork) with Babylon, to create a glb file (just the hall plus placeholders for the artwork) with some 3D tool, or do not create any glb file and render everything on the fly. The following 3 subsections discuss the 3 options
 
-### 4.1 Hall builder (create a full glb file with babylon)
+### 4.1 Hall builder (create a full glb file with babylon) [This part is discontinued and no longer supported. To be removed in the next version]
 
 8. If you do not have a web browser open already, do it and type in http://locahost. Navigate to the hall builder (if you follow along this installation it would be [/vgal/hall_builder/room_processor.html](room_processor.html). Upon loading, if all goes well, the page will inform that 5 halls are created (the root hall and the 4 gallery halls). Their corresponding files will be downloaded. The first javascript section of the html file has some variable to customize the location of the input / output files (see below)
 
@@ -239,14 +239,14 @@ In the following steps there are three possible options: to create a fully confi
 	const hallspics_prefix= '/vgal/python';
 	const materials_folder='/vgal/materials';
 ```
-10. If it does not work you can have a look at the console to figure out what went wrong
-11. The downloaded files will be placed by the browser in the download default folder of your computer. You will need to manually move the 5 .glb files to the local webserver folder. Note that if you run the download several times, the filenames may no longer be the intended ones (for example root(1).glb instead of root.glb). Those names will not be recognized later, so either rename them or flush the download folder and run it again.
+9. If it does not work you can have a look at the console to figure out what went wrong
+10. The downloaded files will be placed by the browser in the download default folder of your computer. You will need to manually move the 5 .glb files to the local webserver folder. Note that if you run the download several times, the filenames may no longer be the intended ones (for example root(1).glb instead of root.glb). Those names will not be recognized later, so either rename them or flush the download folder and run it again.
 
 ```
 	const asset_location="/";
 	const config_file_name="/building.json";
 ```
-13. Optionally you can check with the [babylon sandbox](https://sandbox.babylonjs.com/) that the halls show up as expected.
+11. Optionally you can check with the [babylon sandbox](https://sandbox.babylonjs.com/) that the halls show up as expected.
 
 ### 4.2 Hall template (create a glb hall with placeholders with some 3D tool)
 The previous option comes with some drawbacks like the large size of the glb files and the limitations of Babylon to create scenes compared to other 3D modelling tools like Blender. As an alternative:
@@ -275,6 +275,7 @@ The galleries "Pakistan" and "PeruBolivia" are created in this way. Notice that 
 15. Finally if you want anyone to see the contents, you will need to make them available into your own managed server or via a hosting service. Notice that the large files may be rejected by some suppliers (I found some have 10 MB size limits for each file).
 
 ## FAQ
+- 	Can the font of the Halls name support extended codesets? The current 3D font that OpenVgal uses does not support extended characters. It will be included in the styles of a future version
 -	Can the items be larger? Currently the width/height comes as a relative factor on a global size hardcoded in javascript (details)
 -	Could lights/shadows be incorporated? The best way to do that would be generating the halls with blender and bake (precalculate) the textures. I have some experiments baking lightmaps, you can check them in this youtube [video](https://www.youtube.com/watch?v=mZzMPlagnQk)
 
@@ -293,3 +294,4 @@ The galleries "Pakistan" and "PeruBolivia" are created in this way. Notice that 
 - [ ]	Support for VR devices
 - [ ] Code to detect overlapping artwork or erroneous configurations
 - [ ] Baking lightmaps
+- [ ] Include the 3D font as part of the style json file
