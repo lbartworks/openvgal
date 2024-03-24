@@ -1,8 +1,0 @@
-Gallery name,Parent,Folder,width,length,height,#items N,#items S,#items W,#items E
-root,none,,20,20,6,0,0,3,3
-Antarctica,root,/gallery1,50,80,6,10,9,20,20
-PeruBolivia,root,/gallery2,35,55,6,7,7,10,10
-Africa,root,/gallery3,35,55,6,7,7,12,12
-Pakistan,root,/gallery4,40,60,6,9,8,14,14
-Argentina,root,/gallery5,35,70,6,9,7,16,16
-DeconstructedImages,root,/gallery6,30,40,6,4,4,6,6
