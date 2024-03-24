@@ -84,7 +84,7 @@ In the following steps you can re-create a working example with the files/artwok
 12. You may want to customize your `materials/logo.png` file to show in the hub hall. Use the existing one as a reference for size.
 
 ### 1.4 Deploy on a public web server
-Customize the variables in the `gallery_viewer.html` file depending on the folder where you placed the files in the web server.
+13. Customize the variables in the `gallery_viewer.html` file depending on the folder where you placed the files in the web server.
 
 ```
 	const glb_location='/openvgal/templates/';
@@ -97,7 +97,7 @@ Customize the variables in the `gallery_viewer.html` file depending on the folde
 ```
 Upload the files to the web server. Check the console in case of error. Most common errors are related to files not found due to changes in the variables above.
 
-
+14. One final step is to fix the BJS_ materials. They are json file that unfortunately do not support yet relative links. The existing ones will search the textures in the dvd.io domain, that obviously will not work. To update the BJS_ materials you can see in the Optional area of `VR_gallery.ipynb` a small piece of code to update the BJS_ files before uploading them to the server.
 
 ## 2. Structure of OpenVGal
 

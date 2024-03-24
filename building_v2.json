@@ -5,33 +5,27 @@
     "template": "T_root.glb",
     "Gallery1": {
       "resource": "Gallery1.glb",
-      "resource_type": "door",
-      "items": 0
+      "resource_type": "door"
     },
     "Gallery2": {
       "resource": "Gallery2.glb",
-      "resource_type": "door",
-      "items": 0
+      "resource_type": "door"
     },
     "Gallery3": {
       "resource": "Gallery3.glb",
-      "resource_type": "door",
-      "items": 0
+      "resource_type": "door"
     },
     "Gallery4": {
       "resource": "Gallery4.glb",
-      "resource_type": "door",
-      "items": 0
+      "resource_type": "door"
     },
     "Gallery5": {
       "resource": "Gallery5.glb",
-      "resource_type": "door",
-      "items": 0
+      "resource_type": "door"
     },
     "Gallery6": {
       "resource": "Gallery6.glb",
-      "resource_type": "door",
-      "items": 0
+      "resource_type": "door"
     }
   },
   "Gallery1": {
@@ -552,7 +546,7 @@
       "metadata": "ID #56 WildRocas"
     },
     "WillisIsland": {
-      "resource": "\\gallery1/WillisIsland.JPG",
+      "resource": "\\gallery1/WillisIsland.jpg",
       "resource_type": "image",
       "width": "1.00",
       "height": "0.67",
@@ -562,8 +556,7 @@
     },
     "root": {
       "resource": "root.glb",
-      "resource_type": "door",
-      "items": 0
+      "resource_type": "door"
     }
   },
   "Gallery2": {
@@ -869,8 +862,7 @@
     },
     "root": {
       "resource": "root.glb",
-      "resource_type": "door",
-      "items": 0
+      "resource_type": "door"
     }
   },
   "Gallery3": {
@@ -1212,8 +1204,7 @@
     },
     "root": {
       "resource": "root.glb",
-      "resource_type": "door",
-      "items": 0
+      "resource_type": "door"
     }
   },
   "Gallery4": {
@@ -1618,8 +1609,7 @@
     },
     "root": {
       "resource": "root.glb",
-      "resource_type": "door",
-      "items": 0
+      "resource_type": "door"
     }
   },
   "Gallery5": {
@@ -2069,8 +2059,7 @@
     },
     "root": {
       "resource": "root.glb",
-      "resource_type": "door",
-      "items": 0
+      "resource_type": "door"
     }
   },
   "Gallery6": {
@@ -2250,14 +2239,12 @@
     },
     "root": {
       "resource": "root.glb",
-      "resource_type": "door",
-      "items": 0
+      "resource_type": "door"
     }
   },
   "Technical": {
     "ambientLight": 0.5,
     "pointLight": 50,
-    "scaleFactor": 2.5,
-    "verticalPosition": 0.4
+    "scaleFactor": 2.5
   }
 }
