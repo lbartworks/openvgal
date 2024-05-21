@@ -4,7 +4,7 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <title>LB Artworks</title>
 
-    <style>
+       <style>
 		html,
 		body {
 		overflow: hidden;
@@ -28,7 +28,7 @@
 		  flex-direction: column;
 		  justify-content: center;
 		  align-items: center;
-		  font-size: 30px;
+		  font-size: 24px;
 		  font-family: Arial, Helvetica, sans-serif;
 		  
 		}
@@ -43,7 +43,7 @@
 		  border-radius: 6px;
 		  margin: 0.5rem;
 		}
-		#loadingBar {
+		.loadingBar {
 		  height: 100%;
 		  background: green;
 		  border-radius: 6px;
@@ -135,11 +135,21 @@
 
   
   	<div id="loader">
-		<p>Loading gallery</p>
+		<p>Loading template</p>
 		<div id="loadingContainer">
-			<div id="loadingBar"></div>
+			<div class="loadingBar" id="loadingBar_template"></div>
 		</div>
-		<p id="percentLoaded">0%</p>
+		<p id="percentLoaded_template">0%</p>
+		<p>Loading materials</p>
+		<div id="loadingContainer">
+			<div class="loadingBar" id="loadingBar_materials"></div>
+		</div>
+		<p id="percentLoaded_materials">0%</p>
+		<p>Loading artworks</p>
+		<div id="loadingContainer">
+			<div class="loadingBar" id="loadingBar_artwork"></div>
+		</div>
+		<p id="percentLoaded_artwork">0%</p>
 	</div>
 	
 	<div id="infoBox" style="display: none;">
@@ -183,9 +193,12 @@
 
 	
 	
-	//declarations
+//declarations
 	var canvas = document.getElementById("renderCanvas");
 	var sceneToRender = null;
+	var percentage_template=0;
+	var percentage_materials=0;
+	var percentage_artworks=0;
 	let config_file_content;
 	let style_file_content;
 	let fontContent;
@@ -224,12 +237,9 @@
 			if (document.getElementById("loaded")!=undefined) {
 				document.getElementById("loaded").id= "loader";
 				document.getElementById("loader").style.display = "flex";
-				document.getElementById("loadingBar").style.width="0%";
+				document.getElementById("loadingBar_template").style.width="0%";
 			};
 			BABYLON.SceneLoader.LoadAssetContainer(glb_location, file, scene, function (container) {
-				document.getElementById("loader").style.display = "none";
-				document.getElementById("loader").id= "loaded";
-				setTimeout(()=>{document.getElementById("loaded").style.display = "none";}, 1000);
 				if (container.cameras){
 					container.cameras.pop();
 				}
@@ -237,21 +247,22 @@
 			},
 			function (evt) {
 			// onProgress
-				var loadedPercent = 0;
+				
 				if (evt.lengthComputable) {
 					let total=evt.total;
 					//if (evt.srcElement.getResponseHeader('content-encoding')){
 					//compressed content assume 25% compression
 					//	total=total*0.75;
 					//}
-					loadedPercent = (evt.loaded * 100 / total).toFixed();
+					percentage_template = (evt.loaded * 100 / total).toFixed();
 				} else {
 					//assume a 20MB file
-					loadedPercent = (evt.loaded * 100 / 20000000).toFixed();
+					percentage_template = (evt.loaded * 100 / 20000000).toFixed();
 					};
 
-				document.getElementById("percentLoaded").innerHTML = `${loadedPercent}%`;
-				document.getElementById("loadingBar").style.width =`${loadedPercent}%`;
+				
+				document.getElementById("percentLoaded_template").innerHTML = `${percentage_template}%`;
+				document.getElementById("loadingBar_template").style.width =`${percentage_template}%`;
 
 		});
 	})
@@ -416,6 +427,7 @@
 							
 							
 							// check BJS materials
+							const n_meshes=scene.meshes.length-1;
 							for (var i in scene.meshes) {
 							
 								if ((scene.meshes[i].material != null) && scene.meshes[i].material.name.startsWith("BJS_")){
@@ -427,6 +439,10 @@
 										BJS_materials[name].freeze();
 									}
 								}
+								percentLoaded_materials=Math.round((i/n_meshes)*100);
+								document.getElementById("percentLoaded_materials").innerHTML = `${percentLoaded_materials}%`;
+								document.getElementById("loadingBar_materials").style.width =`${percentLoaded_materials}%`;
+
 							}
 							
 							if (BJS_materials[frame_material]==undefined){

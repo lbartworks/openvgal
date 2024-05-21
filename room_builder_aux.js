@@ -152,13 +152,31 @@ function populate_template(config_file, room_name,scene){
 		
 		//notice that y and z are flippped
 		item_builder(item + "_" + i ,{x:location[0], y:location[2], z:location[1]}, {width:scaled_width, height:scaled_height}, orientation, items_material, scene); 
+		
+		//update loading bar
+		tex.onLoadObservable.add(((j) => {
+			return() => {
+				percentage_artwork=percentage_artwork + j;
+				const round_per=Math.round(percentage_artwork);
+				document.getElementById("percentLoaded_artwork").innerHTML = `${round_per}%`;
+				document.getElementById("loadingBar_artwork").style.width =`${round_per}%`;
+				if (round_per==100){
+					//finish load bar
+					reset_loadbar();
+				}
+		
+			};
+		})(100/num_items));
+
+		
 		i=i+1;
 	}
 	
 	if (dict_items.length>0)	{
 		scene.getMeshByName("frames").createNormals(true);
-
 		scene.getMeshByName("frames").material=BJS_materials[frame_material];
+	} else {
+		reset_loadbar();
 	}
 	
 
@@ -213,7 +231,19 @@ function populate_template(config_file, room_name,scene){
 }	
 
 
-
+function reset_loadbar(){
+	percentage_materials=0;
+	percentage_template=0;
+	percentage_artwork=0;	
+	document.getElementById("loader").style.display = "none";
+	document.getElementById("loader").id= "loaded";
+	document.getElementById("percentLoaded_template").innerHTML = `${percentage_template}%`;
+	document.getElementById("loadingBar_template").style.width =`${percentage_template}%`;
+	document.getElementById("percentLoaded_materials").innerHTML = `${percentage_materials}%`;
+	document.getElementById("loadingBar_materials").style.width =`${percentage_materials}%`;
+	document.getElementById("percentLoaded_artwork").innerHTML = `${percentage_artwork}%`;
+	document.getElementById("loadingBar_artwork").style.width =`${percentage_artwork}%`;
+}
 
 
 	
