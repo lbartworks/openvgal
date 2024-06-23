@@ -161,21 +161,13 @@
     <canvas id="renderCanvas" touch-action="none"></canvas>
     <!-- touch-action="none" for best results from PEP -->
 
+	 <script src='/openvgal/room_builder_aux.js'></script>
+    <script src='/openvgal/declarations.js'></script>
+	
     <script>
-    // user custom variables that you need to modify
-	const glb_location='/openvgal/templates/';
-	const config_file_name='/openvgal/building_v2.json';
-	const materials_folder='/openvgal/materials';
-	const hallspics_prefix= '/openvgal'; //empty string if pics at the root folder
-	const icons_folder='/openvgal/icons';
 	
-	const aux_javascript= '/openvgal/room_builder_aux.js';
-	// -------------------------------------------------------
+
 	
-	
-	var script = document.createElement('script');
-	script.src = aux_javascript;
-	document.body.appendChild(script);
 	
 	//user custom variables that are not modified in general
 	const debug_scene=false;
@@ -184,12 +176,7 @@
 	const max_lights=7;
 	
 		
-	//program constants
-	const regul_exp_door=/^d_/;
-	const regul_exp_tail= /_[0-9]*$/;
-	//const regul_exp_artworks=/^(?!d_).*_\d{1,3}$/;
-	const regul_exp_artworks=/_\d{1,3}$/;
-	const frame_material="BJS_white"
+
 
 	
 	
@@ -213,6 +200,7 @@
 	
 	//device detections
 	var isTouchDevice = false;
+
 
 	if (('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0)) {
 	  isTouchDevice = true;
