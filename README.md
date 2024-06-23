@@ -1,7 +1,7 @@
 https://github.com/lbartworks/openvgal/assets/121262093/517b6b67-7a87-4f2c-8166-b5c9314ff9e9
 
 
-# OpenVgal v1 beta
+# OpenVgal v1.1
 
 
  (Open source Virtual Gallery)
@@ -271,6 +271,9 @@ OpenVgal supports that you load directly a fully configured .glb file.
 
 
 ## 4. Changelog
+
+:new: **Update (18 March 2024).** :new: 
+New loadbar, more accurate. Useful for slow connections
 
 :new: **Update (18 March 2024).** :new: 
 
