@@ -65,15 +65,33 @@ var text3D_builder=function(name, item_position, vector, parent, scene){
 
 }
 
-var item_builder= function(name, item_position, item_size, vector, material,scene){
+var item_builder= function(name, item_position, item_size, vector, material,scene, item_shadow_material=null){
 	//places artwork as an image texture
 	//adds a frame and both elements have a customizable separation from the wall
 	//the thickness of the frame is half the separation
 	
+	const shadow_scale=1.3;
 	var base_vector=new BABYLON.Vector3(0, 0, 0);
 	const north_vector=new BABYLON.Vector3(0, 0, 1);
 	var abstractPlane = BABYLON.Plane.FromPositionAndNormal(base_vector,vector );
 	var item = BABYLON.MeshBuilder.CreatePlane(name, {sourcePlane: abstractPlane, width:item_size.width, height: item_size.height, sideOrientation: BABYLON.Mesh.SINGLESIDE},scene);
+
+	//create the item shadow
+	if (item_shadow_material!=null) {
+		var item_shadow = BABYLON.MeshBuilder.CreatePlane("shadow", {sourcePlane: abstractPlane, width:item_size.width*shadow_scale, height: item_size.height*shadow_scale, sideOrientation: BABYLON.Mesh.SINGLESIDE},scene);
+		item_shadow.position=new BABYLON.Vector3(item_position.x, item_position.y, item_position.z).add(vector.scale(0.01));
+		item_shadow.material=item_shadow_material;
+		
+		let existing_shadow_object=scene.getMeshByName('shadows');
+		if (existing_shadow_object){
+			var merged_mesh = BABYLON.Mesh.MergeMeshes([existing_shadow_object, item_shadow], true);
+			merged_mesh.name="shadows";
+		} else {
+			item_shadow.name="shadows";
+		}
+
+	}
+	
 	
 	//the position is shifted away from the wall in the direction of the item vector (normal)
 	item.position=new BABYLON.Vector3(item_position.x, item_position.y, item_position.z).add(vector.scale(3*item_separation/2));
@@ -128,6 +146,15 @@ function populate_template(config_file, room_name,scene){
 	var gallery=config_file[room_name];
 	var dict_items=Object.keys(gallery).filter(key => gallery[key]["resource_type"]== "image");
 	num_items=dict_items.length;
+
+	//get frame shadow material
+	var shadow_texture = new BABYLON.Texture(materials_folder +"/shadow.png", scene, false, BABYLON.Texture.LINEAR_LINEAR);
+	shadow_texture.hasAlpha=true;
+	
+	var item_shadow_material = new BABYLON.StandardMaterial("shadow_mat", scene);
+	item_shadow_material.specularColor=new BABYLON.Color3(0,0,0);
+	item_shadow_material.diffuseTexture = shadow_texture;
+	item_shadow_material.useAlphaFromDiffuseTexture = true;
 	
 	let i=3
 	for (var item of dict_items){
@@ -151,7 +178,7 @@ function populate_template(config_file, room_name,scene){
 		scaled_height=item_size*gallery[item]["height"];
 		
 		//notice that y and z are flippped
-		item_builder(item + "_" + i ,{x:location[0], y:location[2], z:location[1]}, {width:scaled_width, height:scaled_height}, orientation, items_material, scene); 
+		item_builder(item + "_" + i ,{x:location[0], y:location[2], z:location[1]}, {width:scaled_width, height:scaled_height}, orientation, items_material, scene, item_shadow_material); 
 		
 		//update loading bar
 		tex.onLoadObservable.add(((j) => {

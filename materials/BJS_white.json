@@ -639,9 +639,9 @@
       "convertToLinearSpace": false,
       "valueType": "BABYLON.Color3",
       "value": [
-        0.9058823529411765,
-        0.8666666666666667,
-        0.8666666666666667
+        0.95,
+        0.95,
+        0.95
       ]
     },
     {
