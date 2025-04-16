@@ -9,7 +9,7 @@ jobs:
   build_and_release:
     strategy:
       matrix:
-        os: [windows-latest, ubuntu-20.04, macos-latest]
+        os: [windows-latest, ubuntu-22.04, macos-latest]
     runs-on: ${{ matrix.os }}
     permissions:
       contents: write
@@ -101,7 +101,7 @@ jobs:
       shell: powershell
 
     - name: Verify Python executables (CI Check) - Linux/macOS
-      if: matrix.os == 'ubuntu-20.04' || matrix.os == 'macos-latest'
+      if: matrix.os == 'ubuntu-22.04' || matrix.os == 'macos-latest'
       run: |
         ls -la web_server/http_server
         ls -la python/VR_gallery
@@ -123,7 +123,7 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         
     - name: Build Portable App for Linux (Release Only)
-      if: startsWith(github.ref, 'refs/tags/') && matrix.os == 'ubuntu-20.04'
+      if: startsWith(github.ref, 'refs/tags/') && matrix.os == 'ubuntu-22.04'
       run: |
         cd electron_app
         npx electron-builder --linux --dir
