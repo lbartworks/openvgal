@@ -12,7 +12,7 @@ const { resourcesBasePath } = require('./modules/paths');
 const URLReplacer = require('./modules/urlReplacer');
 const FolderManager = require('./modules/folderManager');
 const CSVGenerator = require('./modules/csvGenerator');
-const PythonExecutor = require('./modules/pythonExecutor');
+const PythonExecutor = require('./modules/pythonexecutor');
 
 // Initialize modules
 const urlReplacer = new URLReplacer();
