@@ -1,0 +1,94 @@
+{
+  "name": "openvgal",
+  "version": "2.0.0",
+  "author": {
+    "name": "LB Artworks",
+    "email": "lba_socials@protonmail.com"
+  },
+  "description": "OpenVGal Electron Application",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win",
+    "dist:win": "electron-builder --win --dir && npm run zip:win",
+    "dist:mac": "electron-builder --mac --dir && npm run zip:mac",
+    "dist:linux": "electron-builder --linux --dir && npm run zip:linux",
+    "dist:all": "npm run dist:win && npm run dist:mac && npm run dist:linux",
+    "zip:win": "cd dist/win-unpacked && zip -r ../OpenVGal-win-portable.zip .",
+    "zip:mac": "cd dist && zip -r OpenVGal-mac-portable.zip OpenVGal.app",
+    "zip:linux": "cd dist/linux-unpacked && zip -r ../OpenVGal-linux-portable.zip ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lbartworks/openvgal_electron"
+  },
+  "keywords": [
+    "Electron",
+    "OpenVGal",
+    "VR",
+    "Gallery"
+  ],
+  "license": "CC0-1.0",
+  "devDependencies": {
+    "electron": "^35.0.0",
+    "electron-builder": "^24.6.4"
+  },
+  "dependencies": {
+    "tree-kill": "^1.2.2"
+  },
+  "build": {
+    "appId": "com.openvgal.app",
+    "productName": "OpenVGal",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "dir",
+      "icon": "build/icon.ico"
+    },
+    "linux": {
+      "target": "dir",
+      "icon": "build/icon.png"
+    },
+    "mac": {
+      "target": ["dir"],
+      "icon": "build/icon.icns",
+      "category": "public.app-category.developer-tools",
+      "artifactName": "OpenVGal.app"
+    },
+    "files": [
+      "**/*",
+      "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+      "!**/node_modules/*.d.ts",
+      "!**/node_modules/.bin",
+      "!**/.{idea,git,cache,github,vscode,vs}",
+      "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,__pycache__,thumbs.db,.gitignore,.gitattributes}",
+      "!**/{tsconfig.json,tslint.json,*.yml}",
+      "../python/**/*.py",
+      "../python/**/*.csv"
+    ],
+    "extraResources": [
+      {
+        "from": "../web_server",
+        "to": "web_server",
+        "filter": ["*.exe", "http_server"]
+      },
+      {
+        "from": "../python",
+        "to": "python",
+        "filter": ["*.exe", "VR_gallery"]
+      },
+      {
+        "from": "../web_server",
+        "to": "web_server",
+        "filter": ["**/*", "!dist/**/*", "!*.exe", "!http_server"]
+      },
+      {
+        "from": "../python",
+        "to": "python",
+        "filter": ["**/*", "!dist/**/*", "!*.exe", "!VR_gallery"]
+      }
+    ]
+  }
+}

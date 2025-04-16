@@ -1,0 +1,163 @@
+name: Multi-platform Build CI & Release
+
+on:
+  push:
+    tags:
+      - 'v*'        # Trigger for Release builds
+
+jobs:
+  build_and_release:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-20.04, macos-latest]
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0 # Needed for electron-builder versioning and release step
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18.x'
+        cache: 'npm'
+        cache-dependency-path: electron_app/package-lock.json
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install Node.js dependencies
+      run: |
+        cd electron_app
+        npm ci
+        cd ..
+      shell: bash
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
+        pip install -r web_server/requirements.txt
+      shell: bash
+
+    # --- Generate macOS icons from PNG ---
+    - name: Generate macOS icons (Release Only)
+      if: startsWith(github.ref, 'refs/tags/') && matrix.os == 'macos-latest'
+      run: |
+        mkdir -p electron_app/build/tmp.iconset
+        # Create temporary icon directory
+        
+        # Copy the original PNG file to the required sizes
+        # macOS requires multiple sizes in a specific format
+        cp electron_app/build/icon.png electron_app/build/tmp.iconset/icon_512x512.png
+        
+        # Resize to other required dimensions (using sips which is built into macOS)
+        sips -z 16 16 electron_app/build/icon.png --out electron_app/build/tmp.iconset/icon_16x16.png
+        sips -z 32 32 electron_app/build/icon.png --out electron_app/build/tmp.iconset/icon_32x32.png
+        sips -z 64 64 electron_app/build/icon.png --out electron_app/build/tmp.iconset/icon_64x64.png
+        sips -z 128 128 electron_app/build/icon.png --out electron_app/build/tmp.iconset/icon_128x128.png
+        sips -z 256 256 electron_app/build/icon.png --out electron_app/build/tmp.iconset/icon_256x256.png
+        
+        # Create 2x versions (not resizing, just renaming since we don't have higher res)
+        cp electron_app/build/tmp.iconset/icon_16x16.png electron_app/build/tmp.iconset/icon_16x16@2x.png
+        cp electron_app/build/tmp.iconset/icon_32x32.png electron_app/build/tmp.iconset/icon_32x32@2x.png
+        cp electron_app/build/tmp.iconset/icon_64x64.png electron_app/build/tmp.iconset/icon_64x64@2x.png
+        cp electron_app/build/tmp.iconset/icon_128x128.png electron_app/build/tmp.iconset/icon_128x128@2x.png
+        cp electron_app/build/tmp.iconset/icon_256x256.png electron_app/build/tmp.iconset/icon_256x256@2x.png
+        
+        # Convert the iconset to icns file (macOS command)
+        iconutil -c icns electron_app/build/tmp.iconset -o electron_app/build/icon.icns
+        
+        # Clean up temporary directory
+        rm -rf electron_app/build/tmp.iconset
+      shell: bash
+
+    # --- Steps below are potentially useful for CI on 'main' ---
+
+    - name: Build Python executables (CI Check / Prerequisite for Release)
+      # This runs on both main pushes and tag pushes
+      # Ensures python code builds correctly even before tagging
+      run: |
+        cd web_server
+        pyinstaller --onefile --clean --noconfirm --distpath . http_server.py
+        cd ..
+        cd python
+        pyinstaller --onefile --clean --noconfirm --distpath . VR_gallery.py
+        cd ..
+      shell: bash
+
+    - name: Verify Python executables (CI Check) - Windows
+      if: matrix.os == 'windows-latest'
+      run: |
+        dir web_server/http_server.exe
+        dir python/VR_gallery.exe
+      shell: powershell
+
+    - name: Verify Python executables (CI Check) - Linux/macOS
+      if: matrix.os == 'ubuntu-20.04' || matrix.os == 'macos-latest'
+      run: |
+        ls -la web_server/http_server
+        ls -la python/VR_gallery
+      shell: bash
+
+    # --- Steps below ONLY run when a tag is pushed ---
+
+    - name: Build Portable App for Windows (Release Only)
+      if: startsWith(github.ref, 'refs/tags/') && matrix.os == 'windows-latest'
+      run: |
+        cd electron_app
+        npx electron-builder --win --dir
+        # Create portable zip
+        cd dist
+        powershell Compress-Archive -Path 'win-unpacked/*' -DestinationPath 'OpenVGal-win-portable.zip'
+        cd ../..
+      shell: bash
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Build Portable App for Linux (Release Only)
+      if: startsWith(github.ref, 'refs/tags/') && matrix.os == 'ubuntu-20.04'
+      run: |
+        cd electron_app
+        npx electron-builder --linux --dir
+        # Create portable zip
+        cd dist/linux-unpacked
+        zip -r ../OpenVGal-linux-portable.zip .
+        cd ../..
+      shell: bash
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Build Portable App for macOS (Release Only - Apple Silicon)
+      if: startsWith(github.ref, 'refs/tags/') && matrix.os == 'macos-latest'
+      run: |
+        cd electron_app
+        # Build for Apple Silicon specifically
+        npx electron-builder --mac --arm64 --dir
+        # Create portable zip of the .app bundle
+        cd dist/mac-arm64
+        zip -r ../OpenVGal-mac-arm64-portable.zip OpenVGal.app
+        cd ../../..
+      shell: bash
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create GitHub Release (Release Only)
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        draft: false
+        prerelease: false
+        files: |
+          electron_app/dist/OpenVGal-win-portable.zip
+          electron_app/dist/OpenVGal-linux-portable.zip
+          electron_app/dist/OpenVGal-mac-arm64-portable.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

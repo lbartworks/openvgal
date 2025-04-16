@@ -1,3 +1,9 @@
 
 python/.ipynb_checkpoints/VR_gallery-checkpoint.ipynb
-python/gallery4/Vigne Peak2.jpg
+electron_app/node_modules/*
+electron_app/dist
+python/VR_gallery.exe
+python/VR_gallery.spec
+web_server/http_server.exe
+web_server/http_server.spec
+

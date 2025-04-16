@@ -1,8 +1,4 @@
 Gallery name,Parent,Folder
 root,none,
-Gallery1,root,\gallery1
-Gallery2,root,\gallery2
-Gallery3,root,\gallery3
-Gallery4,root,\gallery4
-Gallery5,root,\gallery5
-Gallery6,root,\gallery6
+gallery3,root,/gallery3
+gallery4,root,/gallery4

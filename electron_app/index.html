@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>OpenVGal 2.0 Support tool</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    .tab {
+      overflow: hidden;
+      border-bottom: 2px solid #3498db;
+      margin-bottom: 20px;
+    }
+    .tab button {
+      background-color: #f8f9fa;
+      float: left;
+      border: none;
+      outline: none;
+      cursor: pointer;
+      padding: 16px 24px;
+      transition: all 0.3s ease;
+      font-size: 15px;
+      border-radius: 4px 4px 0 0;
+      margin-right: 4px;
+    }
+    .tab button:hover {
+      background-color: #e9ecef;
+      color: #2980b9;
+    }
+    .tab button.active {
+      background-color: #3498db;
+      color: white;
+    }
+    .tabcontent {
+      display: none;
+      padding: 20px;
+      border: 1px solid #dee2e6;
+      border-radius: 0 0 4px 4px;
+      background-color: white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .remove {
+    color: red;
+    cursor: pointer;
+    margin-left: 10px;
+  }
+    #Build .explorer {
+      margin-top: 20px;
+      border: 1px solid #ccc;
+      padding: 10px;
+      height: 300px;
+      overflow-y: auto;
+    }
+    #Build .explorer ul {
+      list-style-type: none;
+      padding-left: 20px;
+    }
+    .loading-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #3498db;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    #Build .explorer li {
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>OpenVGal 2.0 support tool</h1>
+  <div class="tab">
+    <button class="tablinks" onclick="openTab(event, 'Build')">Build</button>
+    <button class="tablinks" onclick="openTab(event, 'Tools')">Tools</button>
+  </div>
+
+
+
+<!-- Tools Tab -->
+  <div id="Tools" class="tabcontent">
+    <h3>URL Replacement Tool</h3>
+    <div class="url-replacement-container">
+      <p>Replace text:</p>
+      <input type="text" id="search-url" placeholder="Enter text to search" value="http://localhost" style="width: 300px; margin-bottom: 10px;"><br>
+      <p>With:</p>
+      <input type="text" id="replacement-url" placeholder="Enter replacement text" style="width: 300px; margin-bottom: 10px;"><br>
+      <button id="convert-button" style="padding: 8px 16px;">Convert</button>
+      <div id="replacement-status" style="margin-top: 10px; border: 1px solid #ccc; padding: 10px; max-height: 200px; overflow-y: auto; background-color: #f5f5f5;"></div>
+    </div>
+  </div>
+
+<!-- Build Tab -->
+<div id="Build" class="tabcontent">
+  <h3>Build Tab</h3>
+  <button id="add-folder">Add Folder</button>
+  <div class="explorer">
+    <ul id="folder-tree"></ul>
+  </div>
+  <div class="button-group">
+    <button id="generate-csv">Generate CSV</button>
+    <button id="generate-json">Generate JSON</button>
+    <button id="launch">Launch</button>
+    <button id="shutdown">Shutdown</button>
+  </div>
+  <div id="generate-message" style="margin-top: 10px; border: 1px solid #ccc; padding: 10px; max-height: 200px; overflow-y: auto; background-color: #f5f5f5;"></div>
+
+  <div class="loading-overlay">
+    <div class="loading-spinner"></div>
+  </div>
+
+  <script src="renderer.js"></script>
+  <script>
+    function openTab(evt, tabName) {
+      var i, tabcontent, tablinks;
+      tabcontent = document.getElementsByClassName("tabcontent");
+      for (i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].style.display = "none";
+      }
+      tablinks = document.getElementsByClassName("tablinks");
+      for (i = 0; i < tablinks.length; i++) {
+        tablinks[i].className = tablinks[i].className.replace(" active", "");
+      }
+      document.getElementById(tabName).style.display = "block";
+      evt.currentTarget.className += " active";
+    }
+    // Open the Build tab by default
+    document.getElementsByClassName("tablinks")[0].click();
+  </script>
+</body>
+</html>
