@@ -245,9 +245,11 @@ OpenVgal supports that you load directly a fully configured .glb file.
 ## 4. Changelog
 
 :new: **Update (21 April 2025).** :new: 
+
 Electron app
 
 :new: **Update (18 March 2024).** :new: 
+
 New loadbar, more accurate. Useful for slow connections
 
 :new: **Update (18 March 2024).** :new: 
