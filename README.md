@@ -58,55 +58,6 @@ Follow the easy or advanced tutorials, available here:
 [Tutorial (advanced)](https://youtu.be/mI_V_jZfu6g)
 
 
-# OpenVgal v2
-
- (Open source Virtual Gallery)
-Virtual 3D gallery for art showcase. Based on Babylon.js
-
------------------------------------------
-
-Version 2 brings some significant improvements:
-- Making it easier for anyone to test it in their own computer. I have packed all into a single executable.
-- An installation video is available.
-- Improvements in lights and galleries
-
-OpenVgal started in June 2022 as a personal project to provide myself, or anyone, a way to build an interactive 3D virtual gallery programmatically. What this means is that you do not need to design the hall or halls of the galleries, or deal with the 3D work, or the browser code to move around it. You just need organize your collections in folders and run some code provided here.  I was inspired by what Oncyber was creating but they had not open sourced the project. 
-
-A demonstration of the gallery can be seen here:
-[https://nostromophoto.com/virtual/virtual.html](https://nostromophoto.com/virtual/virtual.html)
-
-Although in v1.4 the effort/skills had dropped significantly from v0.1 it was by no means a one-click process, heavily restricting the scope of artists who are less savvy. V2 is delivered in two different ways:
-
-* An executable installer (available in Windows, Macos and Linux)
-
-* Download the source code and run it with your own version of Python. For those who want full control on the execution process, requires that you install Python on your own.
-
-🎨 If you want to create your own galleries you can go directly to the [How to create your gallery](#1-steps-to-create-a-gallery) section.
-
-🙏 If you want to support this development and/or want to collect some of my artwork, you can see my NFTs here:
-[https://opensea.io/LB_Artworks](https://opensea.io/LB_Artworks)
-  You can also purchase the Kraken gallery to use in inside Oncyber:
-[Kraken gallery in Rarible](https://rarible.com/token/0x449f661c53ae0611a24c2883a910a563a7e42489:181)
-
-### SHORTCUTS
-👉 To create your own virtual gallery [click here](#1-steps-to-create-a-gallery)
-
-👉 To learn about the structure of OpenVGal [click here](#2-structure-of-openvgal)
-
-👉 To learn how to customize OpenVgal [click here](#3-customize-openvgal)
-
-👉 To see the changelog [click here](#4-changelog)
-
-*Disclaimer:* I am not an expert in javascript, electron or Babylon.js. If you find parts of the code that can be written in a more academic way, feel free to help.
-
-```
-v2.0.2 MD5
-Windows: ae17b08853f30edb93c5c7519395715e
-Linux: 6ea8f1e08693c9b402698540df92a899
-Mac: 9990f05055b6a24e28b1f1310ae218f5
-```
-)
-
 ### Tips creating your own galleries
 
 1. Organize each of the artwork images for each art hall on a different folder. Put all the images (1 Mpix advised) of each hall in one folder. Similarly to the example, where the folder gallery1 contains the artworks that later will be shown in the same art hall.
