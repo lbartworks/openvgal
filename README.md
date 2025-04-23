@@ -1,4 +1,4 @@
-[https://github.com/lbartworks/openvgal/assets/121262093/517b6b67-7a87-4f2c-8166-b5c9314ff9e9
+https://github.com/lbartworks/openvgal/assets/121262093/517b6b67-7a87-4f2c-8166-b5c9314ff9e9
 
 
 # OpenVgal v2
@@ -42,13 +42,20 @@ Although in v1.4 the effort/skills had dropped significantly from v0.1 it was by
 
 *Disclaimer:* I am not an expert in javascript, electron or Babylon.js. If you find parts of the code that can be written in a more academic way, feel free to help.
 
+```
+v2.0.2 MD5
+Windows: ae17b08853f30edb93c5c7519395715e
+Linux: 6ea8f1e08693c9b402698540df92a899
+Mac: 9990f05055b6a24e28b1f1310ae218f5
+```
+
 
 ## 1. Steps to create a gallery
 Follow the easy or advanced tutorials, available here:
-XXX
-XXXX
 
-](https://github.com/lbartworks/openvgal/assets/121262093/517b6b67-7a87-4f2c-8166-b5c9314ff9e9
+[Tutorial (basic)](https://youtu.be/Zd2ZD8ARcvA)
+
+[Tutorial (advanced)](https://youtu.be/mI_V_jZfu6g)
 
 
 # OpenVgal v2
