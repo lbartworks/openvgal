@@ -373,7 +373,7 @@ def main(openvgal_folder, csv_file='building_v2.csv', output_file='building_v2.j
 
                         building[gallery_name][name]= {"resource": file_name_server, "resource_type": 'image',"width": f'{width:.2f}',
                                                         "height": f'{height:.2f}', "location": f'[{distribution[k][0]:.3f},{distribution[k][1]:.3f},{distribution[k][2]:.3f}]',
-                                                        "vector": f'{[vectors[k,0], vectors[k,1]]}', 
+                                                        "vector": f'[{vectors[k,0]:.1f},{vectors[k,1]:.1f}]',
                                                         "metadata": f'ID #{unique_id} ' + re.search(r"/([^/.]+)\.", file_name_server).group(1)}
                         unique_id= unique_id+1
                         k=k+1
