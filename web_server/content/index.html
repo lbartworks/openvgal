@@ -1,24 +1,24 @@
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
-  <head>
+ <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Virtual 3D Art Gallery | OpenVGal by LB Artworks</title>
 	<meta name="description" content="Explore a stunning 3D virtual tour of your art gallery. Experience interactive WebGL visuals with OpenVGal immersive 3D environment.">
 	<meta name="keywords" content="3D virtual gallery, WebGL environment, interactive 3D model, 3D virtual photo gallery, 3D virtual art gallery">
 	<meta name="robots" content="index, follow">
-	<link rel="canonical" href="https://photo.nostromophoto.com/virtual/virtual.html">
+	<link rel="canonical" href="https://nostromophoto.com/virtual/virtual.html">
 	<!-- Open Graph -->
 	<meta property="og:title" content="Interactive 3D Virtual Gallery by LB Artworks">
 	<meta property="og:description" content="Step into a fully immersive 3D environment. Explore our WebGL-powered virtual tour of an art gallery.">
-	<meta property="og:image" content="https://photo.nostromophoto.com/virtual/preview.jpg">
-	<meta property="og:url" content="https://photo.nostromophoto.com/virtual/virtual.html">
+	<meta property="og:image" content="https://nostromophoto.com/virtual/preview.jpg">
+	<meta property="og:url" content="https://nostromophoto.com/virtual/virtual.html">
 	<meta property="og:type" content="website">
 	<!-- Twitter Card -->
 	<meta name="twitter:card" content="summary_large_image">
 	<meta name="twitter:title" content="3D Virtual Tour by LB Artworks">
 	<meta name="twitter:description" content="Experience an interactive 3D virtual gallery powered by WebGL. Explore now!">
-	<meta name="twitter:image" content="https://photo.nostromophoto.com/virtual/preview.jpg">
+	<meta name="twitter:image" content="https://nostromophoto.com/virtual/preview.jpg">
 	<!-- Structured Data -->
 	<script type="application/ld+json">
 	{
@@ -26,14 +26,59 @@
 		"@type": "VirtualTour",
 		"name": "3D Virtual Gallery",
 		"description": "An interactive WebGL-based 3D virtual gallery showcasing art by LB Artworks.",
-		"url": "https://photo.nostromophoto.com/virtual/virtual.html",
-		"image": "https://photo.nostromophoto.com/virtual/preview.jpg",
+		"url": "https://nostromophoto.com/virtual/virtual.html",
+		"image": "https://nostromophoto.com/virtual/preview.jpg",
 		"provider": {
 		"@type": "Organization",
 		"name": "LB Artworks",
 		"url": "https://nostromophoto.com"
 		}
 	}
+	</script>
+	<script>
+         <!--/////////////////////// CUSTOMIZE THIS VARLUE //////////////////////////////////-->	
+		window.openvgal_location = '../';
+		<!--/////////////////////// CUSTOMIZE THIS VARLUE //////////////////////////////////-->
+		
+
+		// Amend header values with your choice. Only proceed if base is set and valid
+        if (window.openvgal_location && window.openvgal_location.trim() !== '') {
+            const baseUrl = window.openvgal_location;
+            const fullPageUrl = baseUrl + '/virtual.html';
+            const imageUrl = baseUrl + '/preview.jpg';
+            const providerUrl = baseUrl.replace('/virtual', '');
+    
+            // Set canonical
+            const canonical = document.querySelector('link[rel="canonical"]');
+            if (canonical) canonical.href = fullPageUrl;
+    
+            // Set Open Graph
+            const ogUrl = document.querySelector('meta[property="og:url"]');
+            if (ogUrl) ogUrl.content = fullPageUrl;
+            const ogImage = document.querySelector('meta[property="og:image"]');
+            if (ogImage) ogImage.content = imageUrl;
+    
+            // Set Twitter
+            const twitterImage = document.querySelector('meta[name="twitter:image"]');
+            if (twitterImage) twitterImage.content = imageUrl;
+    
+            // Set Structured Data
+            const structuredData = document.querySelector('script[type="application/ld+json"]');
+            if (structuredData) {
+                try {
+                    const data = JSON.parse(structuredData.textContent);
+                    data['@id'] = fullPageUrl;
+                    data.url = fullPageUrl;
+                    data.image = imageUrl;
+                    data.provider.url = providerUrl;
+                    structuredData.textContent = JSON.stringify(data, null, 2);
+                } catch (e) {
+                    console.warn('Failed to update structured data:', e);
+                }
+            }
+        };
+
+
 	</script>
 
        <style>
@@ -122,12 +167,9 @@
 		<p id="percentLoaded_artwork">0%</p>
 	</div>
 
-	 <!--/////////////////////// CUSTOMIZE THIS VARLUE //////////////////////////////////-->	
-	<script>
-		window.openvgal_location = '../';
-	</script>
+
     <script src='declarations.js'></script>
-	<!--/////////////////////////////////////////////////////////////////////////////////-->
+
   
       
     <canvas id="renderCanvas" touch-action="none"></canvas>
