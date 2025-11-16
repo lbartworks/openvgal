@@ -192,7 +192,7 @@
 	var sceneToRender = null;
 	var percentage_template=0;
 	var percentage_materials=0;
-	var percentage_artworks=0;
+	var percentage_artwork=0;
 	let config_file_content;
 	let style_file_content;
 	let fontContent;
@@ -346,7 +346,7 @@
 				
 				//only in the first run
 				if ('first' in evt){
-					console.log('Root gallery booting');
+					console.log('First gallery booting');
 				} else {
 					//move elements away from scene unless previously cached
 					
@@ -503,10 +503,22 @@
 
 		
 	
-		//trigger a dummy event to render the root gallery
-		let evt={source:{name:"d_root_1"}};
-		//evt.source.id="d_root"
-		evt.first=1;
+		//trigger a dummy event to render the first gallery
+		const urlParams = new URLSearchParams(window.location.search);
+		const directGallery = urlParams.get('gallery');
+
+		// Validate gallery exists, fallback to root if not
+		if (directGallery && !config_file_content[directGallery]) {
+			console.warn(`Gallery "${directGallery}" not found, loading root`);
+			window.current_gallery = "root";
+		} else {
+			window.current_gallery = directGallery || "root";
+		}
+
+		// Create synthetic event
+		let evt = {source: {name: `d_${window.current_gallery}_1`}};
+		evt.first = 1; 
+		await galleryManager(evt);
 		await galleryManager(evt);
 		
 	}
