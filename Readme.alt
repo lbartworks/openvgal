@@ -1,7 +1,0 @@
-Elements involved.
-
-1. WP plugin that reads the json file
-2. Wordpress form with dynamic image
-3. php function added to functions.php
-4. php api endpoint
-5. Fix callbacks in the overlay.json
