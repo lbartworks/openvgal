@@ -1,9 +1,8 @@
-
-python/.ipynb_checkpoints/VR_gallery-checkpoint.ipynb
-electron_app/node_modules/*
-electron_app/dist
+python/.ipynb_checkpoints/
 python/VR_gallery.exe
 python/VR_gallery.spec
-web_server/http_server.exe
-web_server/http_server.spec
-
+server/__pycache__/
+server/routes/__pycache__/
+node_modules/
+.DS_Store
+*.pyc

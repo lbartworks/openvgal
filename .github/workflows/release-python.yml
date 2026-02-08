@@ -1,0 +1,81 @@
+name: Release Python Executables
+on:
+  push:
+    tags:
+      - 'v*'
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-22.04, macos-latest]
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller numpy pillow
+        shell: bash
+
+      - name: Build VR_gallery executable
+        run: |
+          cd python
+          pyinstaller --onefile --clean --noconfirm --distpath . --collect-all numpy VR_gallery.py
+          cd ..
+        shell: bash
+
+      - name: Verify executable - Windows
+        if: matrix.os == 'windows-latest'
+        run: dir python\VR_gallery.exe
+        shell: powershell
+
+      - name: Verify executable - Linux/macOS
+        if: matrix.os != 'windows-latest'
+        run: ls -la python/VR_gallery
+        shell: bash
+
+      - name: Package executable - Windows
+        if: matrix.os == 'windows-latest'
+        run: |
+          cd python
+          powershell Compress-Archive -Path VR_gallery.exe -DestinationPath VR_gallery-windows.zip
+          cd ..
+        shell: bash
+
+      - name: Package executable - Linux
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          cd python
+          zip VR_gallery-linux.zip VR_gallery
+          cd ..
+        shell: bash
+
+      - name: Package executable - macOS
+        if: matrix.os == 'macos-latest'
+        run: |
+          cd python
+          zip VR_gallery-macos.zip VR_gallery
+          cd ..
+        shell: bash
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          draft: false
+          prerelease: false
+          files: |
+            python/VR_gallery-windows.zip
+            python/VR_gallery-linux.zip
+            python/VR_gallery-macos.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

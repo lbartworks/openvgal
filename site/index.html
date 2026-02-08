@@ -7,38 +7,38 @@
 	<meta name="description" content="Explore a stunning 3D virtual tour of your art gallery. Experience interactive WebGL visuals with OpenVGal immersive 3D environment.">
 	<meta name="keywords" content="3D virtual gallery, WebGL environment, interactive 3D model, 3D virtual photo gallery, 3D virtual art gallery">
 	<meta name="robots" content="index, follow">
-	<link rel="canonical" href="https://nostromophoto.com/virtual/virtual.html">
+	<link rel="canonical" href="https://openvgal.com/">
 	<!-- Open Graph -->
-	<meta property="og:title" content="Interactive 3D Virtual Gallery by LB Artworks">
+	<meta property="og:title" content="Interactive 3D Virtual Gallery | OpenVGAL">
 	<meta property="og:description" content="Step into a fully immersive 3D environment. Explore our WebGL-powered virtual tour of an art gallery.">
-	<meta property="og:image" content="https://nostromophoto.com/virtual/preview.jpg">
-	<meta property="og:url" content="https://nostromophoto.com/virtual/virtual.html">
+	<meta property="og:image" content="https://openvgal.com/preview.jpg">
+	<meta property="og:url" content="https://openvgal.com/">
 	<meta property="og:type" content="website">
 	<!-- Twitter Card -->
 	<meta name="twitter:card" content="summary_large_image">
-	<meta name="twitter:title" content="3D Virtual Tour by LB Artworks">
+	<meta name="twitter:title" content="3D Virtual Gallery | OpenVGAL">
 	<meta name="twitter:description" content="Experience an interactive 3D virtual gallery powered by WebGL. Explore now!">
-	<meta name="twitter:image" content="https://nostromophoto.com/virtual/preview.jpg">
+	<meta name="twitter:image" content="https://openvgal.com/preview.jpg">
 	<!-- Structured Data -->
 	<script type="application/ld+json">
 	{
 		"@context": "https://schema.org",
 		"@type": "VirtualTour",
 		"name": "3D Virtual Gallery",
-		"description": "An interactive WebGL-based 3D virtual gallery showcasing art by LB Artworks.",
-		"url": "https://nostromophoto.com/virtual/virtual.html",
-		"image": "https://nostromophoto.com/virtual/preview.jpg",
+		"description": "An interactive WebGL-based 3D virtual gallery by OpenVGAL.",
+		"url": "https://openvgal.com/",
+		"image": "https://openvgal.com/preview.jpg",
 		"provider": {
 		"@type": "Organization",
-		"name": "LB Artworks",
-		"url": "https://nostromophoto.com"
+		"name": "OpenVGAL",
+		"url": "https://openvgal.com"
 		}
 	}
 	</script>
 	<script>
-         <!--/////////////////////// CUSTOMIZE THIS VARLUE //////////////////////////////////-->	
-		window.openvgal_location = '../';
-		<!--/////////////////////// CUSTOMIZE THIS VARLUE //////////////////////////////////-->
+         <!--/////////////////////// CUSTOMIZE THIS VALUE //////////////////////////////////-->
+		window.openvgal_location = '.';
+		<!--/////////////////////// CUSTOMIZE THIS VALUE //////////////////////////////////-->
 		
 
 		// Amend header values with your choice. Only proceed if base is set and valid
@@ -142,6 +142,21 @@
 	-->
 	<script src="https://unpkg.com/earcut@2.1.1/dist/earcut.min.js"></script>
     <link rel="stylesheet" href="overlay.css">
+
+	<script>
+	// Preview mode detection - must run before declarations.js
+	(function() {
+		const urlParams = new URLSearchParams(window.location.search);
+		if (urlParams.get('preview') === 'iframe' && window.parent) {
+			window.openvgal_preview_mode = true;
+			window.openvgal_cdn_base = window.parent.openvgal_cdn_base || window.location.origin;
+			console.log('Preview mode: CDN base =', window.openvgal_cdn_base);
+		} else {
+			window.openvgal_preview_mode = false;
+			window.openvgal_cdn_base = '';
+		}
+	})();
+	</script>
   </head>
 
   <body>
@@ -257,6 +272,17 @@
 	}
 	
 
+	// Load a NodeMaterial JSON, rewriting hardcoded texture URLs to use materials_folder
+	async function loadNodeMaterial(name, jsonUrl, scene) {
+		const response = await fetch(jsonUrl);
+		let text = await response.text();
+		text = text.replaceAll('http://localhost/materials/', materials_folder + '/');
+		const json = JSON.parse(text);
+		const mat = BABYLON.NodeMaterial.Parse(json, scene, materials_folder + '/');
+		mat.name = name;
+		return mat;
+	}
+
 	function doesFileExist(urlToFile) {
 		var xhr = new XMLHttpRequest();
 		xhr.open('HEAD', urlToFile, false);
@@ -341,9 +367,15 @@
         }
 	
 		//receives the events to switch galleries
-		let galleryManager=async function (evt){ 
+		let galleryManager=async function (evt){
 				console.log(evt);
-				
+
+				// Revoke previous blob URLs to free memory (preview mode)
+				if (window._previewBlobUrls && window._previewBlobUrls.length > 0) {
+					window._previewBlobUrls.forEach(url => URL.revokeObjectURL(url));
+					window._previewBlobUrls = [];
+				}
+
 				//only in the first run
 				if ('first' in evt){
 					console.log('First gallery booting');
@@ -414,7 +446,7 @@
 									let name=scene.meshes[i].material.name;
 									
 									if (BJS_materials[name]== undefined){
-										BJS_materials[name] = await BABYLON.NodeMaterial.ParseFromFileAsync('r' + name, materials_folder + '/' + name + '.json', scene);
+										BJS_materials[name] = await loadNodeMaterial('r' + name, materials_folder + '/' + name + '.json', scene);
 										console.log("material " + name + " loaded");
 										BJS_materials[name].freeze();
 									}
@@ -426,8 +458,8 @@
 							}
 							
 							if (BJS_materials[frame_material]==undefined){
-								BJS_materials[frame_material] = await BABYLON.NodeMaterial.ParseFromFileAsync('r' + frame_material, materials_folder + '/' + frame_material + '.json', scene);
-								console.log("material " + name + " loaded");
+								BJS_materials[frame_material] = await loadNodeMaterial('r' + frame_material, materials_folder + '/' + frame_material + '.json', scene);
+								console.log("material " + frame_material + " loaded");
 							}
 							populate_template(config_file_content, current_gallery, scene);
 							console.log("template populated");
@@ -484,9 +516,25 @@
 		let fontfile=await fetch("https://assets.babylonjs.com/fonts/Droid Sans_Regular.json");
 		fontContent=await fontfile.json();
 		
-		//read json files
-		let response = await fetch (config_file_name);
-		config_file_content = await response.json();
+		//read json files - check for preview mode first
+		const previewParam = new URLSearchParams(window.location.search).get('preview');
+		if (previewParam === 'iframe' && window.parent && window.parent.openvgal_config) {
+			// Iframe preview mode - access parent's blob URLs directly
+			config_file_content = window.parent.openvgal_config;
+			const blobUrls = window.parent.openvgal_blobUrls || {};
+			console.log('Preview mode: loaded', Object.keys(blobUrls).length, 'images from parent');
+
+			window.resolveImageUrl = function(resourcePath) {
+				if (blobUrls[resourcePath]) {
+					return blobUrls[resourcePath];
+				}
+				console.warn('Preview: no blob URL for', resourcePath);
+				return hallspics_prefix + resourcePath;
+			};
+		} else {
+			let response = await fetch (config_file_name);
+			config_file_content = await response.json();
+		}
 		
 
 		window.engine = await asyncEngineCreation();

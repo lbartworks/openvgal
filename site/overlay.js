@@ -75,7 +75,8 @@ function manual_move_forward(){
 
 // show metadata or other info
 function showInfoBox(title) {
-    document.getElementById("artwork-info").innerText = title;
+    const el = document.getElementById("artwork-info");
+    if (el) el.innerText = title;
     //enable action buttons
     document.querySelectorAll('.action-button').forEach(button => {
         button.disabled = false;
@@ -83,7 +84,8 @@ function showInfoBox(title) {
 }
 
 function hideInfoBox() {
-    document.getElementById("artwork-info").innerText = "";
+    const el = document.getElementById("artwork-info");
+    if (el) el.innerText = "";
     //disable action buttons. Called when entering a new gallery
     document.querySelectorAll('.action-button').forEach(button => {
         button.disabled = true;

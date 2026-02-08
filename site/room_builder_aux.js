@@ -166,7 +166,7 @@ function populate_template(config_file, room_name,scene){
 		items_material.freeze();
 		items_material.specularColor=new BABYLON.Color3(0,0,0);
 		items_material.maxSimultaneousLights=max_lights;
-		let tex=new BABYLON.Texture(hallspics_prefix + gallery[item]["resource"], scene);
+		let tex=new BABYLON.Texture(window.resolveImageUrl(gallery[item]["resource"]), scene);
 		items_material.diffuseTexture=tex;
 		
 		//get orientation

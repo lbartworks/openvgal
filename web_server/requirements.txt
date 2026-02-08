@@ -1,3 +1,0 @@
-pyinstaller==6.3.0
-pandas
-pillow
