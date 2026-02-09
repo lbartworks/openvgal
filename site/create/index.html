@@ -642,7 +642,7 @@
 
       // Viewer files to fetch from current origin (one level up from /create/)
       const viewerFiles = [
-        '../index.html',
+        '../viewer.html',
         '../room_builder_aux.js',
         '../overlay.js',
         '../overlay.css',
@@ -695,7 +695,7 @@
           const zipPath = file.replace(/^\.\.\//,'');
 
           // Modify index.html to remove preview mode and set correct paths
-          if (zipPath === 'index.html') {
+          if (zipPath === 'viewer.html') {
             // Remove the preview detection script and set openvgal_location to current folder
             content = content.replace(
               /window\.openvgal_location = '[^']*';/,
