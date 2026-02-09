@@ -1,22 +1,16 @@
 	// user custom variables that you need to modify
 	const openvgal_location=window.openvgal_location; //empty string if at the root folder
 
-	// Environment auto-detection
+	// CDN for templates and materials
+	// Override: set window.openvgal_cdn_base = '' before loading this script to use local files instead
 	const is_preview = window.openvgal_preview_mode || false;
-	const is_hosted = window.location.hostname.includes('openvgal.com');
-	const cdn_base = (is_hosted || is_preview) ? (window.openvgal_cdn_base || 'https://cdn.openvgal.com') : '';
+	const cdn_base = (window.openvgal_cdn_base !== undefined) ? window.openvgal_cdn_base : 'https://cdn.openvgal.com';
 
-	// CDN paths for templates/materials/icons when hosted or in preview; local paths otherwise
+	// CDN paths for templates/materials; falls back to local paths if cdn_base is empty
 	const glb_location = cdn_base ? cdn_base + '/templates/' : openvgal_location + '/templates/';
 	const materials_folder = cdn_base ? cdn_base + '/materials' : openvgal_location + '/materials';
-	const icons_folder = cdn_base ? cdn_base + '/icons' : openvgal_location + '/icons';
 
-	if (cdn_base) {
-		console.log('CDN paths enabled:');
-		console.log('  Templates:', glb_location);
-		console.log('  Materials:', materials_folder);
-		console.log('  Icons:', icons_folder);
-	}
+	console.log(cdn_base ? 'CDN: ' + cdn_base : 'CDN disabled, using local paths');
 
 	// Config file and images always relative to openvgal_location (or blob URLs in preview)
 	const config_file_name=openvgal_location + '/building_v2.json';
