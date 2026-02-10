@@ -274,7 +274,7 @@
 	async function loadNodeMaterial(name, jsonUrl, scene) {
 		const response = await fetch(jsonUrl);
 		let text = await response.text();
-		text = text.replaceAll('http://localhost/materials/', materials_folder + '/');
+		text = text.replaceAll('http://localhost/materials/', '');
 		const json = JSON.parse(text);
 		const mat = BABYLON.NodeMaterial.Parse(json, scene, materials_folder + '/');
 		mat.name = name;
@@ -559,7 +559,6 @@
 		// Create synthetic event
 		let evt = {source: {name: `d_${window.current_gallery}_1`}};
 		evt.first = 1; 
-		await galleryManager(evt);
 		await galleryManager(evt);
 		
 	}

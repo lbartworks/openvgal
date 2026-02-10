@@ -3,352 +3,502 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OpenVGAL Gallery Generator</title>
+  <title>Create Gallery - OpenVGAL</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-      background: #1a1a2e;
-      color: #eee;
-      margin: 0;
-      padding: 20px;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      background: #000;
+      color: #a1a1aa;
       min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
     }
 
-    .container {
-      max-width: 800px;
+    /* Ambient glow */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -200px; left: 50%;
+      transform: translateX(-50%);
+      width: 700px; height: 700px;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .page-wrapper {
+      position: relative;
+      z-index: 1;
+      max-width: 680px;
       margin: 0 auto;
+      padding: 0 1.5rem 4rem;
     }
 
-    h1 {
-      text-align: center;
+    /* --- NAV --- */
+    nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.25rem 0;
+      margin-bottom: 1.5rem;
+    }
+    .nav-logo {
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
       color: #fff;
-      margin-bottom: 10px;
+      text-decoration: none;
     }
+    .nav-back {
+      color: #52525b;
+      text-decoration: none;
+      font-size: 0.8rem;
+      font-weight: 400;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      transition: color 0.15s;
+    }
+    .nav-back:hover { color: #a1a1aa; }
+    .nav-back svg { width: 14px; height: 14px; }
 
-    .subtitle {
+    /* --- HEADER --- */
+    .page-header {
       text-align: center;
-      color: #888;
-      margin-bottom: 40px;
+      margin-bottom: 2.5rem;
+    }
+    .page-header h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: #fafafa;
+      margin-bottom: 0.5rem;
+    }
+    .page-header p {
+      color: #52525b;
+      font-size: 0.88rem;
+      font-weight: 400;
     }
 
+    /* --- SECTIONS --- */
     .section {
-      background: #16213e;
-      border-radius: 12px;
-      padding: 24px;
-      margin-bottom: 20px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 14px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
     }
 
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      margin-bottom: 1rem;
+    }
+    .step-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px; height: 24px;
+      border-radius: 6px;
+      background: rgba(99, 102, 241, 0.1);
+      color: #818cf8;
+      font-size: 0.7rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
     .section-title {
-      font-size: 14px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: #888;
-      margin-bottom: 16px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #e4e4e7;
     }
-
     .section-hint {
-      font-size: 13px;
-      color: #666;
-      margin-bottom: 16px;
+      font-size: 0.8rem;
+      color: #52525b;
+      line-height: 1.6;
+      margin-bottom: 1rem;
     }
 
-    .folder-input {
-      display: none;
-    }
-
+    /* --- BUTTONS --- */
     .btn {
-      background: #0f3460;
-      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
       border: none;
-      padding: 12px 24px;
+      padding: 0.6rem 1.2rem;
       border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 500;
       cursor: pointer;
-      font-size: 16px;
-      transition: background 0.2s;
+      transition: all 0.15s ease;
+      font-family: inherit;
+      text-decoration: none;
     }
-
-    .btn:hover {
-      background: #1a4f8a;
-    }
-
+    .btn svg { width: 14px; height: 14px; }
     .btn:disabled {
-      background: #333;
+      opacity: 0.3;
       cursor: not-allowed;
-      opacity: 0.6;
+    }
+
+    .btn-default {
+      background: rgba(255,255,255,0.06);
+      color: #d4d4d8;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .btn-default:hover:not(:disabled) {
+      background: rgba(255,255,255,0.1);
+      border-color: rgba(255,255,255,0.14);
     }
 
     .btn-primary {
-      background: #e94560;
+      background: #fff;
+      color: #09090b;
+    }
+    .btn-primary:hover:not(:disabled) {
+      opacity: 0.9;
+      transform: translateY(-1px);
     }
 
-    .btn-primary:hover {
-      background: #ff6b6b;
+    .btn-accent {
+      background: rgba(99, 102, 241, 0.1);
+      color: #a5b4fc;
+      border: 1px solid rgba(99, 102, 241, 0.15);
+    }
+    .btn-accent:hover:not(:disabled) {
+      background: rgba(99, 102, 241, 0.18);
+      border-color: rgba(99, 102, 241, 0.28);
     }
 
-    .btn-secondary {
-      background: #533483;
+    .btn-subtle {
+      background: transparent;
+      color: #71717a;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .btn-subtle:hover:not(:disabled) {
+      background: rgba(255,255,255,0.04);
+      color: #a1a1aa;
     }
 
-    .btn-secondary:hover {
-      background: #7b4bb9;
+    /* --- DROP ZONE --- */
+    .drop-zone {
+      border: 1.5px dashed rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 2.5rem 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-top: 0.75rem;
+      position: relative;
+    }
+    .drop-zone:hover {
+      border-color: rgba(99, 102, 241, 0.25);
+      background: rgba(99, 102, 241, 0.03);
+    }
+    .drop-zone:hover .drop-icon { color: #6366f1; }
+    .drop-zone:hover .drop-text { color: #a1a1aa; }
+
+    .drop-zone.drag-over {
+      border-color: #6366f1;
+      border-style: solid;
+      background: rgba(99, 102, 241, 0.06);
+    }
+    .drop-zone.drag-over .drop-icon { color: #818cf8; }
+    .drop-zone.drag-over .drop-text { color: #c7d2fe; }
+
+    .drop-icon {
+      color: #3f3f46;
+      margin-bottom: 0.75rem;
+      transition: color 0.2s;
+    }
+    .drop-icon svg { width: 36px; height: 36px; }
+    .drop-text {
+      font-size: 0.85rem;
+      color: #52525b;
+      margin-bottom: 0.2rem;
+      transition: color 0.2s;
+      font-weight: 500;
+    }
+    .drop-subtext {
+      font-size: 0.72rem;
+      color: #3f3f46;
     }
 
-    .gallery-list {
-      margin-top: 16px;
-    }
+    .folder-input { display: none; }
+
+    /* --- GALLERY LIST --- */
+    .gallery-list { margin-top: 1rem; }
 
     .gallery-item {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      background: #0f3460;
-      padding: 12px 16px;
-      border-radius: 8px;
-      margin-bottom: 8px;
-      gap: 12px;
+      gap: 0.65rem;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 10px;
+      padding: 0.6rem 0.85rem;
+      margin-bottom: 0.4rem;
+      transition: border-color 0.15s;
     }
-
-    .gallery-item-info {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex: 1;
+    .gallery-item:hover {
+      border-color: rgba(255,255,255,0.1);
     }
 
     .gallery-icon {
-      font-size: 24px;
+      flex-shrink: 0;
+      width: 32px; height: 32px;
+      border-radius: 7px;
+      background: rgba(99, 102, 241, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #818cf8;
     }
+    .gallery-icon svg { width: 14px; height: 14px; }
 
-    .gallery-details {
-      flex: 1;
-    }
+    .gallery-details { flex: 1; min-width: 0; }
 
     .gallery-name-input {
-      background: #1a1a2e;
-      border: 1px solid #333;
-      color: #fff;
-      padding: 6px 10px;
+      background: transparent;
+      border: 1px solid transparent;
+      color: #d4d4d8;
+      padding: 0.2rem 0.4rem;
       border-radius: 4px;
-      font-size: 14px;
+      font-size: 0.82rem;
+      font-family: inherit;
+      font-weight: 500;
       width: 100%;
       max-width: 200px;
+      transition: border-color 0.15s, background 0.15s;
     }
-
+    .gallery-name-input:hover {
+      border-color: rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.02);
+    }
     .gallery-name-input:focus {
       outline: none;
-      border-color: #e94560;
+      border-color: rgba(99, 102, 241, 0.4);
+      background: rgba(255,255,255,0.03);
     }
 
     .gallery-folder {
-      color: #666;
-      font-size: 12px;
-      margin-top: 4px;
+      color: #3f3f46;
+      font-size: 0.68rem;
+      margin-top: 0.1rem;
+      padding-left: 0.4rem;
     }
 
     .gallery-count {
-      color: #888;
-      font-size: 14px;
+      color: #52525b;
+      font-size: 0.75rem;
       white-space: nowrap;
+      flex-shrink: 0;
     }
 
     .gallery-remove {
       background: none;
       border: none;
-      color: #e94560;
+      color: #3f3f46;
       cursor: pointer;
-      font-size: 20px;
-      padding: 4px 8px;
+      padding: 0.25rem;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      transition: color 0.15s, background 0.15s;
     }
-
     .gallery-remove:hover {
-      color: #ff6b6b;
+      color: #ef4444;
+      background: rgba(239, 68, 68, 0.08);
     }
+    .gallery-remove svg { width: 14px; height: 14px; }
 
     .empty-state {
       text-align: center;
-      color: #666;
-      padding: 40px;
+      color: #3f3f46;
+      padding: 1.5rem;
+      font-size: 0.82rem;
     }
 
+    /* --- PROGRESS --- */
     .progress-container {
-      margin-top: 16px;
+      margin-top: 1rem;
       display: none;
     }
-
     .progress-bar {
-      height: 8px;
-      background: #0f3460;
-      border-radius: 4px;
+      height: 3px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 3px;
       overflow: hidden;
     }
-
     .progress-fill {
       height: 100%;
-      background: linear-gradient(90deg, #e94560, #533483);
+      background: linear-gradient(90deg, #6366f1, #a78bfa);
       width: 0%;
       transition: width 0.3s;
+      border-radius: 3px;
     }
-
     .progress-text {
       text-align: center;
-      margin-top: 8px;
-      color: #888;
-      font-size: 14px;
+      margin-top: 0.5rem;
+      color: #52525b;
+      font-size: 0.75rem;
+    }
+
+    /* --- RESULTS --- */
+    .result-section { display: none; }
+
+    .stats {
+      display: flex;
+      gap: 2rem;
+      margin-bottom: 1.5rem;
+    }
+    .stat { text-align: center; }
+    .stat-value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #fafafa;
+    }
+    .stat-label {
+      font-size: 0.68rem;
+      color: #52525b;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-weight: 500;
     }
 
     .actions {
       display: flex;
-      gap: 12px;
+      gap: 0.6rem;
       flex-wrap: wrap;
     }
 
-    .result-section {
-      display: none;
+    /* --- INFO BOXES --- */
+    .info-box {
+      background: rgba(255,255,255,0.015);
+      border: 1px solid rgba(255,255,255,0.04);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      margin-top: 1rem;
+    }
+    .info-box h3 {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #d4d4d8;
+      margin-bottom: 0.4rem;
+    }
+    .info-box ol, .info-box ul {
+      margin: 0;
+      padding-left: 1.25rem;
+      color: #71717a;
+      font-size: 0.78rem;
+      line-height: 1.8;
+    }
+    .info-box code {
+      background: rgba(99, 102, 241, 0.1);
+      padding: 0.1rem 0.35rem;
+      border-radius: 3px;
+      color: #a5b4fc;
+      font-size: 0.75rem;
     }
 
+    /* --- JSON PREVIEW --- */
+    details { margin-top: 1rem; }
+    details summary {
+      cursor: pointer;
+      font-size: 0.75rem;
+      color: #3f3f46;
+      transition: color 0.15s;
+    }
+    details summary:hover { color: #71717a; }
     .json-preview {
-      background: #0a0a1a;
+      background: rgba(255,255,255,0.015);
+      border: 1px solid rgba(255,255,255,0.04);
       border-radius: 8px;
-      padding: 16px;
+      padding: 1rem;
       max-height: 300px;
       overflow: auto;
-      font-family: 'Consolas', 'Monaco', monospace;
-      font-size: 12px;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 0.7rem;
       white-space: pre;
-      color: #8be9fd;
+      color: #71717a;
+      margin-top: 0.5rem;
     }
 
-    .stats {
-      display: flex;
-      gap: 24px;
-      margin-bottom: 16px;
-    }
-
-    .stat {
-      text-align: center;
-    }
-
-    .stat-value {
-      font-size: 32px;
-      font-weight: bold;
-      color: #e94560;
-    }
-
-    .stat-label {
-      font-size: 12px;
-      color: #888;
-      text-transform: uppercase;
-    }
-
-    .instructions {
-      background: #0f3460;
-      border-radius: 8px;
-      padding: 16px;
-      margin-top: 16px;
-    }
-
-    .instructions h3 {
-      margin-top: 0;
-      color: #fff;
-    }
-
-    .instructions ol, .instructions ul {
-      margin: 0;
-      padding-left: 20px;
-      color: #aaa;
-    }
-
-    .instructions li {
-      margin-bottom: 8px;
-    }
-
-    .instructions code {
-      background: #1a1a2e;
-      padding: 2px 6px;
-      border-radius: 4px;
-      color: #8be9fd;
-    }
-
-    .mode-tabs {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 16px;
-    }
-
-    .mode-tab {
-      padding: 8px 16px;
-      background: #0f3460;
-      border: none;
-      color: #888;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-
-    .mode-tab.active {
-      background: #e94560;
-      color: #fff;
-    }
-
-    .mode-content {
-      display: none;
-    }
-
-    .mode-content.active {
-      display: block;
-    }
-
-    .drop-zone {
-      border: 2px dashed #333;
-      border-radius: 8px;
-      padding: 32px;
-      text-align: center;
-      color: #666;
-      margin-top: 12px;
-      transition: border-color 0.2s, background 0.2s;
-      cursor: default;
-    }
-
-    .drop-zone.drag-over {
-      border-color: #e94560;
-      background: rgba(233, 69, 96, 0.1);
-      color: #e94560;
+    /* --- RESPONSIVE --- */
+    @media (max-width: 600px) {
+      .page-wrapper { padding: 0 1rem 3rem; }
+      .page-header h1 { font-size: 1.4rem; }
+      .section { padding: 1.25rem; }
+      .actions { flex-direction: column; }
+      .actions .btn { width: 100%; justify-content: center; }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>OpenVGAL Generator</h1>
-    <p class="subtitle">Create virtual galleries from your images - no Python required</p>
+  <div class="page-wrapper">
+    <nav>
+      <a href="/" class="nav-logo">OPENVGAL</a>
+      <a href="/" class="nav-back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        Back
+      </a>
+    </nav>
+
+    <div class="page-header">
+      <h1>Create your gallery</h1>
+      <p>Add image folders, generate, download &mdash; everything runs in your browser</p>
+    </div>
 
     <!-- Step 1: Add Folders -->
     <div class="section">
-      <div class="section-title">1. Add Gallery Folders</div>
-      <div class="section-hint">
-        Use the button to browse for a folder, or drag &amp; drop multiple folders below.
-        You can rename galleries after adding them.
+      <div class="section-header">
+        <span class="step-badge">1</span>
+        <span class="section-title">Add gallery rooms</span>
       </div>
+      <div class="section-hint">
+        Each folder becomes a separate room in your gallery.
+        You can rename rooms after adding them.
+      </div>
+
       <input type="file" id="folderInput" class="folder-input" webkitdirectory multiple>
-      <button class="btn" id="addFolderBtn">+ Add Folder</button>
+      <button class="btn btn-default" id="addFolderBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/><path d="M12 11v6M9 14h6"/></svg>
+        Browse for folder
+      </button>
+
       <div class="drop-zone" id="dropZone">
-        Drag &amp; drop folders here to add multiple galleries at once
+        <div class="drop-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+        </div>
+        <div class="drop-text">Drop image folders here</div>
+        <div class="drop-subtext">or use the button above to browse</div>
       </div>
 
       <div class="gallery-list" id="galleryList">
         <div class="empty-state" id="emptyState">
-          No folders added yet. Each folder you add becomes a separate gallery room.
+          No rooms added yet
         </div>
       </div>
     </div>
 
     <!-- Step 2: Generate -->
     <div class="section">
-      <div class="section-title">2. Generate Gallery</div>
-      <button class="btn btn-primary" id="generateBtn" disabled>Generate Gallery JSON</button>
+      <div class="section-header">
+        <span class="step-badge">2</span>
+        <span class="section-title">Generate</span>
+      </div>
+      <button class="btn btn-primary" id="generateBtn" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        Build Gallery
+      </button>
 
       <div class="progress-container" id="progressContainer">
         <div class="progress-bar">
@@ -360,23 +510,34 @@
 
     <!-- Step 3: Results -->
     <div class="section result-section" id="resultSection">
-      <div class="section-title">3. Your Gallery</div>
+      <div class="section-header">
+        <span class="step-badge">3</span>
+        <span class="section-title">Your gallery is ready</span>
+      </div>
 
       <div class="stats">
         <div class="stat">
           <div class="stat-value" id="statGalleries">0</div>
-          <div class="stat-label">Galleries</div>
+          <div class="stat-label">Rooms</div>
         </div>
         <div class="stat">
           <div class="stat-value" id="statImages">0</div>
-          <div class="stat-label">Images</div>
+          <div class="stat-label">Artworks</div>
         </div>
       </div>
 
       <div class="actions">
-        <button class="btn btn-primary" id="downloadZipBtn">Download Complete ZIP</button>
-        <button class="btn btn-secondary" id="previewBtn">Preview Gallery</button>
-        <button class="btn" id="downloadBtn">Download JSON Only</button>
+        <button class="btn btn-primary" id="downloadZipBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          Download ZIP
+        </button>
+        <button class="btn btn-accent" id="previewBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          Preview
+        </button>
+        <button class="btn btn-subtle" id="downloadBtn">
+          JSON only
+        </button>
       </div>
 
       <div class="progress-container" id="zipProgressContainer" style="display: none;">
@@ -386,27 +547,16 @@
         <div class="progress-text" id="zipProgressText">Preparing ZIP...</div>
       </div>
 
-      <div class="instructions">
-        <h3>How Preview Works</h3>
-        <ul>
-          <li>Preview loads the gallery structure in the 3D viewer</li>
-          <li>Images will display <strong>if they exist</strong> in the expected paths on this server</li>
-          <li>For example: gallery "landscapes" looks for images at <code>/landscapes/image.jpg</code></li>
-        </ul>
-      </div>
-
-      <div class="instructions" style="margin-top: 12px;">
+      <div class="info-box">
         <h3>Deployment</h3>
         <ol>
-          <li>Click <strong>Download Complete ZIP</strong></li>
-          <li>Extract the ZIP to your web server</li>
-          <li>Add your image folders with matching names</li>
-          <li>Open <code>index.html</code> in a browser (or serve with any web server)</li>
+          <li>Extract the ZIP on your web server</li>
+          <li>Open <code>viewer.html</code> &mdash; that's it</li>
         </ol>
       </div>
 
-      <details style="margin-top: 16px;">
-        <summary style="cursor: pointer; color: #888;">Show JSON Preview</summary>
+      <details style="margin-top: 1rem;">
+        <summary>Show JSON preview</summary>
         <pre class="json-preview" id="jsonPreview"></pre>
       </details>
     </div>
@@ -447,19 +597,22 @@
     async function readAllFiles(dirEntry, basePath) {
       const results = [];
       const reader = dirEntry.createReader();
-      const readBatch = () => new Promise((resolve, reject) => {
-        reader.readEntries(resolve, reject);
-      });
-      let entries;
+      const readBatch = function() {
+        return new Promise(function(resolve, reject) {
+          reader.readEntries(resolve, reject);
+        });
+      };
+      var entries;
       do {
         entries = await readBatch();
-        for (const entry of entries) {
+        for (var i = 0; i < entries.length; i++) {
+          var entry = entries[i];
           if (entry.isFile) {
-            const file = await new Promise((resolve, reject) => entry.file(resolve, reject));
-            results.push({ file, folderPath: basePath, folderName: basePath.split('/').pop() });
+            var file = await new Promise(function(resolve, reject) { entry.file(resolve, reject); });
+            results.push({ file: file, folderPath: basePath, folderName: basePath.split('/').pop() });
           } else if (entry.isDirectory) {
-            const subResults = await readAllFiles(entry, basePath + '/' + entry.name);
-            results.push(...subResults);
+            var subResults = await readAllFiles(entry, basePath + '/' + entry.name);
+            results.push.apply(results, subResults);
           }
         }
       } while (entries.length > 0);
@@ -467,19 +620,22 @@
     }
 
     async function addDroppedFolder(dirEntry) {
-      const allFiles = await readAllFiles(dirEntry, dirEntry.name);
+      var allFiles = await readAllFiles(dirEntry, dirEntry.name);
       // Group by immediate parent folder
-      const groups = {};
-      for (const { file, folderPath, folderName } of allFiles) {
-        if (!groups[folderPath]) {
-          groups[folderPath] = { name: folderName, path: folderPath, files: [] };
+      var groups = {};
+      for (var i = 0; i < allFiles.length; i++) {
+        var item = allFiles[i];
+        if (!groups[item.folderPath]) {
+          groups[item.folderPath] = { name: item.folderName, path: item.folderPath, files: [] };
         }
-        groups[folderPath].files.push(file);
+        groups[item.folderPath].files.push(item.file);
       }
-      for (const group of Object.values(groups)) {
-        const imageFiles = filterImageFiles(group.files);
+      var keys = Object.keys(groups);
+      for (var k = 0; k < keys.length; k++) {
+        var group = groups[keys[k]];
+        var imageFiles = filterImageFiles(group.files);
         if (imageFiles.length > 0) {
-          const exists = galleries.some(g => g.path === group.path);
+          var exists = galleries.some(function(g) { return g.path === group.path; });
           if (!exists) {
             galleries.push({
               name: group.name,
@@ -493,23 +649,23 @@
     }
 
     // Drop zone
-    const dropZone = document.getElementById('dropZone');
+    var dropZone = document.getElementById('dropZone');
 
-    dropZone.addEventListener('dragover', (e) => {
+    dropZone.addEventListener('dragover', function(e) {
       e.preventDefault();
       dropZone.classList.add('drag-over');
     });
 
-    dropZone.addEventListener('dragleave', () => {
+    dropZone.addEventListener('dragleave', function() {
       dropZone.classList.remove('drag-over');
     });
 
-    dropZone.addEventListener('drop', async (e) => {
+    dropZone.addEventListener('drop', async function(e) {
       e.preventDefault();
       dropZone.classList.remove('drag-over');
-      const items = Array.from(e.dataTransfer.items);
-      for (const item of items) {
-        const entry = item.webkitGetAsEntry();
+      var items = Array.from(e.dataTransfer.items);
+      for (var i = 0; i < items.length; i++) {
+        var entry = items[i].webkitGetAsEntry();
         if (entry && entry.isDirectory) {
           await addDroppedFolder(entry);
         }
@@ -517,26 +673,31 @@
       updateGalleryList();
     });
 
-    // Event Listeners
-    addFolderBtn.addEventListener('click', () => folderInput.click());
+    // Also allow clicking the drop zone to browse
+    dropZone.addEventListener('click', function() {
+      folderInput.click();
+    });
 
-    folderInput.addEventListener('change', (e) => {
-      const files = Array.from(e.target.files);
+    // Event Listeners
+    addFolderBtn.addEventListener('click', function() { folderInput.click(); });
+
+    folderInput.addEventListener('change', function(e) {
+      var files = Array.from(e.target.files);
       if (files.length === 0) return;
 
       // Group files by their immediate parent folder
-      const grouped = groupFilesByFolder(files);
+      var grouped = groupFilesByFolder(files);
 
       // Filter to only folders with images
-      grouped.forEach(group => {
-        const imageFiles = filterImageFiles(group.files);
+      grouped.forEach(function(group) {
+        var imageFiles = filterImageFiles(group.files);
         if (imageFiles.length > 0) {
           // Check if folder already added
-          const exists = galleries.some(g => g.path === group.path);
+          var exists = galleries.some(function(g) { return g.path === group.path; });
           if (!exists) {
             galleries.push({
-              name: group.name,        // Display/gallery name (editable)
-              folderName: group.name,  // Original folder name (for path reference)
+              name: group.name,
+              folderName: group.name,
               path: group.path,
               files: imageFiles
             });
@@ -548,15 +709,15 @@
       folderInput.value = ''; // Reset for next selection
     });
 
-    generateBtn.addEventListener('click', async () => {
+    generateBtn.addEventListener('click', async function() {
       generateBtn.disabled = true;
       progressContainer.style.display = 'block';
       resultSection.style.display = 'none';
 
       try {
-        generatedJSON = await buildGalleryJSON(galleries, (current, total, message) => {
-          const percent = Math.round((current / total) * 100);
-          progressFill.style.width = `${percent}%`;
+        generatedJSON = await buildGalleryJSON(galleries, function(current, total, message) {
+          var percent = Math.round((current / total) * 100);
+          progressFill.style.width = percent + '%';
           progressText.textContent = message;
         });
 
@@ -567,50 +728,50 @@
         showResults();
       } catch (error) {
         console.error('Generation failed:', error);
-        progressText.textContent = `Error: ${error.message}`;
+        progressText.textContent = 'Error: ' + error.message;
       }
 
       generateBtn.disabled = false;
     });
 
-    downloadBtn.addEventListener('click', () => {
+    downloadBtn.addEventListener('click', function() {
       if (generatedJSON) {
         downloadJSON(generatedJSON);
       }
     });
 
     // ZIP Download - bundles everything needed to deploy
-    downloadZipBtn.addEventListener('click', async () => {
+    downloadZipBtn.addEventListener('click', async function() {
       if (!generatedJSON) return;
 
       downloadZipBtn.disabled = true;
       zipProgressContainer.style.display = 'block';
 
       try {
-        await createAndDownloadZip(generatedJSON, (progress, message) => {
-          zipProgressFill.style.width = `${progress}%`;
+        await createAndDownloadZip(generatedJSON, function(progress, message) {
+          zipProgressFill.style.width = progress + '%';
           zipProgressText.textContent = message;
         });
       } catch (error) {
         console.error('ZIP creation failed:', error);
-        zipProgressText.textContent = `Error: ${error.message}`;
+        zipProgressText.textContent = 'Error: ' + error.message;
       }
 
       downloadZipBtn.disabled = false;
     });
 
     async function createAndDownloadZip(config, onProgress) {
-      const zip = new JSZip();
+      var zip = new JSZip();
 
       // Files to fetch from CDN
-      const cdnTemplates = [
+      var cdnTemplates = [
         'templates/T_root.glb',
         'templates/T_small.glb',
         'templates/T_pannels.glb',
         'templates/T_nopannels.glb'
       ];
 
-      const cdnMaterials = [
+      var cdnMaterials = [
         'materials/BJS_white.json',
         'materials/BJS_black_metal.json',
         'materials/BJS_chrome.json',
@@ -641,66 +802,69 @@
       ];
 
       // Viewer files to fetch from current origin (one level up from /create/)
-      const viewerFiles = [
+      var viewerFiles = [
         '../viewer.html',
         '../room_builder_aux.js',
         '../overlay.js',
+        '../overlay.html',
         '../overlay.css',
         '../babylon.js',
         '../babylonjs.loaders.min.js'
       ];
 
       // Collect user images from fileMap
-      const fileMap = window.openvgal_fileMap || {};
-      const imageEntries = Object.entries(fileMap);
+      var fileMap = window.openvgal_fileMap || {};
+      var imageEntries = Object.entries(fileMap);
 
-      const totalFiles = cdnTemplates.length + cdnMaterials.length + viewerFiles.length + imageEntries.length + 3; // +3 for declarations.js, building_v2.json, README
-      let fetchedCount = 0;
+      var totalFiles = cdnTemplates.length + cdnMaterials.length + viewerFiles.length + imageEntries.length + 3; // +3 for declarations.js, building_v2.json, README
+      var fetchedCount = 0;
 
-      const updateProgress = (message) => {
+      var updateProgress = function(message) {
         fetchedCount++;
-        const percent = Math.round((fetchedCount / totalFiles) * 100);
+        var percent = Math.round((fetchedCount / totalFiles) * 100);
         onProgress(percent, message);
       };
 
       // Fetch templates from CDN
       onProgress(0, 'Fetching templates from CDN...');
-      for (const file of cdnTemplates) {
+      for (var i = 0; i < cdnTemplates.length; i++) {
+        var file = cdnTemplates[i];
         try {
-          const response = await fetch(`${CDN_BASE}/${file}`);
-          const blob = await response.blob();
+          var response = await fetch(CDN_BASE + '/' + file);
+          var blob = await response.blob();
           zip.file(file, blob);
-          updateProgress(`Fetched ${file}`);
+          updateProgress('Fetched ' + file);
         } catch (e) {
-          console.warn(`Failed to fetch ${file}:`, e);
-          updateProgress(`Skipped ${file}`);
+          console.warn('Failed to fetch ' + file + ':', e);
+          updateProgress('Skipped ' + file);
         }
       }
 
       // Fetch materials from CDN
-      for (const file of cdnMaterials) {
+      for (var i = 0; i < cdnMaterials.length; i++) {
+        var file = cdnMaterials[i];
         try {
-          const response = await fetch(`${CDN_BASE}/${file}`);
-          const blob = await response.blob();
+          var response = await fetch(CDN_BASE + '/' + file);
+          var blob = await response.blob();
           zip.file(file, blob);
-          updateProgress(`Fetched ${file}`);
+          updateProgress('Fetched ' + file);
         } catch (e) {
-          console.warn(`Failed to fetch ${file}:`, e);
-          updateProgress(`Skipped ${file}`);
+          console.warn('Failed to fetch ' + file + ':', e);
+          updateProgress('Skipped ' + file);
         }
       }
 
       // Fetch viewer files from current origin
-      for (const file of viewerFiles) {
+      for (var i = 0; i < viewerFiles.length; i++) {
+        var file = viewerFiles[i];
         try {
-          const response = await fetch(file);
-          let content = await response.text();
+          var response = await fetch(file);
+          var content = await response.text();
           // Strip ../ prefix for ZIP path
-          const zipPath = file.replace(/^\.\.\//,'');
+          var zipPath = file.replace(/^\.\.\//, '');
 
-          // Modify index.html to remove preview mode and set correct paths
+          // Modify viewer.html to set correct paths
           if (zipPath === 'viewer.html') {
-            // Remove the preview detection script and set openvgal_location to current folder
             content = content.replace(
               /window\.openvgal_location = '[^']*';/,
               "window.openvgal_location = '.';"
@@ -708,44 +872,54 @@
           }
 
           zip.file(zipPath, content);
-          updateProgress(`Fetched ${zipPath}`);
+          updateProgress('Fetched ' + zipPath);
         } catch (e) {
-          const zipPath = file.replace(/^\.\.\//,'');
-          console.warn(`Failed to fetch ${zipPath}:`, e);
-          updateProgress(`Skipped ${zipPath}`);
+          var zipPath = file.replace(/^\.\.\//, '');
+          console.warn('Failed to fetch ' + zipPath + ':', e);
+          updateProgress('Skipped ' + zipPath);
         }
       }
 
       // Add user images
-      for (const [path, file] of imageEntries) {
+      for (var i = 0; i < imageEntries.length; i++) {
+        var path = imageEntries[i][0];
+        var imgFile = imageEntries[i][1];
         try {
-          // Strip leading slash for ZIP path (e.g. "/gallery1/photo.jpg" → "gallery1/photo.jpg")
-          const zipPath = path.replace(/^\//, '');
-          zip.file(zipPath, file);
-          updateProgress(`Added ${zipPath}`);
+          // Strip leading slash for ZIP path (e.g. "/gallery1/photo.jpg" -> "gallery1/photo.jpg")
+          var zipPath = path.replace(/^\//, '');
+          zip.file(zipPath, imgFile);
+          updateProgress('Added ' + zipPath);
         } catch (e) {
-          console.warn(`Failed to add image ${path}:`, e);
-          updateProgress(`Skipped ${path}`);
+          console.warn('Failed to add image ' + path + ':', e);
+          updateProgress('Skipped ' + path);
         }
       }
 
       // Create deployment declarations.js (not preview mode)
-      const declarationsContent = `    // OpenVGAL Viewer Configuration
-    // Generated by OpenVGAL Generator
-    const openvgal_location = '.';
-    const glb_location = openvgal_location + '/templates/';
-    const config_file_name = openvgal_location + '/building_v2.json';
-    const materials_folder = openvgal_location + '/materials';
-    const hallspics_prefix = openvgal_location + '';
-    window.resolveImageUrl = function(path) { return hallspics_prefix + path; };
-
-
-    // Program constants
-    const regul_exp_door = /^d_/;
-    const regul_exp_tail = /_[0-9]*$/;
-    const regul_exp_artworks = /_\\d{1,3}$/;
-    const frame_material = "BJS_white";
-`;
+      var declarationsContent = [
+        '// OpenVGAL Viewer Configuration',
+        '// Generated by OpenVGAL Generator',
+        '//',
+        "// Deployment path: '.' means relative to viewer.html — works in any subfolder.",
+        '// Examples:',
+        "//   Root:      https://example.com/          -> keep '.'",
+        "//   Subfolder: https://example.com/gallery/  -> keep '.'",
+        "//   Custom:    set to '/my/path' if assets are served from a different location",
+        "var openvgal_location = '.';",
+        '',
+        "var glb_location = openvgal_location + '/templates/';",
+        "var config_file_name = openvgal_location + '/building_v2.json';",
+        "var materials_folder = openvgal_location + '/materials';",
+        "var hallspics_prefix = openvgal_location + '';",
+        'window.resolveImageUrl = function(path) { return hallspics_prefix + path; };',
+        '',
+        '// Program constants',
+        'var regul_exp_door = /^d_/;',
+        'var regul_exp_tail = /_[0-9]*$/;',
+        'var regul_exp_artworks = /_\\d{1,3}$/;',
+        'var frame_material = "BJS_white";',
+        ''
+      ].join('\n');
       zip.file('declarations.js', declarationsContent);
       updateProgress('Created declarations.js');
 
@@ -754,54 +928,52 @@
       updateProgress('Added building_v2.json');
 
       // Add README
-      const galleryFolders = Object.keys(config).filter(k => k !== 'Technical' && k !== 'root');
-      const readmeContent = `# OpenVGAL Virtual Gallery
-
-Your virtual 3D art gallery is ready to deploy!
-
-## Quick Start
-
-1. Extract this ZIP to your web server folder
-2. Open viewer.html in a browser (or serve with any web server)
-
-Your images are already included in the ZIP under these folders:
-${galleryFolders.map(k => `- ${k}/`).join('\n')}
-
-## Folder Structure
-
-\`\`\`
-your-gallery/
-├── viewer.html         # Main viewer
-├── building_v2.json    # Gallery configuration
-├── declarations.js     # Path configuration
-├── templates/          # 3D room templates
-├── materials/          # Textures and materials
-${galleryFolders.map(k => `├── ${k}/               # Your images`).join('\n')}
-├── overlay.js          # UI overlay
-├── overlay.css         # UI styles
-└── babylon.js          # 3D engine
-\`\`\`
-
-## Need Help?
-
-Visit https://openvgal.com for documentation and support.
-
-Generated with OpenVGAL Generator
-`;
+      var galleryFolders = Object.keys(config).filter(function(k) { return k !== 'Technical' && k !== 'root'; });
+      var readmeContent = '# OpenVGAL Virtual Gallery\n\n' +
+        'Your virtual 3D art gallery is ready to deploy!\n\n' +
+        '## Quick Start\n\n' +
+        '1. Extract this ZIP to your web server folder\n' +
+        '2. Open viewer.html in a browser (or serve with any web server)\n\n' +
+        'Your images are already included in the ZIP under these folders:\n' +
+        galleryFolders.map(function(k) { return '- ' + k + '/'; }).join('\n') + '\n\n' +
+        '## Folder Structure\n\n```\nyour-gallery/\n' +
+        '├── viewer.html         # Main viewer\n' +
+        '├── building_v2.json    # Gallery configuration\n' +
+        '├── declarations.js     # Path configuration\n' +
+        '├── templates/          # 3D room templates\n' +
+        '├── materials/          # Textures and materials\n' +
+        galleryFolders.map(function(k) { return '├── ' + k + '/               # Your images'; }).join('\n') + '\n' +
+        '├── overlay.js          # UI overlay\n' +
+        '├── overlay.css         # UI styles\n' +
+        '└── babylon.js          # 3D engine\n```\n\n' +
+        '## Deploying to a Subfolder\n\n' +
+        'This gallery works in any subfolder — just extract and serve. All paths are\n' +
+        'relative to viewer.html, so no configuration needed. For example:\n' +
+        '- https://example.com/ (root)\n' +
+        '- https://example.com/gallery/ (subfolder)\n' +
+        '- https://example.com/art/my-gallery/ (nested subfolder)\n\n' +
+        'If you need to customize paths, edit `declarations.js`.\n\n' +
+        '## Custom Logo\n\n' +
+        'Replace `materials/logo.png` with your own image.\n' +
+        'Use white artwork on a black background (the white areas will glow).\n' +
+        'Recommended size: 1024x512 px, PNG format.\n\n' +
+        '## Need Help?\n\n' +
+        'Visit https://openvgal.com for documentation and support.\n\n' +
+        'Generated with OpenVGAL Generator\n';
       zip.file('README.md', readmeContent);
       updateProgress('Added README.md');
 
       // Generate ZIP
       onProgress(100, 'Creating ZIP file...');
-      const blob = await zip.generateAsync({
+      var blob = await zip.generateAsync({
         type: 'blob',
         compression: 'DEFLATE',
         compressionOptions: { level: 6 }
       });
 
       // Download
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
       a.href = url;
       a.download = 'openvgal-gallery.zip';
       document.body.appendChild(a);
@@ -812,14 +984,15 @@ Generated with OpenVGAL Generator
       onProgress(100, 'Download complete!');
     }
 
-    let previewWindow = null;
+    var previewWindow = null;
 
-    previewBtn.addEventListener('click', () => {
+    previewBtn.addEventListener('click', function() {
       if (generatedJSON && window.openvgal_fileMap) {
         // Create blob URLs in this window's context
         window.openvgal_blobUrls = {};
-        for (const [path, file] of Object.entries(window.openvgal_fileMap)) {
-          window.openvgal_blobUrls[path] = URL.createObjectURL(file);
+        var entries = Object.entries(window.openvgal_fileMap);
+        for (var i = 0; i < entries.length; i++) {
+          window.openvgal_blobUrls[entries[i][0]] = URL.createObjectURL(entries[i][1]);
         }
 
         // Store config for iframe
@@ -832,24 +1005,26 @@ Generated with OpenVGAL Generator
 
     function showPreviewIframe() {
       // Create overlay
-      const overlay = document.createElement('div');
+      var overlay = document.createElement('div');
       overlay.id = 'previewOverlay';
       overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:9999;';
 
       // Close button
-      const closeBtn = document.createElement('button');
-      closeBtn.textContent = '✕ Close Preview';
-      closeBtn.style.cssText = 'position:absolute;top:10px;right:10px;z-index:10000;padding:10px 20px;background:#e94560;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:16px;';
-      closeBtn.onclick = () => {
+      var closeBtn = document.createElement('button');
+      closeBtn.textContent = 'Close Preview';
+      closeBtn.style.cssText = 'position:absolute;top:12px;right:12px;z-index:10000;padding:8px 20px;background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:6px;cursor:pointer;font-size:14px;font-family:Inter,sans-serif;transition:background 0.2s;';
+      closeBtn.onmouseover = function() { closeBtn.style.background = 'rgba(255,255,255,0.2)'; };
+      closeBtn.onmouseout = function() { closeBtn.style.background = 'rgba(255,255,255,0.1)'; };
+      closeBtn.onclick = function() {
         overlay.remove();
         // Revoke blob URLs
         if (window.openvgal_blobUrls) {
-          Object.values(window.openvgal_blobUrls).forEach(url => URL.revokeObjectURL(url));
+          Object.values(window.openvgal_blobUrls).forEach(function(url) { URL.revokeObjectURL(url); });
         }
       };
 
       // Create iframe
-      const iframe = document.createElement('iframe');
+      var iframe = document.createElement('iframe');
       iframe.style.cssText = 'width:100%;height:100%;border:none;';
       iframe.src = '../viewer.html?preview=iframe';
 
@@ -858,11 +1033,15 @@ Generated with OpenVGAL Generator
       document.body.appendChild(overlay);
     }
 
-    window.addEventListener('beforeunload', (e) => {
+    window.addEventListener('beforeunload', function(e) {
       if (previewWindow && !previewWindow.closed) {
         e.preventDefault();
       }
     });
+
+    // SVG icon for gallery items
+    var folderSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>';
+    var removeSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>';
 
     // Functions
     function updateGalleryList() {
@@ -876,42 +1055,37 @@ Generated with OpenVGAL Generator
       generateBtn.disabled = false;
 
       // Clear existing items (except empty state)
-      const items = galleryList.querySelectorAll('.gallery-item');
-      items.forEach(item => item.remove());
+      var items = galleryList.querySelectorAll('.gallery-item');
+      items.forEach(function(item) { item.remove(); });
 
       // Add gallery items
-      galleries.forEach((gallery, index) => {
-        const item = document.createElement('div');
+      galleries.forEach(function(gallery, index) {
+        var item = document.createElement('div');
         item.className = 'gallery-item';
-        item.innerHTML = `
-          <div class="gallery-item-info">
-            <span class="gallery-icon">🖼️</span>
-            <div class="gallery-details">
-              <input type="text" class="gallery-name-input"
-                     value="${gallery.name}"
-                     data-index="${index}"
-                     placeholder="Gallery name">
-              <div class="gallery-folder">folder: ${gallery.folderName}</div>
-            </div>
-          </div>
-          <span class="gallery-count">${gallery.files.length} images</span>
-          <button class="gallery-remove" data-index="${index}">&times;</button>
-        `;
+        item.innerHTML =
+          '<div class="gallery-icon">' + folderSvg + '</div>' +
+          '<div class="gallery-details">' +
+            '<input type="text" class="gallery-name-input" value="' + gallery.name + '" data-index="' + index + '" placeholder="Room name">' +
+            '<div class="gallery-folder">' + gallery.folderName + '</div>' +
+          '</div>' +
+          '<span class="gallery-count">' + gallery.files.length + ' images</span>' +
+          '<button class="gallery-remove" data-index="' + index + '" title="Remove">' + removeSvg + '</button>';
         galleryList.appendChild(item);
       });
 
       // Add name change handlers
-      galleryList.querySelectorAll('.gallery-name-input').forEach(input => {
-        input.addEventListener('change', (e) => {
-          const index = parseInt(e.target.dataset.index);
+      galleryList.querySelectorAll('.gallery-name-input').forEach(function(input) {
+        input.addEventListener('change', function(e) {
+          var index = parseInt(e.target.dataset.index);
           galleries[index].name = e.target.value.trim() || galleries[index].folderName;
         });
       });
 
       // Add remove handlers
-      galleryList.querySelectorAll('.gallery-remove').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          const index = parseInt(e.target.dataset.index);
+      galleryList.querySelectorAll('.gallery-remove').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+          var target = e.target.closest('.gallery-remove');
+          var index = parseInt(target.dataset.index);
           galleries.splice(index, 1);
           updateGalleryList();
         });
@@ -922,14 +1096,14 @@ Generated with OpenVGAL Generator
       resultSection.style.display = 'block';
 
       // Count galleries and images
-      const galleryCount = Object.keys(generatedJSON).filter(k =>
-        k !== 'Technical' && k !== 'root'
-      ).length;
+      var galleryCount = Object.keys(generatedJSON).filter(function(k) {
+        return k !== 'Technical' && k !== 'root';
+      }).length;
 
-      let imageCount = 0;
-      for (const key in generatedJSON) {
+      var imageCount = 0;
+      for (var key in generatedJSON) {
         if (key === 'Technical') continue;
-        for (const item in generatedJSON[key]) {
+        for (var item in generatedJSON[key]) {
           if (generatedJSON[key][item].resource_type === 'image') {
             imageCount++;
           }
