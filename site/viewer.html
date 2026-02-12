@@ -99,34 +99,59 @@
 		#loader {
 		  width: 100%;
 		  height: 100%;
-		  background: slategrey;
+		  background: #000;
 		  margin: auto;
 		  display: flex;
-		  flex-direction: column;
 		  justify-content: center;
 		  align-items: center;
-		  font-size: 24px;
-		  font-family: Arial, Helvetica, sans-serif;
-		  
+		  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+		}
+		#loader .loader-card {
+		  background: #18181b;
+		  border: 1px solid #27272a;
+		  border-radius: 16px;
+		  padding: 2rem 2.5rem;
+		  display: flex;
+		  flex-direction: column;
+		  gap: 0.2rem;
+		  min-width: 320px;
+		  width: min(420px, 80vw);
+		}
+		#loader p {
+		  color: #a1a1aa;
+		  font-size: 0.85rem;
+		  font-weight: 500;
+		  letter-spacing: 0.05em;
+		  text-transform: uppercase;
+		  margin: 0;
+		  padding-top: 1rem;
+		}
+		#loader .percent-text {
+		  color: #d4d4d8;
+		  font-size: 0.8rem;
+		  font-variant-numeric: tabular-nums;
+		  margin: 0;
+		  padding-top: 0.25rem;
 		}
 		#loaded {
 		  opacity: 0;
 		  transition: opacity 1s ease;
-		}	  
-		#loadingContainer {
-		  width: 30%;
-		  height: 2rem;
-		  background: rgba(255, 255, 255, 0.75);
+		}
+		.loadingContainer {
+		  width: 100%;
+		  height: 12px;
+		  background: #27272a;
 		  border-radius: 6px;
-		  margin: 0.5rem;
+		  overflow: hidden;
+		  margin-top: 0.3rem;
 		}
 		.loadingBar {
 		  height: 100%;
-		  background: green;
+		  background: linear-gradient(90deg, #818cf8, #a78bfa);
 		  border-radius: 6px;
 		  width: 0%;
 		}
-		
+
 
 
 
@@ -163,21 +188,23 @@
 
   
   	<div id="loader">
+	  <div class="loader-card">
 		<p>Loading template</p>
-		<div id="loadingContainer">
+		<div class="loadingContainer">
 			<div class="loadingBar" id="loadingBar_template"></div>
 		</div>
-		<p id="percentLoaded_template">0%</p>
+		<p class="percent-text" id="percentLoaded_template">0%</p>
 		<p>Loading materials</p>
-		<div id="loadingContainer">
+		<div class="loadingContainer">
 			<div class="loadingBar" id="loadingBar_materials"></div>
 		</div>
-		<p id="percentLoaded_materials">0%</p>
+		<p class="percent-text" id="percentLoaded_materials">0%</p>
 		<p>Loading artworks</p>
-		<div id="loadingContainer">
+		<div class="loadingContainer">
 			<div class="loadingBar" id="loadingBar_artwork"></div>
 		</div>
-		<p id="percentLoaded_artwork">0%</p>
+		<p class="percent-text" id="percentLoaded_artwork">0%</p>
+	  </div>
 	</div>
 
 
@@ -260,7 +287,7 @@
 					};
 
 				
-				document.getElementById("percentLoaded_template").innerHTML = `${percentage_template}%`;
+				document.getElementById("percentLoaded_template").textContent = `${percentage_template}%`;
 				document.getElementById("loadingBar_template").style.width =`${percentage_template}%`;
 
 		});
@@ -425,7 +452,7 @@
 							//set light intensities
 							scene.lights.forEach(light => {
 								if (light.name.startsWith("pointLight")) {
-									
+
 									light.intensity=config_file_content["Technical"]["pointLight"];
 								}
 							});
@@ -445,7 +472,7 @@
 									}
 								}
 								percentLoaded_materials=Math.round((i/n_meshes)*100);
-								document.getElementById("percentLoaded_materials").innerHTML = `${percentLoaded_materials}%`;
+								document.getElementById("percentLoaded_materials").textContent = `${percentLoaded_materials}%`;
 								document.getElementById("loadingBar_materials").style.width =`${percentLoaded_materials}%`;
 
 							}

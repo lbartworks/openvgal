@@ -1,3 +1,5 @@
+https://github.com/lbartworks/openvgal/assets/121262093/517b6b67-7a87-4f2c-8166-b5c9314ff9e9
+
 # OpenVGAL v3
 
 Open-source 3D virtual gallery platform built on [Babylon.js](https://www.babylonjs.com/). Create interactive WebGL art galleries from your images, download a ZIP, host it anywhere.
@@ -20,11 +22,12 @@ The philosophy has not changed: **you own your gallery**. The output is plain HT
 
 ## Quick Start
 
-1. Go to [openvgal.com/create](https://openvgal.com/create)
-2. Drop your image folders into the generator (each folder becomes a room)
-3. Preview your gallery in 3D
-4. Click **Build Gallery** and download the ZIP
-5. Extract the ZIP on any web server and open `viewer.html`
+1. Organize your images into folders (one folder per gallery room). Hundreds of images per folder is not recommended.
+2. Go to [openvgal.com/create](https://openvgal.com/create)
+3. Drop your image folders into the generator (each folder becomes a room)
+4. Click **Build Gallery** and preview your gallery in 3D
+5. Click **Download ZIP**
+6. Extract the ZIP on any web server and open `viewer.html`
 
 That's it. The ZIP contains everything: images, 3D room templates, PBR materials, the viewer, and configuration. Works in any subfolder, no configuration needed.
 
@@ -94,28 +97,21 @@ Legacy CLI tool. Generates `building_v2.json` from image folders and a CSV file.
 
 ## Local Development
 
-Serve the `site/` directory with any static server:
+Serve the `site/` directory with any static server. For example, with Python (usually pre-installed):
+
+```bash
+python -m http.server 8000 --directory site
+```
+
+Or with Node.js:
 
 ```bash
 npx serve site
 ```
 
-Then open:
-- `http://localhost:3000` -- Landing page
-- `http://localhost:3000/viewer.html` -- 3D viewer
-- `http://localhost:3000/create/` -- Gallery generator
+Then open `http://localhost:8000` (or the port shown in your terminal) to access the landing page, viewer, and generator.
 
 Note: the `file://` protocol will not work in Chrome due to cross-origin iframe restrictions. You need an HTTP server.
-
----
-
-## Deployment
-
-| Component | Method |
-|-----------|--------|
-| **site/** | Auto-deploys via Coolify GitHub App on push |
-| **cdn/** | Cloudflare Pages via GitHub Actions or manual (`npx wrangler pages deploy cdn --project-name=openvgal-cdn`) |
-| **python/** | GitHub Releases on `v*` tags (builds Windows, Linux, macOS executables) |
 
 ---
 
@@ -156,6 +152,44 @@ Note: the `file://` protocol will not work in Chrome due to cross-origin iframe 
 - On-the-fly hall rendering
 - Touch device support
 - Artwork framing and metadata display
+
+---
+
+## FAQ
+
+**Can I use this commercially?**
+Yes. MIT license. No restrictions on how you use the generated galleries.
+
+**Can I add shadows or baked lighting?**
+The best approach is to design halls in Blender with baked textures and load them as full GLB files (using the `resource` field in `building_v2.json`). Lightmap support is planned but not yet implemented.
+
+**Does it work on mobile?**
+Yes. Touch devices are detected automatically. Navigation uses touch controls instead of keyboard/mouse.
+
+**Can I host the gallery on any server?**
+Yes. The ZIP output is fully self-contained. Any static file server works (Apache, Nginx, Netlify, GitHub Pages, S3, etc.).
+
+**Do I need to keep the CDN connection?**
+No. The ZIP bundles all templates, materials, and assets locally. The CDN is only used by the online generator at openvgal.com/create.
+
+---
+
+## TODO
+
+- [ ] Support for VR devices
+- [ ] Support for lightmaps ([early experiments](https://www.youtube.com/watch?v=mZzMPlagnQk))
+- [ ] Alternative hall templates beyond rectangular halls
+- [ ] Code to detect overlapping artwork or erroneous configurations
+- [ ] Logo upload in the generator (currently: replace `materials/logo.png` manually)
+- [x] Browser-based generator (v3)
+- [x] Self-contained ZIP deployment (v3)
+- [x] Live 3D preview in generator (v3)
+- [x] Overlay with artwork info, navigation help, automatic tour (v2.1)
+- [x] Electron app and standalone executables (v2.0, later removed)
+- [x] Template-based architecture with GLB files (v1.0)
+- [x] On-the-fly hall rendering (v0.x)
+- [x] Touch device support (v0.x)
+- [x] Artwork framing and metadata display (v0.x)
 
 ---
 

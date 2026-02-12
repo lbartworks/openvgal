@@ -1,0 +1,29 @@
+name: Release OpenVGAL
+on:
+  push:
+    tags:
+      - 'v*'
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build release ZIP
+        run: |
+          mkdir -p openvgal
+          cp -r site/* openvgal/
+          cp -r cdn/templates openvgal/templates
+          cp -r cdn/materials openvgal/materials
+          zip -r openvgal-${{ github.ref_name }}.zip openvgal/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: false
+          prerelease: false
+          files: openvgal-${{ github.ref_name }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

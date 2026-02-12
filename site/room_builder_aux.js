@@ -160,7 +160,7 @@ function populate_template(config_file, room_name,scene){
 	for (var item of dict_items){
 		//get location
 		let location=JSON.parse(gallery[item]["location"])
-		
+
 		//get material
 		let items_material=new BABYLON.StandardMaterial("item_mat_"+ item);
 		items_material.freeze();
@@ -168,34 +168,34 @@ function populate_template(config_file, room_name,scene){
 		items_material.maxSimultaneousLights=max_lights;
 		let tex=new BABYLON.Texture(window.resolveImageUrl(gallery[item]["resource"]), scene);
 		items_material.diffuseTexture=tex;
-		
+
 		//get orientation
 		let orientation=JSON.parse(gallery[item]["vector"])
 		orientation=new BABYLON.Vector3(orientation[0], 0, orientation[1])
-		
+
 		//get sizse
 		scaled_width=item_size*gallery[item]["width"];
 		scaled_height=item_size*gallery[item]["height"];
-		
+
 		//notice that y and z are flippped
-		item_builder(item + "_" + i ,{x:location[0], y:location[2], z:location[1]}, {width:scaled_width, height:scaled_height}, orientation, items_material, scene, item_shadow_material); 
-		
-		//update loading bar
+		item_builder(item + "_" + i ,{x:location[0], y:location[2], z:location[1]}, {width:scaled_width, height:scaled_height}, orientation, items_material, scene, item_shadow_material);
+
+		//update loading bar in sync loop so browser can paint
+		const round_per=Math.round(((i - 2) / num_items) * 100);
+		document.getElementById("percentLoaded_artwork").textContent = `${round_per}%`;
+		document.getElementById("loadingBar_artwork").style.width =`${round_per}%`;
+
+		//trigger reset when texture actually loads
 		tex.onLoadObservable.add(((j) => {
 			return() => {
 				percentage_artwork=percentage_artwork + j;
-				const round_per=Math.round(percentage_artwork);
-				document.getElementById("percentLoaded_artwork").innerHTML = `${round_per}%`;
-				document.getElementById("loadingBar_artwork").style.width =`${round_per}%`;
-				if (round_per==100){
-					//finish load bar
+				if (Math.round(percentage_artwork) >= 100){
 					reset_loadbar();
 				}
-		
 			};
 		})(100/num_items));
 
-		
+
 		i=i+1;
 	}
 	
@@ -264,49 +264,11 @@ function reset_loadbar(){
 	percentage_artwork=0;	
 	document.getElementById("loader").style.display = "none";
 	document.getElementById("loader").id= "loaded";
-	document.getElementById("percentLoaded_template").innerHTML = `${percentage_template}%`;
+	document.getElementById("percentLoaded_template").textContent = `${percentage_template}%`;
 	document.getElementById("loadingBar_template").style.width =`${percentage_template}%`;
-	document.getElementById("percentLoaded_materials").innerHTML = `${percentage_materials}%`;
+	document.getElementById("percentLoaded_materials").textContent = `${percentage_materials}%`;
 	document.getElementById("loadingBar_materials").style.width =`${percentage_materials}%`;
-	document.getElementById("percentLoaded_artwork").innerHTML = `${percentage_artwork}%`;
+	document.getElementById("percentLoaded_artwork").textContent = `${percentage_artwork}%`;
 	document.getElementById("loadingBar_artwork").style.width =`${percentage_artwork}%`;
 }
 
-function manual_move(){
-	//get active camera
-	const camera = scene.activeCamera;
-	const camera_distance = 3;
-
-
-	var gallery=config_file_content[current_gallery];
-	var dict_items=Object.keys(gallery).filter(key => gallery[key]["resource_type"]== "image");
-	var n_items=dict_items.length;
-
-	//check limits
-	if (manual_navigation_idx<0){
-		manual_navigation_idx= n_items-1;
-	} else if (manual_navigation_idx ==n_items){
-		manual_navigation_idx=0;
-	}
-
-
-	//get position and vector. Assuming they are JSON strings of 3-element arrays [x, y, z]
-	let item_position_array = JSON.parse(gallery[dict_items[manual_navigation_idx]]['location']);
-	let item_vector_array = JSON.parse(gallery[dict_items[manual_navigation_idx]]['vector']);
-
-	// Create Babylon.js Vector3 objects
-	const target_position = new BABYLON.Vector3(item_position_array[0], item_position_array[2], item_position_array[1]);
-	const target_vector = new BABYLON.Vector3(item_vector_array[0], item_vector_array[2], item_vector_array[1]).normalize();
-
-	// Calculate the camera's position to be in front of the item
-	const camera_position = target_position.add(target_vector.scale(camera_distance));
-
-	// Aim the camera at the target
-	camera.position = camera_position;
-	camera.setTarget(target_position);
-
-	showInfoBox("Title:  " + gallery[dict_items[manual_navigation_idx]]["metadata"]);
-
-
-}
-	

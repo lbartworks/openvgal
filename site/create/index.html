@@ -118,7 +118,7 @@
     }
     .section-hint {
       font-size: 0.8rem;
-      color: #52525b;
+      color: #a1a1aa;
       line-height: 1.6;
       margin-bottom: 1rem;
     }
@@ -185,7 +185,7 @@
 
     /* --- DROP ZONE --- */
     .drop-zone {
-      border: 1.5px dashed rgba(255,255,255,0.08);
+      border: 1.5px dashed rgba(255,255,255,0.18);
       border-radius: 12px;
       padding: 2.5rem 1.5rem;
       text-align: center;
@@ -193,6 +193,7 @@
       transition: all 0.2s ease;
       margin-top: 0.75rem;
       position: relative;
+      background: rgba(255,255,255,0.02);
     }
     .drop-zone:hover {
       border-color: rgba(99, 102, 241, 0.25);
@@ -210,7 +211,7 @@
     .drop-zone.drag-over .drop-text { color: #c7d2fe; }
 
     .drop-icon {
-      color: #3f3f46;
+      color: #52525b;
       margin-bottom: 0.75rem;
       transition: color 0.2s;
     }
@@ -527,13 +528,13 @@
       </div>
 
       <div class="actions">
-        <button class="btn btn-primary" id="downloadZipBtn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-          Download ZIP
-        </button>
         <button class="btn btn-accent" id="previewBtn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
           Preview
+        </button>
+        <button class="btn btn-primary" id="downloadZipBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          Download ZIP
         </button>
         <button class="btn btn-subtle" id="downloadBtn">
           JSON only
@@ -984,8 +985,6 @@
       onProgress(100, 'Download complete!');
     }
 
-    var previewWindow = null;
-
     previewBtn.addEventListener('click', function() {
       if (generatedJSON && window.openvgal_fileMap) {
         // Create blob URLs in this window's context
@@ -1062,14 +1061,41 @@
       galleries.forEach(function(gallery, index) {
         var item = document.createElement('div');
         item.className = 'gallery-item';
-        item.innerHTML =
-          '<div class="gallery-icon">' + folderSvg + '</div>' +
-          '<div class="gallery-details">' +
-            '<input type="text" class="gallery-name-input" value="' + gallery.name + '" data-index="' + index + '" placeholder="Room name">' +
-            '<div class="gallery-folder">' + gallery.folderName + '</div>' +
-          '</div>' +
-          '<span class="gallery-count">' + gallery.files.length + ' images</span>' +
-          '<button class="gallery-remove" data-index="' + index + '" title="Remove">' + removeSvg + '</button>';
+        // Build gallery item with DOM APIs to avoid innerHTML XSS with user folder names
+        var iconDiv = document.createElement('div');
+        iconDiv.className = 'gallery-icon';
+        iconDiv.innerHTML = folderSvg;
+
+        var nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.className = 'gallery-name-input';
+        nameInput.value = gallery.name;
+        nameInput.dataset.index = index;
+        nameInput.placeholder = 'Room name';
+
+        var folderDiv = document.createElement('div');
+        folderDiv.className = 'gallery-folder';
+        folderDiv.textContent = gallery.folderName;
+
+        var detailsDiv = document.createElement('div');
+        detailsDiv.className = 'gallery-details';
+        detailsDiv.appendChild(nameInput);
+        detailsDiv.appendChild(folderDiv);
+
+        var countSpan = document.createElement('span');
+        countSpan.className = 'gallery-count';
+        countSpan.textContent = gallery.files.length + ' images';
+
+        var removeBtn = document.createElement('button');
+        removeBtn.className = 'gallery-remove';
+        removeBtn.dataset.index = index;
+        removeBtn.title = 'Remove';
+        removeBtn.innerHTML = removeSvg;
+
+        item.appendChild(iconDiv);
+        item.appendChild(detailsDiv);
+        item.appendChild(countSpan);
+        item.appendChild(removeBtn);
         galleryList.appendChild(item);
       });
 
