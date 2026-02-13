@@ -664,12 +664,18 @@
     dropZone.addEventListener('drop', async function(e) {
       e.preventDefault();
       dropZone.classList.remove('drag-over');
+      // Collect all entries synchronously before any async work,
+      // because DataTransfer is invalidated after the first await
       var items = Array.from(e.dataTransfer.items);
+      var entries = [];
       for (var i = 0; i < items.length; i++) {
         var entry = items[i].webkitGetAsEntry();
         if (entry && entry.isDirectory) {
-          await addDroppedFolder(entry);
+          entries.push(entry);
         }
+      }
+      for (var i = 0; i < entries.length; i++) {
+        await addDroppedFolder(entries[i]);
       }
       updateGalleryList();
     });
@@ -1044,6 +1050,10 @@
 
     // Functions
     function updateGalleryList() {
+      // Clear existing items (except empty state)
+      var items = galleryList.querySelectorAll('.gallery-item');
+      items.forEach(function(item) { item.remove(); });
+
       if (galleries.length === 0) {
         emptyState.style.display = 'block';
         generateBtn.disabled = true;
@@ -1052,10 +1062,6 @@
 
       emptyState.style.display = 'none';
       generateBtn.disabled = false;
-
-      // Clear existing items (except empty state)
-      var items = galleryList.querySelectorAll('.gallery-item');
-      items.forEach(function(item) { item.remove(); });
 
       // Add gallery items
       galleries.forEach(function(gallery, index) {
