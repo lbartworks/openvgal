@@ -1,0 +1,1622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Gallery (CDN) - OpenVGAL</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      background: #000;
+      color: #a1a1aa;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: -200px; left: 50%;
+      transform: translateX(-50%);
+      width: 700px; height: 700px;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .page-wrapper {
+      position: relative;
+      z-index: 1;
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 0 1.5rem 4rem;
+    }
+
+    nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.25rem 0;
+      margin-bottom: 1.5rem;
+    }
+    .nav-logo {
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      color: #fff;
+      text-decoration: none;
+    }
+    .nav-back {
+      color: #52525b;
+      text-decoration: none;
+      font-size: 0.8rem;
+      font-weight: 400;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      transition: color 0.15s;
+    }
+    .nav-back:hover { color: #a1a1aa; }
+    .nav-back svg { width: 14px; height: 14px; }
+
+    .page-header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+    .page-header h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: #fafafa;
+      margin-bottom: 0.5rem;
+    }
+    .page-header p {
+      color: #52525b;
+      font-size: 0.88rem;
+      font-weight: 400;
+    }
+
+    .mode-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: rgba(99, 102, 241, 0.1);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      border-radius: 20px;
+      padding: 0.3rem 0.8rem;
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: #a5b4fc;
+      margin-bottom: 1rem;
+    }
+    .mode-badge svg { width: 12px; height: 12px; }
+
+    .section {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 14px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      margin-bottom: 1rem;
+    }
+    .step-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px; height: 24px;
+      border-radius: 6px;
+      background: rgba(99, 102, 241, 0.1);
+      color: #818cf8;
+      font-size: 0.7rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .section-title {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #e4e4e7;
+    }
+    .section-hint {
+      font-size: 0.8rem;
+      color: #a1a1aa;
+      line-height: 1.6;
+      margin-bottom: 1rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: inherit;
+      text-decoration: none;
+    }
+    .btn svg { width: 14px; height: 14px; }
+    .btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .btn-default {
+      background: rgba(255,255,255,0.06);
+      color: #d4d4d8;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .btn-default:hover:not(:disabled) {
+      background: rgba(255,255,255,0.1);
+      border-color: rgba(255,255,255,0.14);
+    }
+
+    .btn-primary {
+      background: #fff;
+      color: #09090b;
+    }
+    .btn-primary:hover:not(:disabled) {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    .btn-accent {
+      background: rgba(99, 102, 241, 0.1);
+      color: #a5b4fc;
+      border: 1px solid rgba(99, 102, 241, 0.15);
+    }
+    .btn-accent:hover:not(:disabled) {
+      background: rgba(99, 102, 241, 0.18);
+      border-color: rgba(99, 102, 241, 0.28);
+    }
+
+    .btn-subtle {
+      background: transparent;
+      color: #71717a;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .btn-subtle:hover:not(:disabled) {
+      background: rgba(255,255,255,0.04);
+      color: #a1a1aa;
+    }
+
+    .drop-zone {
+      border: 1.5px dashed rgba(255,255,255,0.18);
+      border-radius: 12px;
+      padding: 2.5rem 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-top: 0.75rem;
+      position: relative;
+      background: rgba(255,255,255,0.02);
+    }
+    .drop-zone:hover {
+      border-color: rgba(99, 102, 241, 0.25);
+      background: rgba(99, 102, 241, 0.03);
+    }
+    .drop-zone:hover .drop-icon { color: #6366f1; }
+    .drop-zone:hover .drop-text { color: #a1a1aa; }
+
+    .drop-zone.drag-over {
+      border-color: #6366f1;
+      border-style: solid;
+      background: rgba(99, 102, 241, 0.06);
+    }
+    .drop-zone.drag-over .drop-icon { color: #818cf8; }
+    .drop-zone.drag-over .drop-text { color: #c7d2fe; }
+
+    .drop-icon {
+      color: #52525b;
+      margin-bottom: 0.75rem;
+      transition: color 0.2s;
+    }
+    .drop-icon svg { width: 36px; height: 36px; }
+    .drop-text {
+      font-size: 0.85rem;
+      color: #52525b;
+      margin-bottom: 0.2rem;
+      transition: color 0.2s;
+      font-weight: 500;
+    }
+    .drop-subtext {
+      font-size: 0.72rem;
+      color: #3f3f46;
+    }
+
+    .folder-input { display: none; }
+
+    .gallery-list { margin-top: 1rem; }
+
+    .gallery-item {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 10px;
+      padding: 0.6rem 0.85rem;
+      margin-bottom: 0.4rem;
+      transition: border-color 0.15s;
+    }
+    .gallery-item:hover {
+      border-color: rgba(255,255,255,0.1);
+    }
+
+    .gallery-icon {
+      flex-shrink: 0;
+      width: 32px; height: 32px;
+      border-radius: 7px;
+      background: rgba(99, 102, 241, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #818cf8;
+    }
+    .gallery-icon svg { width: 14px; height: 14px; }
+
+    .gallery-details { flex: 1; min-width: 0; }
+
+    .gallery-name-input {
+      background: transparent;
+      border: 1px solid transparent;
+      color: #d4d4d8;
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.82rem;
+      font-family: inherit;
+      font-weight: 500;
+      width: 100%;
+      max-width: 200px;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .gallery-name-input:hover {
+      border-color: rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.02);
+    }
+    .gallery-name-input:focus {
+      outline: none;
+      border-color: rgba(99, 102, 241, 0.4);
+      background: rgba(255,255,255,0.03);
+    }
+
+    .gallery-folder {
+      color: #3f3f46;
+      font-size: 0.68rem;
+      margin-top: 0.1rem;
+      padding-left: 0.4rem;
+    }
+
+    .gallery-count {
+      color: #52525b;
+      font-size: 0.75rem;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .gallery-remove {
+      background: none;
+      border: none;
+      color: #3f3f46;
+      cursor: pointer;
+      padding: 0.25rem;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      transition: color 0.15s, background 0.15s;
+    }
+    .gallery-remove:hover {
+      color: #ef4444;
+      background: rgba(239, 68, 68, 0.08);
+    }
+    .gallery-remove svg { width: 14px; height: 14px; }
+
+    .empty-state {
+      text-align: center;
+      color: #3f3f46;
+      padding: 1.5rem;
+      font-size: 0.82rem;
+    }
+
+    .gallery-item.imported {
+      opacity: 0.6;
+      cursor: default;
+    }
+    .gallery-item.imported:hover {
+      border-color: rgba(255,255,255,0.05);
+    }
+
+    .import-info {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 0.75rem;
+      padding: 0.5rem 0.75rem;
+      background: rgba(99, 102, 241, 0.06);
+      border: 1px solid rgba(99, 102, 241, 0.12);
+      border-radius: 8px;
+      font-size: 0.8rem;
+      color: #a5b4fc;
+    }
+    .import-info svg { width: 14px; height: 14px; flex-shrink: 0; }
+    .import-summary { flex: 1; }
+    .import-clear {
+      background: none;
+      border: none;
+      color: #71717a;
+      cursor: pointer;
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-family: inherit;
+      transition: color 0.15s, background 0.15s;
+    }
+    .import-clear:hover {
+      color: #ef4444;
+      background: rgba(239, 68, 68, 0.08);
+    }
+
+    .import-divider {
+      height: 1px;
+      background: rgba(99, 102, 241, 0.12);
+      margin: 0.6rem 0;
+    }
+
+    .progress-container {
+      margin-top: 1rem;
+      display: none;
+    }
+    .progress-bar {
+      height: 3px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #6366f1, #a78bfa);
+      width: 0%;
+      transition: width 0.3s;
+      border-radius: 3px;
+    }
+    .progress-text {
+      text-align: center;
+      margin-top: 0.5rem;
+      color: #52525b;
+      font-size: 0.75rem;
+    }
+
+    .result-section { display: none; }
+
+    .stats {
+      display: flex;
+      gap: 2rem;
+      margin-bottom: 1.5rem;
+    }
+    .stat { text-align: center; }
+    .stat-value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #fafafa;
+    }
+    .stat-label {
+      font-size: 0.68rem;
+      color: #52525b;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-weight: 500;
+    }
+
+    .actions {
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+
+    .info-box {
+      background: rgba(255,255,255,0.015);
+      border: 1px solid rgba(255,255,255,0.04);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      margin-top: 1rem;
+    }
+    .info-box h3 {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #d4d4d8;
+      margin-bottom: 0.4rem;
+    }
+    .info-box ol, .info-box ul {
+      margin: 0;
+      padding-left: 1.25rem;
+      color: #71717a;
+      font-size: 0.78rem;
+      line-height: 1.8;
+    }
+    .info-box code {
+      background: rgba(99, 102, 241, 0.1);
+      padding: 0.1rem 0.35rem;
+      border-radius: 3px;
+      color: #a5b4fc;
+      font-size: 0.75rem;
+    }
+
+    .advantage-list {
+      list-style: none;
+      padding: 0;
+      margin: 0.5rem 0 0;
+    }
+    .advantage-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      font-size: 0.78rem;
+      color: #71717a;
+      line-height: 1.6;
+      margin-bottom: 0.3rem;
+    }
+    .advantage-list li svg {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+      margin-top: 0.15rem;
+      color: #818cf8;
+    }
+
+    details { margin-top: 1rem; }
+    details summary {
+      cursor: pointer;
+      font-size: 0.75rem;
+      color: #3f3f46;
+      transition: color 0.15s;
+    }
+    details summary:hover { color: #71717a; }
+    .json-preview {
+      background: rgba(255,255,255,0.015);
+      border: 1px solid rgba(255,255,255,0.04);
+      border-radius: 8px;
+      padding: 1rem;
+      max-height: 300px;
+      overflow: auto;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 0.7rem;
+      white-space: pre;
+      color: #71717a;
+      margin-top: 0.5rem;
+    }
+
+    .switch-link {
+      text-align: center;
+      margin-top: 1.5rem;
+      font-size: 0.78rem;
+    }
+    .switch-link a {
+      color: #71717a;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .switch-link a:hover { color: #a5b4fc; }
+
+    @media (max-width: 600px) {
+      .page-wrapper { padding: 0 1rem 3rem; }
+      .page-header h1 { font-size: 1.4rem; }
+      .section { padding: 1.25rem; }
+      .actions { flex-direction: column; }
+      .actions .btn { width: 100%; justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrapper">
+    <nav>
+      <a href="/" class="nav-logo">OPENVGAL</a>
+      <a href="/" class="nav-back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        Back
+      </a>
+    </nav>
+
+    <div class="page-header">
+      <span class="mode-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        CDN-first mode
+      </span>
+      <h1>Create your gallery</h1>
+      <p>Tiny deployment package &mdash; code loads from CDN, updates automatically</p>
+    </div>
+
+    <!-- Step 1: Add Folders -->
+    <div class="section">
+      <div class="section-header">
+        <span class="step-badge">1</span>
+        <span class="section-title">Add gallery rooms</span>
+      </div>
+      <div class="section-hint">
+        Each folder becomes a separate room in your gallery.
+        You can rename rooms after adding them.
+      </div>
+
+      <input type="file" id="importInput" class="folder-input" accept=".json">
+      <button class="btn btn-subtle" id="importBtn" style="margin-bottom: 0.6rem;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+        Import existing building_v2.json
+      </button>
+      <div class="import-info" id="importInfo" style="display: none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <span class="import-summary" id="importSummary"></span>
+        <button class="import-clear" id="clearImportBtn">Clear</button>
+      </div>
+
+      <input type="file" id="folderInput" class="folder-input" webkitdirectory multiple>
+      <button class="btn btn-default" id="addFolderBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/><path d="M12 11v6M9 14h6"/></svg>
+        Browse for folder
+      </button>
+
+      <div class="drop-zone" id="dropZone">
+        <div class="drop-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+        </div>
+        <div class="drop-text">Drop image folders here</div>
+        <div class="drop-subtext">or use the button above to browse</div>
+      </div>
+
+      <div class="gallery-list" id="galleryList">
+        <div class="empty-state" id="emptyState">
+          No rooms added yet
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Generate -->
+    <div class="section">
+      <div class="section-header">
+        <span class="step-badge">2</span>
+        <span class="section-title">Generate</span>
+      </div>
+      <button class="btn btn-primary" id="generateBtn" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        Build Gallery
+      </button>
+
+      <div class="progress-container" id="progressContainer">
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="progress-text" id="progressText">Processing...</div>
+      </div>
+    </div>
+
+    <!-- Step 3: Results -->
+    <div class="section result-section" id="resultSection">
+      <div class="section-header">
+        <span class="step-badge">3</span>
+        <span class="section-title">Your gallery is ready</span>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-value" id="statGalleries">0</div>
+          <div class="stat-label">Rooms</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="statImages">0</div>
+          <div class="stat-label">Artworks</div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-accent" id="previewBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          Preview
+        </button>
+        <button class="btn btn-primary" id="downloadZipBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          Download ZIP
+        </button>
+        <button class="btn btn-subtle" id="downloadBtn">
+          JSON only
+        </button>
+      </div>
+
+      <div class="progress-container" id="zipProgressContainer" style="display: none;">
+        <div class="progress-bar">
+          <div class="progress-fill" id="zipProgressFill"></div>
+        </div>
+        <div class="progress-text" id="zipProgressText">Preparing ZIP...</div>
+      </div>
+
+      <div class="info-box">
+        <h3>CDN-first deployment</h3>
+        <ol>
+          <li>Extract the ZIP on your web server</li>
+          <li>Open <code>index.html</code> &mdash; that's it</li>
+        </ol>
+        <ul class="advantage-list" style="margin-top: 0.75rem;">
+          <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            No babylon.js, templates, or materials in your deployment
+          </li>
+          <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            Code updates happen via CDN &mdash; all galleries update instantly
+          </li>
+          <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            Customize <code>overlay.html</code> locally, or delete it to use CDN default
+          </li>
+        </ul>
+      </div>
+
+      <details style="margin-top: 1rem;">
+        <summary>Show JSON preview</summary>
+        <pre class="json-preview" id="jsonPreview"></pre>
+      </details>
+    </div>
+
+    <div class="switch-link">
+      Need a self-contained package? <a href="index.html">Use the standard generator</a>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="../js/gallery-generator.js"></script>
+  <script>
+    // CDN Configuration
+    const CDN_BASE = 'https://cdn.openvgal.com';
+    window.openvgal_cdn_base = CDN_BASE;
+
+    // State
+    const galleries = [];
+    let generatedJSON = null;
+    let importedJSON = null;
+
+    // DOM Elements
+    const importBtn = document.getElementById('importBtn');
+    const importInput = document.getElementById('importInput');
+    const importInfo = document.getElementById('importInfo');
+    const importSummary = document.getElementById('importSummary');
+    const clearImportBtn = document.getElementById('clearImportBtn');
+    const folderInput = document.getElementById('folderInput');
+    const addFolderBtn = document.getElementById('addFolderBtn');
+    const galleryList = document.getElementById('galleryList');
+    const emptyState = document.getElementById('emptyState');
+    const generateBtn = document.getElementById('generateBtn');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
+    const resultSection = document.getElementById('resultSection');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const downloadZipBtn = document.getElementById('downloadZipBtn');
+    const previewBtn = document.getElementById('previewBtn');
+    const jsonPreview = document.getElementById('jsonPreview');
+    const statGalleries = document.getElementById('statGalleries');
+    const statImages = document.getElementById('statImages');
+    const zipProgressContainer = document.getElementById('zipProgressContainer');
+    const zipProgressFill = document.getElementById('zipProgressFill');
+    const zipProgressText = document.getElementById('zipProgressText');
+
+    // --- Drag-and-drop (same as standard generator) ---
+    async function readAllFiles(dirEntry, basePath) {
+      const results = [];
+      const reader = dirEntry.createReader();
+      const readBatch = function() {
+        return new Promise(function(resolve, reject) {
+          reader.readEntries(resolve, reject);
+        });
+      };
+      var entries;
+      do {
+        entries = await readBatch();
+        for (var i = 0; i < entries.length; i++) {
+          var entry = entries[i];
+          if (entry.isFile) {
+            var file = await new Promise(function(resolve, reject) { entry.file(resolve, reject); });
+            results.push({ file: file, folderPath: basePath, folderName: basePath.split('/').pop() });
+          } else if (entry.isDirectory) {
+            var subResults = await readAllFiles(entry, basePath + '/' + entry.name);
+            results.push.apply(results, subResults);
+          }
+        }
+      } while (entries.length > 0);
+      return results;
+    }
+
+    async function addDroppedFolder(dirEntry) {
+      var allFiles = await readAllFiles(dirEntry, dirEntry.name);
+      var groups = {};
+      for (var i = 0; i < allFiles.length; i++) {
+        var item = allFiles[i];
+        if (!groups[item.folderPath]) {
+          groups[item.folderPath] = { name: item.folderName, path: item.folderPath, files: [] };
+        }
+        groups[item.folderPath].files.push(item.file);
+      }
+      var keys = Object.keys(groups);
+      for (var k = 0; k < keys.length; k++) {
+        var group = groups[keys[k]];
+        var imageFiles = filterImageFiles(group.files);
+        if (imageFiles.length > 0) {
+          var exists = galleries.some(function(g) { return g.path === group.path; });
+          if (!exists) {
+            galleries.push({
+              name: group.name,
+              folderName: group.name,
+              path: group.path,
+              files: imageFiles
+            });
+          }
+        }
+      }
+    }
+
+    var dropZone = document.getElementById('dropZone');
+
+    dropZone.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+
+    dropZone.addEventListener('dragleave', function() {
+      dropZone.classList.remove('drag-over');
+    });
+
+    dropZone.addEventListener('drop', async function(e) {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      var items = Array.from(e.dataTransfer.items);
+      var entries = [];
+      for (var i = 0; i < items.length; i++) {
+        var entry = items[i].webkitGetAsEntry();
+        if (entry && entry.isDirectory) {
+          entries.push(entry);
+        }
+      }
+      for (var i = 0; i < entries.length; i++) {
+        await addDroppedFolder(entries[i]);
+      }
+      updateGalleryList();
+    });
+
+    dropZone.addEventListener('click', function() {
+      folderInput.click();
+    });
+
+    // Event Listeners
+    addFolderBtn.addEventListener('click', function() { folderInput.click(); });
+
+    folderInput.addEventListener('change', function(e) {
+      var files = Array.from(e.target.files);
+      if (files.length === 0) return;
+
+      var grouped = groupFilesByFolder(files);
+
+      grouped.forEach(function(group) {
+        var imageFiles = filterImageFiles(group.files);
+        if (imageFiles.length > 0) {
+          var exists = galleries.some(function(g) { return g.path === group.path; });
+          if (!exists) {
+            galleries.push({
+              name: group.name,
+              folderName: group.name,
+              path: group.path,
+              files: imageFiles
+            });
+          }
+        }
+      });
+
+      updateGalleryList();
+      folderInput.value = '';
+    });
+
+    // --- Import existing JSON ---
+    importBtn.addEventListener('click', function() { importInput.click(); });
+
+    importInput.addEventListener('change', function(e) {
+      var file = e.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        try {
+          var parsed = JSON.parse(ev.target.result);
+          importedJSON = parsed;
+          var roomCount = Object.keys(parsed).filter(function(k) { return k !== 'Technical' && k !== 'root'; }).length;
+          importSummary.textContent = roomCount + ' room' + (roomCount !== 1 ? 's' : '') + ' imported';
+          importInfo.style.display = 'flex';
+          importBtn.style.display = 'none';
+          updateGalleryList();
+        } catch (err) {
+          alert('Invalid JSON file: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+      importInput.value = '';
+    });
+
+    clearImportBtn.addEventListener('click', function() {
+      importedJSON = null;
+      importInfo.style.display = 'none';
+      importBtn.style.display = '';
+      updateGalleryList();
+    });
+
+    generateBtn.addEventListener('click', async function() {
+      generateBtn.disabled = true;
+      progressContainer.style.display = 'block';
+      resultSection.style.display = 'none';
+
+      try {
+        var progressCB = function(current, total, message) {
+          var percent = Math.round((current / total) * 100);
+          progressFill.style.width = percent + '%';
+          progressText.textContent = message;
+        };
+
+        if (importedJSON && galleries.length > 0) {
+          generatedJSON = await extendGalleryJSON(importedJSON, galleries, progressCB);
+        } else if (importedJSON) {
+          generatedJSON = importedJSON;
+        } else {
+          generatedJSON = await buildGalleryJSON(galleries, progressCB);
+        }
+
+        window.openvgal_fileMap = buildFileMap(galleries);
+        showResults();
+      } catch (error) {
+        console.error('Generation failed:', error);
+        progressText.textContent = 'Error: ' + error.message;
+      }
+
+      generateBtn.disabled = false;
+    });
+
+    downloadBtn.addEventListener('click', function() {
+      if (generatedJSON) {
+        downloadJSON(generatedJSON);
+      }
+    });
+
+    // --- CDN-first ZIP download ---
+    downloadZipBtn.addEventListener('click', async function() {
+      if (!generatedJSON) return;
+
+      downloadZipBtn.disabled = true;
+      zipProgressContainer.style.display = 'block';
+
+      try {
+        await createCdnZip(generatedJSON, function(progress, message) {
+          zipProgressFill.style.width = progress + '%';
+          zipProgressText.textContent = message;
+        });
+      } catch (error) {
+        console.error('ZIP creation failed:', error);
+        zipProgressText.textContent = 'Error: ' + error.message;
+      }
+
+      downloadZipBtn.disabled = false;
+    });
+
+    function generateLoaderHtml() {
+      return '<!DOCTYPE html>\n' +
+'<html lang="en">\n' +
+'<head>\n' +
+'  <meta charset="UTF-8">\n' +
+'  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
+'  <title>Virtual 3D Art Gallery | OpenVGAL</title>\n' +
+'  <meta name="description" content="Interactive 3D virtual art gallery powered by OpenVGAL.">\n' +
+'  <meta name="robots" content="index, follow">\n' +
+'  <meta property="og:title" content="Virtual 3D Art Gallery | OpenVGAL">\n' +
+'  <meta property="og:description" content="Step into an immersive 3D virtual gallery.">\n' +
+'  <meta property="og:type" content="website">\n' +
+'  <style>\n' +
+'    html, body {\n' +
+'      overflow: hidden;\n' +
+'      width: 100%;\n' +
+'      height: 100%;\n' +
+'      margin: 0;\n' +
+'      padding: 0;\n' +
+'    }\n' +
+'    #renderCanvas {\n' +
+'      width: 100%;\n' +
+'      height: 100%;\n' +
+'      touch-action: none;\n' +
+'    }\n' +
+'    #loader {\n' +
+'      width: 100%;\n' +
+'      height: 100%;\n' +
+'      background: #000;\n' +
+'      margin: auto;\n' +
+'      display: flex;\n' +
+'      justify-content: center;\n' +
+'      align-items: center;\n' +
+"      font-family: 'Inter', system-ui, -apple-system, sans-serif;\n" +
+'    }\n' +
+'    #loader .loader-card {\n' +
+'      background: #18181b;\n' +
+'      border: 1px solid #27272a;\n' +
+'      border-radius: 16px;\n' +
+'      padding: 2rem 2.5rem;\n' +
+'      display: flex;\n' +
+'      flex-direction: column;\n' +
+'      gap: 0.2rem;\n' +
+'      min-width: 320px;\n' +
+'      width: min(420px, 80vw);\n' +
+'    }\n' +
+'    #loader p {\n' +
+'      color: #a1a1aa;\n' +
+'      font-size: 0.85rem;\n' +
+'      font-weight: 500;\n' +
+'      letter-spacing: 0.05em;\n' +
+'      text-transform: uppercase;\n' +
+'      margin: 0;\n' +
+'      padding-top: 1rem;\n' +
+'    }\n' +
+'    #loader .percent-text {\n' +
+'      color: #d4d4d8;\n' +
+'      font-size: 0.8rem;\n' +
+'      font-variant-numeric: tabular-nums;\n' +
+'      margin: 0;\n' +
+'      padding-top: 0.25rem;\n' +
+'    }\n' +
+'    #loaded {\n' +
+'      opacity: 0;\n' +
+'      transition: opacity 1s ease;\n' +
+'    }\n' +
+'    .loadingContainer {\n' +
+'      width: 100%;\n' +
+'      height: 12px;\n' +
+'      background: #27272a;\n' +
+'      border-radius: 6px;\n' +
+'      overflow: hidden;\n' +
+'      margin-top: 0.3rem;\n' +
+'    }\n' +
+'    .loadingBar {\n' +
+'      height: 100%;\n' +
+'      background: linear-gradient(90deg, #818cf8, #a78bfa);\n' +
+'      border-radius: 6px;\n' +
+'      width: 0%;\n' +
+'    }\n' +
+'  </style>\n' +
+'\n' +
+'  <!-- Local config (sets window.openvgal_location) -->\n' +
+'  <script src="site-config.js"><\/script>\n' +
+'\n' +
+'  <!-- 3D engine from CDN -->\n' +
+'  <script src="' + CDN_BASE + '/core/babylon.js"><\/script>\n' +
+'  <script src="' + CDN_BASE + '/core/babylonjs.loaders.min.js"><\/script>\n' +
+'  <script src="https://code.jquery.com/pep/0.4.3/pep.js"><\/script>\n' +
+'  <script src="https://unpkg.com/earcut@2.1.1/dist/earcut.min.js"><\/script>\n' +
+'  <link rel="stylesheet" href="' + CDN_BASE + '/core/overlay.css">\n' +
+'\n' +
+'  <script>\n' +
+'  // Preview mode detection\n' +
+'  (function() {\n' +
+'    var urlParams = new URLSearchParams(window.location.search);\n' +
+'    if (urlParams.get("preview") === "iframe" && window.parent) {\n' +
+'      window.openvgal_preview_mode = true;\n' +
+'      window.openvgal_cdn_base = window.parent.openvgal_cdn_base || window.location.origin;\n' +
+'    }\n' +
+'  })();\n' +
+'  <\/script>\n' +
+'</head>\n' +
+'<body>\n' +
+'  <div id="loader">\n' +
+'    <div class="loader-card">\n' +
+'      <p>Loading template</p>\n' +
+'      <div class="loadingContainer">\n' +
+'        <div class="loadingBar" id="loadingBar_template"></div>\n' +
+'      </div>\n' +
+'      <p class="percent-text" id="percentLoaded_template">0%</p>\n' +
+'      <p>Loading materials</p>\n' +
+'      <div class="loadingContainer">\n' +
+'        <div class="loadingBar" id="loadingBar_materials"></div>\n' +
+'      </div>\n' +
+'      <p class="percent-text" id="percentLoaded_materials">0%</p>\n' +
+'      <p>Loading artworks</p>\n' +
+'      <div class="loadingContainer">\n' +
+'        <div class="loadingBar" id="loadingBar_artwork"></div>\n' +
+'      </div>\n' +
+'      <p class="percent-text" id="percentLoaded_artwork">0%</p>\n' +
+'    </div>\n' +
+'  </div>\n' +
+'\n' +
+'  <script src="' + CDN_BASE + '/core/declarations.js"><\/script>\n' +
+'\n' +
+'  <canvas id="renderCanvas" touch-action="none"></canvas>\n' +
+'\n' +
+'  <script src="' + CDN_BASE + '/core/room_builder_aux.js"><\/script>\n' +
+'  <script src="' + CDN_BASE + '/core/overlay.js"><\/script>\n' +
+'  <script src="' + CDN_BASE + '/core/openvgal-viewer.js"><\/script>\n' +
+'</body>\n' +
+'</html>';
+    }
+
+    /**
+     * Extend an existing building_v2.json with new gallery rooms.
+     * Preserves all existing rooms, doors, and metadata.
+     */
+    async function extendGalleryJSON(existingJSON, newGalleries, onProgress) {
+      // Deep clone
+      var building = JSON.parse(JSON.stringify(existingJSON));
+
+      // Find max uniqueId by scanning existing metadata
+      var maxId = 0;
+      for (var key in building) {
+        if (key === 'Technical') continue;
+        for (var item in building[key]) {
+          var entry = building[key][item];
+          if (entry && entry.metadata) {
+            var match = entry.metadata.match(/ID #(\d+)/);
+            if (match) {
+              var id = parseInt(match[1], 10);
+              if (id > maxId) maxId = id;
+            }
+          }
+        }
+      }
+      var uniqueId = maxId + 1;
+
+      // Find leaf room: a room that no other room lists as its parent
+      var allRooms = Object.keys(building).filter(function(k) { return k !== 'Technical'; });
+      var parentSet = {};
+      for (var i = 0; i < allRooms.length; i++) {
+        var p = building[allRooms[i]].parent;
+        if (p && p !== 'none') parentSet[p] = true;
+      }
+      var leafRooms = allRooms.filter(function(r) { return !parentSet[r]; });
+      var lastRoom = leafRooms.length > 0 ? leafRooms[leafRooms.length - 1] : 'root';
+
+      // Gallery capacity
+      var galleryDist = new GalleryWithOptionalPanels();
+      var maxItems = galleryDist.maxCapacity();
+
+      var totalImages = newGalleries.reduce(function(sum, g) { return sum + g.files.length; }, 0);
+      var processedImages = 0;
+
+      for (var gi = 0; gi < newGalleries.length; gi++) {
+        var gallery = newGalleries[gi];
+        var imageFiles = filterImageFiles(gallery.files);
+        if (imageFiles.length === 0) continue;
+
+        var galleryDisplayName = gallery.name;
+        var folderName = gallery.folderName || gallery.name;
+
+        if (onProgress) {
+          onProgress(processedImages, totalImages, 'Processing ' + galleryDisplayName + '...');
+        }
+
+        // Get dimensions
+        var imageDimensions = [];
+        for (var fi = 0; fi < imageFiles.length; fi++) {
+          try {
+            var dims = await getImageDimensions(imageFiles[fi]);
+            dims.file = imageFiles[fi];
+            imageDimensions.push(dims);
+            processedImages++;
+            if (onProgress) {
+              onProgress(processedImages, totalImages, 'Loading ' + imageFiles[fi].name + '...');
+            }
+          } catch (e) {
+            console.warn('Skipping ' + imageFiles[fi].name + ': ' + e.message);
+            processedImages++;
+          }
+        }
+
+        if (imageDimensions.length === 0) continue;
+
+        // Handle overflow into sub-galleries
+        var itemsLeft = imageDimensions.length;
+        var itemIndex = 0;
+        var subGalleryIndex = 0;
+
+        while (itemsLeft > 0) {
+          var itemsForThis = Math.min(itemsLeft, maxItems);
+          var galleryManager = createGalleryManager(itemsForThis);
+          var layout = galleryManager.solveGallery(itemsForThis);
+
+          var galleryName = subGalleryIndex === 0
+            ? galleryDisplayName
+            : galleryDisplayName + '#' + subGalleryIndex;
+
+          // Ensure unique name
+          var baseName = galleryName;
+          var suffix = 1;
+          while (building[galleryName]) {
+            galleryName = baseName + '_' + suffix;
+            suffix++;
+          }
+
+          building[galleryName] = {
+            parent: lastRoom,
+            resource: galleryName + '.glb',
+            template: layout.template
+          };
+
+          // Add door entries in both parent and new room
+          building[lastRoom][galleryName] = {
+            resource: galleryName + '.glb',
+            resource_type: 'door'
+          };
+          building[galleryName][lastRoom] = {
+            resource: lastRoom + '.glb',
+            resource_type: 'door'
+          };
+
+          // Add image entries
+          for (var k = 0; k < itemsForThis; k++) {
+            var imgData = imageDimensions[itemIndex + k];
+            var width = imgData.width;
+            var height = imgData.height;
+            var name = imgData.name;
+
+            var normWidth, normHeight;
+            var aspectRatio = height / width;
+            if (aspectRatio <= 1) {
+              normWidth = 1;
+              normHeight = aspectRatio;
+            } else {
+              normWidth = 1 / aspectRatio;
+              normHeight = 1;
+            }
+
+            var imgBaseName = name.replace(/\.[^/.]+$/, '');
+            var resourcePath = '/' + folderName + '/' + name;
+
+            building[galleryName][imgBaseName] = {
+              resource: resourcePath,
+              resource_type: 'image',
+              width: normWidth.toFixed(2),
+              height: normHeight.toFixed(2),
+              location: '[' + layout.positions[k][0].toFixed(3) + ',' + layout.positions[k][1].toFixed(3) + ',' + layout.positions[k][2].toFixed(3) + ']',
+              vector: '[' + layout.vectors[k][0].toFixed(1) + ',' + layout.vectors[k][1].toFixed(1) + ']',
+              metadata: 'ID #' + uniqueId + ' ' + imgBaseName
+            };
+            uniqueId++;
+          }
+
+          lastRoom = galleryName;
+          itemIndex += itemsForThis;
+          itemsLeft -= itemsForThis;
+          subGalleryIndex++;
+        }
+      }
+
+      if (onProgress) {
+        onProgress(totalImages, totalImages, 'Done!');
+      }
+
+      return building;
+    }
+
+    async function createCdnZip(config, onProgress) {
+      var zip = new JSZip();
+      var isUpdateMode = !!importedJSON;
+
+      // Collect user images from fileMap
+      var fileMap = window.openvgal_fileMap || {};
+      var imageEntries = Object.entries(fileMap);
+
+      if (isUpdateMode) {
+        // Update mode: JSON + new images only
+        var totalFiles = imageEntries.length + 1;
+        var fetchedCount = 0;
+
+        var updateProgress = function(message) {
+          fetchedCount++;
+          var percent = Math.round((fetchedCount / totalFiles) * 100);
+          onProgress(percent, message);
+        };
+
+        onProgress(0, 'Generating update package...');
+
+        zip.file('building_v2.json', JSON.stringify(config, null, 2));
+        updateProgress('Added building_v2.json');
+
+        for (var i = 0; i < imageEntries.length; i++) {
+          var path = imageEntries[i][0];
+          var imgFile = imageEntries[i][1];
+          try {
+            var zipPath = path.replace(/^\//, '');
+            zip.file(zipPath, imgFile);
+            updateProgress('Added ' + zipPath);
+          } catch (e) {
+            console.warn('Failed to add image ' + path + ':', e);
+            updateProgress('Skipped ' + path);
+          }
+        }
+      } else {
+        // Full mode: everything
+        // +6: index.html, site-config.js, building_v2.json, overlay.html, logo.png, README
+        // +4: icon files
+        var totalFiles = imageEntries.length + 6 + 4;
+        var fetchedCount = 0;
+
+        var updateProgress = function(message) {
+          fetchedCount++;
+          var percent = Math.round((fetchedCount / totalFiles) * 100);
+          onProgress(percent, message);
+        };
+
+        onProgress(0, 'Generating package...');
+
+        // 1. index.html - thin CDN loader
+        zip.file('index.html', generateLoaderHtml());
+        updateProgress('Created index.html');
+
+        // 2. site-config.js
+        var siteConfig = [
+          '// OpenVGAL Site Configuration',
+          '// This file is loaded before CDN scripts and sets per-site values.',
+          '//',
+          "// openvgal_location: '.' means gallery files are next to index.html.",
+          "// Change this if your building_v2.json and images are in a different folder.",
+          "window.openvgal_location = '.';"
+        ].join('\n') + '\n';
+        zip.file('site-config.js', siteConfig);
+        updateProgress('Created site-config.js');
+
+        // 3. building_v2.json
+        zip.file('building_v2.json', JSON.stringify(config, null, 2));
+        updateProgress('Added building_v2.json');
+
+        // 4. User images
+        for (var i = 0; i < imageEntries.length; i++) {
+          var path = imageEntries[i][0];
+          var imgFile = imageEntries[i][1];
+          try {
+            var zipPath = path.replace(/^\//, '');
+            zip.file(zipPath, imgFile);
+            updateProgress('Added ' + zipPath);
+          } catch (e) {
+            console.warn('Failed to add image ' + path + ':', e);
+            updateProgress('Skipped ' + path);
+          }
+        }
+
+        // 5. overlay.html (for local customization)
+        try {
+          var overlayResponse = await fetch('../overlay.html');
+          if (overlayResponse.ok) {
+            var overlayContent = await overlayResponse.text();
+            zip.file('overlay.html', overlayContent);
+          }
+        } catch (e) {
+          console.warn('Could not fetch overlay.html:', e);
+        }
+        updateProgress('Added overlay.html');
+
+        // 6. materials/logo.png (local logo for customization)
+        try {
+          var logoResponse = await fetch(CDN_BASE + '/materials/logo.png');
+          if (logoResponse.ok) {
+            var logoBlob = await logoResponse.blob();
+            zip.file('materials/logo.png', logoBlob);
+          }
+        } catch (e) {
+          console.warn('Could not fetch logo.png:', e);
+        }
+        updateProgress('Added materials/logo.png');
+
+        // 7. icons/ (needed by overlay.html)
+        var iconFiles = ['keyboard_move.png', 'keyboard_pan.png', 'touch_move.png', 'touch_pan.png'];
+        for (var i = 0; i < iconFiles.length; i++) {
+          try {
+            var iconResponse = await fetch('../icons/' + iconFiles[i]);
+            if (iconResponse.ok) {
+              var iconBlob = await iconResponse.blob();
+              zip.file('icons/' + iconFiles[i], iconBlob);
+            }
+          } catch (e) {
+            console.warn('Could not fetch icon ' + iconFiles[i] + ':', e);
+          }
+          updateProgress('Added icons/' + iconFiles[i]);
+        }
+
+        // 8. README
+        var galleryFolders = Object.keys(config).filter(function(k) { return k !== 'Technical' && k !== 'root'; });
+        var readmeContent = '# OpenVGAL Virtual Gallery (CDN-first)\n\n' +
+          'Your virtual 3D art gallery is ready to deploy!\n\n' +
+          '## Quick Start\n\n' +
+          '1. Extract this ZIP to your web server folder\n' +
+          '2. Open `index.html` in a browser\n\n' +
+          '## How it works\n\n' +
+          'This gallery uses **CDN-first deployment**. All viewer code (babylon.js,\n' +
+          'templates, materials, overlay) loads from `cdn.openvgal.com`. Your deployment\n' +
+          'only contains content and configuration:\n\n' +
+          '```\nyour-gallery/\n' +
+          '  index.html          <- thin loader (loads scripts from CDN)\n' +
+          '  site-config.js      <- per-site settings\n' +
+          '  building_v2.json    <- gallery configuration\n' +
+          galleryFolders.map(function(k) { return '  ' + k + '/               <- your images'; }).join('\n') + '\n' +
+          '  materials/logo.png  <- your custom logo (white on black, 1024x512)\n' +
+          '  overlay.html        <- UI overlay (customize or delete for CDN default)\n' +
+          '  icons/              <- help images (used by overlay.html)\n```\n\n' +
+          '## Updating\n\n' +
+          'Code updates happen automatically via CDN. To update your gallery content,\n' +
+          'just replace `building_v2.json` and your image folders.\n\n' +
+          '## Customization\n\n' +
+          '- **materials/logo.png**: Replace with your own logo. White artwork on black\n' +
+          '  background, 1024x512 px recommended. The white areas will glow in the gallery.\n' +
+          '  Delete it to use the CDN default logo.\n' +
+          '- **overlay.html**: Edit locally for custom UI. Delete it to always use the\n' +
+          '  latest CDN version.\n' +
+          '- **site-config.js**: Change `openvgal_location` if your content is in a\n' +
+          '  different folder.\n\n' +
+          '## Need the self-contained version?\n\n' +
+          'Visit https://openvgal.com/create/ for a ZIP that includes all code and\n' +
+          'works offline (no CDN dependency).\n\n' +
+          '## Need Help?\n\n' +
+          'Visit https://openvgal.com for documentation and support.\n\n' +
+          'Generated with OpenVGAL Generator (CDN-first mode)\n';
+        zip.file('README.md', readmeContent);
+        updateProgress('Added README.md');
+      }
+
+      // Generate ZIP
+      onProgress(100, 'Creating ZIP file...');
+      var blob = await zip.generateAsync({
+        type: 'blob',
+        compression: 'DEFLATE',
+        compressionOptions: { level: 6 }
+      });
+
+      // Download
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = isUpdateMode ? 'openvgal-gallery-update.zip' : 'openvgal-gallery-cdn.zip';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      onProgress(100, 'Download complete!');
+    }
+
+    // Preview
+    previewBtn.addEventListener('click', function() {
+      if (generatedJSON && window.openvgal_fileMap) {
+        window.openvgal_blobUrls = {};
+        var entries = Object.entries(window.openvgal_fileMap);
+        for (var i = 0; i < entries.length; i++) {
+          window.openvgal_blobUrls[entries[i][0]] = URL.createObjectURL(entries[i][1]);
+        }
+
+        window.openvgal_config = generatedJSON;
+        showPreviewIframe();
+      }
+    });
+
+    function showPreviewIframe() {
+      var overlay = document.createElement('div');
+      overlay.id = 'previewOverlay';
+      overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:9999;';
+
+      var closeBtn = document.createElement('button');
+      closeBtn.textContent = 'Close Preview';
+      closeBtn.style.cssText = 'position:absolute;top:12px;right:12px;z-index:10000;padding:8px 20px;background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:6px;cursor:pointer;font-size:14px;font-family:Inter,sans-serif;transition:background 0.2s;';
+      closeBtn.onmouseover = function() { closeBtn.style.background = 'rgba(255,255,255,0.2)'; };
+      closeBtn.onmouseout = function() { closeBtn.style.background = 'rgba(255,255,255,0.1)'; };
+      closeBtn.onclick = function() {
+        overlay.remove();
+        if (window.openvgal_blobUrls) {
+          Object.values(window.openvgal_blobUrls).forEach(function(url) { URL.revokeObjectURL(url); });
+        }
+      };
+
+      var iframe = document.createElement('iframe');
+      iframe.style.cssText = 'width:100%;height:100%;border:none;';
+      iframe.src = '../viewer.html?preview=iframe';
+
+      overlay.appendChild(closeBtn);
+      overlay.appendChild(iframe);
+      document.body.appendChild(overlay);
+    }
+
+    // SVG icons
+    var folderSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>';
+    var lockSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>';
+    var removeSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>';
+
+    function updateGalleryList() {
+      var items = galleryList.querySelectorAll('.gallery-item, .import-divider');
+      items.forEach(function(item) { item.remove(); });
+
+      var hasContent = importedJSON || galleries.length > 0;
+
+      if (!hasContent) {
+        emptyState.style.display = 'block';
+        generateBtn.disabled = true;
+        return;
+      }
+
+      emptyState.style.display = 'none';
+      generateBtn.disabled = false;
+
+      // Render imported rooms (read-only)
+      if (importedJSON) {
+        var importedRooms = Object.keys(importedJSON).filter(function(k) { return k !== 'Technical' && k !== 'root'; });
+        importedRooms.forEach(function(roomName) {
+          var room = importedJSON[roomName];
+          var item = document.createElement('div');
+          item.className = 'gallery-item imported';
+
+          var iconDiv = document.createElement('div');
+          iconDiv.className = 'gallery-icon';
+          iconDiv.innerHTML = lockSvg;
+
+          var nameSpan = document.createElement('span');
+          nameSpan.style.cssText = 'color: #a1a1aa; font-size: 0.82rem; font-weight: 500;';
+          nameSpan.textContent = roomName;
+
+          var detailsDiv = document.createElement('div');
+          detailsDiv.className = 'gallery-details';
+          detailsDiv.appendChild(nameSpan);
+
+          // Count images in this room
+          var imgCount = 0;
+          for (var key in room) {
+            if (room[key] && room[key].resource_type === 'image') imgCount++;
+          }
+
+          var countSpan = document.createElement('span');
+          countSpan.className = 'gallery-count';
+          countSpan.textContent = imgCount + ' images';
+
+          item.appendChild(iconDiv);
+          item.appendChild(detailsDiv);
+          item.appendChild(countSpan);
+          galleryList.appendChild(item);
+        });
+
+        // Separator between imported and new rooms
+        if (galleries.length > 0) {
+          var divider = document.createElement('div');
+          divider.className = 'import-divider';
+          galleryList.appendChild(divider);
+        }
+      }
+
+      // Render new rooms (editable)
+      galleries.forEach(function(gallery, index) {
+        var item = document.createElement('div');
+        item.className = 'gallery-item';
+
+        var iconDiv = document.createElement('div');
+        iconDiv.className = 'gallery-icon';
+        iconDiv.innerHTML = folderSvg;
+
+        var nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.className = 'gallery-name-input';
+        nameInput.value = gallery.name;
+        nameInput.dataset.index = index;
+        nameInput.placeholder = 'Room name';
+
+        var folderDiv = document.createElement('div');
+        folderDiv.className = 'gallery-folder';
+        folderDiv.textContent = gallery.folderName;
+
+        var detailsDiv = document.createElement('div');
+        detailsDiv.className = 'gallery-details';
+        detailsDiv.appendChild(nameInput);
+        detailsDiv.appendChild(folderDiv);
+
+        var countSpan = document.createElement('span');
+        countSpan.className = 'gallery-count';
+        countSpan.textContent = gallery.files.length + ' images';
+
+        var removeBtn = document.createElement('button');
+        removeBtn.className = 'gallery-remove';
+        removeBtn.dataset.index = index;
+        removeBtn.title = 'Remove';
+        removeBtn.innerHTML = removeSvg;
+
+        item.appendChild(iconDiv);
+        item.appendChild(detailsDiv);
+        item.appendChild(countSpan);
+        item.appendChild(removeBtn);
+        galleryList.appendChild(item);
+      });
+
+      galleryList.querySelectorAll('.gallery-name-input').forEach(function(input) {
+        input.addEventListener('change', function(e) {
+          var index = parseInt(e.target.dataset.index);
+          galleries[index].name = e.target.value.trim() || galleries[index].folderName;
+        });
+      });
+
+      galleryList.querySelectorAll('.gallery-remove').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+          var target = e.target.closest('.gallery-remove');
+          var index = parseInt(target.dataset.index);
+          galleries.splice(index, 1);
+          updateGalleryList();
+        });
+      });
+    }
+
+    function showResults() {
+      resultSection.style.display = 'block';
+
+      var galleryCount = Object.keys(generatedJSON).filter(function(k) {
+        return k !== 'Technical' && k !== 'root';
+      }).length;
+
+      var imageCount = 0;
+      for (var key in generatedJSON) {
+        if (key === 'Technical') continue;
+        for (var item in generatedJSON[key]) {
+          if (generatedJSON[key][item].resource_type === 'image') {
+            imageCount++;
+          }
+        }
+      }
+
+      statGalleries.textContent = galleryCount;
+      statImages.textContent = imageCount;
+
+      // Update info box for import/update mode
+      var infoBox = resultSection.querySelector('.info-box');
+      if (importedJSON) {
+        infoBox.innerHTML = '<h3>Update package</h3>' +
+          '<ol>' +
+          '<li>Upload <code>building_v2.json</code> and new image folder(s) to your existing gallery</li>' +
+          '<li>Replace the existing <code>building_v2.json</code> on your server</li>' +
+          '</ol>' +
+          '<ul class="advantage-list" style="margin-top: 0.75rem;">' +
+          '<li>' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>' +
+          'Existing rooms are preserved exactly as they were' +
+          '</li>' +
+          '<li>' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>' +
+          'Only new images and updated JSON in this package' +
+          '</li>' +
+          '</ul>';
+      } else {
+        infoBox.innerHTML = '<h3>CDN-first deployment</h3>' +
+          '<ol>' +
+          '<li>Extract the ZIP on your web server</li>' +
+          '<li>Open <code>index.html</code> &mdash; that\'s it</li>' +
+          '</ol>' +
+          '<ul class="advantage-list" style="margin-top: 0.75rem;">' +
+          '<li>' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>' +
+          'No babylon.js, templates, or materials in your deployment' +
+          '</li>' +
+          '<li>' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>' +
+          'Code updates happen via CDN &mdash; all galleries update instantly' +
+          '</li>' +
+          '<li>' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>' +
+          'Customize <code>overlay.html</code> locally, or delete it to use CDN default' +
+          '</li>' +
+          '</ul>';
+      }
+
+      jsonPreview.textContent = JSON.stringify(generatedJSON, null, 2);
+    }
+  </script>
+</body>
+</html>
