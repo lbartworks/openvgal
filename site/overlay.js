@@ -116,12 +116,24 @@ function changeLanguage(lang) {
 
 // Load overlay content
 document.addEventListener('DOMContentLoaded', function() {
+    const initOverlay = (html) => {
+        document.body.insertAdjacentHTML('beforeend', html);
+        document.getElementById('help-popup').style.display = 'none';
+        hideInfoBox();
+    };
+
     fetch('overlay.html')
-        .then(response => response.text())
-        .then(html => {
-            document.body.insertAdjacentHTML('beforeend', html);
-            // Initialize help popup as hidden
-            document.getElementById('help-popup').style.display = 'none';
-            hideInfoBox(); // Call hideInfoBox to set initial state
+        .then(response => {
+            if (!response.ok) throw new Error('not found');
+            return response.text();
+        })
+        .then(initOverlay)
+        .catch(() => {
+            if (typeof cdn_base !== 'undefined' && cdn_base) {
+                fetch(cdn_base + '/core/overlay.html')
+                    .then(r => r.text())
+                    .then(initOverlay)
+                    .catch(e => console.warn('Failed to load overlay:', e));
+            }
         });
 });
