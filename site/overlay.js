@@ -114,7 +114,7 @@ function changeLanguage(lang) {
     document.querySelector(`.help-text.${lang}`).classList.add('active');
 }
 
-// Load overlay content
+// Load overlay content (always from CDN)
 document.addEventListener('DOMContentLoaded', function() {
     const initOverlay = (html) => {
         document.body.insertAdjacentHTML('beforeend', html);
@@ -122,18 +122,15 @@ document.addEventListener('DOMContentLoaded', function() {
         hideInfoBox();
     };
 
-    fetch('overlay.html')
+    const overlayUrl = (typeof cdn_base !== 'undefined' && cdn_base)
+        ? cdn_base + '/core/overlay.html'
+        : 'overlay.html';
+
+    fetch(overlayUrl)
         .then(response => {
             if (!response.ok) throw new Error('not found');
             return response.text();
         })
         .then(initOverlay)
-        .catch(() => {
-            if (typeof cdn_base !== 'undefined' && cdn_base) {
-                fetch(cdn_base + '/core/overlay.html')
-                    .then(r => r.text())
-                    .then(initOverlay)
-                    .catch(e => console.warn('Failed to load overlay:', e));
-            }
-        });
+        .catch(e => console.warn('Failed to load overlay:', e));
 });

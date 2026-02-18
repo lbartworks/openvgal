@@ -1052,7 +1052,19 @@
 '  <canvas id="renderCanvas" touch-action="none"></canvas>\n' +
 '\n' +
 '  <script src="' + CDN_BASE + '/core/room_builder_aux.js"><\/script>\n' +
-'  <script src="' + CDN_BASE + '/core/overlay.js"><\/script>\n' +
+'  <script>\n' +
+'  // Load overlay.js: local first (for custom button callbacks), CDN fallback\n' +
+'  (function() {\n' +
+'    var s = document.createElement("script");\n' +
+'    s.src = "overlay.js";\n' +
+'    s.onerror = function() {\n' +
+'      var f = document.createElement("script");\n' +
+'      f.src = (window.openvgal_cdn_base || "' + CDN_BASE + '") + "/core/overlay.js";\n' +
+'      document.body.appendChild(f);\n' +
+'    };\n' +
+'    document.body.appendChild(s);\n' +
+'  })();\n' +
+'  <\/script>\n' +
 '  <script src="' + CDN_BASE + '/core/openvgal-viewer.js"><\/script>\n' +
 '</body>\n' +
 '</html>';
