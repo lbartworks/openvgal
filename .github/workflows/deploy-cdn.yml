@@ -3,12 +3,36 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['cdn/**']
+    paths:
+      - 'cdn/**'
+      - 'site/declarations.js'
+      - 'site/room_builder_aux.js'
+      - 'site/overlay.js'
+      - 'site/overlay.css'
+      - 'site/overlay.html'
+      - 'site/openvgal-viewer.js'
+      - 'site/babylon.js'
+      - 'site/babylonjs.loaders.min.js'
+      - 'site/icons/**'
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Build CDN core
+        run: |
+          mkdir -p cdn/core/icons
+          cp site/declarations.js cdn/core/
+          cp site/room_builder_aux.js cdn/core/
+          cp site/overlay.js cdn/core/
+          cp site/overlay.css cdn/core/
+          cp site/overlay.html cdn/core/
+          cp site/openvgal-viewer.js cdn/core/
+          cp site/babylon.js cdn/core/
+          cp site/babylonjs.loaders.min.js cdn/core/
+          cp -r site/icons/* cdn/core/icons/
+
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
