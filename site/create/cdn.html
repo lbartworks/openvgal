@@ -838,6 +838,14 @@
       reader.onload = function(ev) {
         try {
           var parsed = JSON.parse(ev.target.result);
+          if (!parsed.root) {
+            alert('Invalid building_v2.json: missing "root" entry.');
+            return;
+          }
+          if (!parsed.Technical) {
+            alert('Invalid building_v2.json: missing "Technical" entry.');
+            return;
+          }
           importedJSON = parsed;
           var roomCount = Object.keys(parsed).filter(function(k) { return k !== 'Technical' && k !== 'root'; }).length;
           importSummary.textContent = roomCount + ' room' + (roomCount !== 1 ? 's' : '') + ' imported';
@@ -874,7 +882,7 @@
         if (importedJSON && galleries.length > 0) {
           generatedJSON = await extendGalleryJSON(importedJSON, galleries, progressCB);
         } else if (importedJSON) {
-          generatedJSON = importedJSON;
+          generatedJSON = JSON.parse(JSON.stringify(importedJSON));
         } else {
           generatedJSON = await buildGalleryJSON(galleries, progressCB);
         }
