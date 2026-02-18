@@ -220,7 +220,7 @@
 				current_gallery=current_gallery.replace(regul_exp_door, "");
 
 				//hide info box
-				hideInfoBox();
+				if (typeof hideInfoBox === 'function') hideInfoBox();
 
 				//the new gallery assets are loaded unless they are already in memory
 				if (galleries[current_gallery]==undefined){
