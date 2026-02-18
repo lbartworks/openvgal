@@ -1253,9 +1253,8 @@
         }
       } else {
         // Full mode: everything
-        // +6: index.html, site-config.js, building_v2.json, overlay.html, logo.png, README
-        // +4: icon files
-        var totalFiles = imageEntries.length + 6 + 4;
+        // +4: index.html, site-config.js, building_v2.json, README
+        var totalFiles = imageEntries.length + 4;
         var fetchedCount = 0;
 
         var updateProgress = function(message) {
@@ -1300,46 +1299,7 @@
           }
         }
 
-        // 5. overlay.html (for local customization)
-        try {
-          var overlayResponse = await fetch('../overlay.html');
-          if (overlayResponse.ok) {
-            var overlayContent = await overlayResponse.text();
-            zip.file('overlay.html', overlayContent);
-          }
-        } catch (e) {
-          console.warn('Could not fetch overlay.html:', e);
-        }
-        updateProgress('Added overlay.html');
-
-        // 6. materials/logo.png (local logo for customization)
-        try {
-          var logoResponse = await fetch(CDN_BASE + '/materials/logo.png');
-          if (logoResponse.ok) {
-            var logoBlob = await logoResponse.blob();
-            zip.file('materials/logo.png', logoBlob);
-          }
-        } catch (e) {
-          console.warn('Could not fetch logo.png:', e);
-        }
-        updateProgress('Added materials/logo.png');
-
-        // 7. icons/ (needed by overlay.html)
-        var iconFiles = ['keyboard_move.png', 'keyboard_pan.png', 'touch_move.png', 'touch_pan.png'];
-        for (var i = 0; i < iconFiles.length; i++) {
-          try {
-            var iconResponse = await fetch('../icons/' + iconFiles[i]);
-            if (iconResponse.ok) {
-              var iconBlob = await iconResponse.blob();
-              zip.file('icons/' + iconFiles[i], iconBlob);
-            }
-          } catch (e) {
-            console.warn('Could not fetch icon ' + iconFiles[i] + ':', e);
-          }
-          updateProgress('Added icons/' + iconFiles[i]);
-        }
-
-        // 8. README
+        // 5. README
         var galleryFolders = Object.keys(config).filter(function(k) { return k !== 'Technical' && k !== 'root'; });
         var readmeContent = '# OpenVGAL Virtual Gallery (CDN-first)\n\n' +
           'Your virtual 3D art gallery is ready to deploy!\n\n' +
@@ -1354,19 +1314,16 @@
           '  index.html          <- thin loader (loads scripts from CDN)\n' +
           '  site-config.js      <- per-site settings\n' +
           '  building_v2.json    <- gallery configuration\n' +
-          galleryFolders.map(function(k) { return '  ' + k + '/               <- your images'; }).join('\n') + '\n' +
-          '  materials/logo.png  <- your custom logo (white on black, 1024x512)\n' +
-          '  overlay.html        <- UI overlay (customize or delete for CDN default)\n' +
-          '  icons/              <- help images (used by overlay.html)\n```\n\n' +
+          galleryFolders.map(function(k) { return '  ' + k + '/               <- your images'; }).join('\n') + '\n```\n\n' +
           '## Updating\n\n' +
           'Code updates happen automatically via CDN. To update your gallery content,\n' +
           'just replace `building_v2.json` and your image folders.\n\n' +
           '## Customization\n\n' +
-          '- **materials/logo.png**: Replace with your own logo. White artwork on black\n' +
-          '  background, 1024x512 px recommended. The white areas will glow in the gallery.\n' +
-          '  Delete it to use the CDN default logo.\n' +
-          '- **overlay.html**: Edit locally for custom UI. Delete it to always use the\n' +
-          '  latest CDN version.\n' +
+          '- **Custom logo**: Add `materials/logo.png` next to index.html. White artwork\n' +
+          '  on black background, 1024x512 px recommended. The viewer checks for a local\n' +
+          '  logo first, then falls back to the CDN default.\n' +
+          '- **Custom overlay**: Add `overlay.html` next to index.html to override the\n' +
+          '  default CDN overlay UI.\n' +
           '- **site-config.js**: Change `openvgal_location` if your content is in a\n' +
           '  different folder.\n\n' +
           '## Need the self-contained version?\n\n' +
@@ -1618,7 +1575,7 @@
           '</li>' +
           '<li>' +
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>' +
-          'Customize <code>overlay.html</code> locally, or delete it to use CDN default' +
+          'Add local <code>overlay.html</code> or <code>materials/logo.png</code> to customize' +
           '</li>' +
           '</ul>';
       }
