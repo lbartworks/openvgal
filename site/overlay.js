@@ -115,10 +115,11 @@ function changeLanguage(lang) {
 }
 
 // Load overlay content (always from CDN)
-document.addEventListener('DOMContentLoaded', function() {
+function loadOverlay() {
     const initOverlay = (html) => {
         document.body.insertAdjacentHTML('beforeend', html);
-        document.getElementById('help-popup').style.display = 'none';
+        const helpPopup = document.getElementById('help-popup');
+        if (helpPopup) helpPopup.style.display = 'none';
         hideInfoBox();
     };
 
@@ -133,4 +134,11 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(initOverlay)
         .catch(e => console.warn('Failed to load overlay:', e));
-});
+}
+
+// If loaded dynamically (e.g. CDN ZIP), DOMContentLoaded has already fired — run immediately
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadOverlay);
+} else {
+    loadOverlay();
+}
