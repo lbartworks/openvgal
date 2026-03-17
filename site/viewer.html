@@ -172,8 +172,11 @@
 	// Preview mode detection - must run before declarations.js
 	// To use local templates/materials instead of CDN, set: window.openvgal_cdn_base = '';
 	(function() {
-		const urlParams = new URLSearchParams(window.location.search);
-		if (urlParams.get('preview') === 'iframe' && window.parent) {
+		// Use hash fragment (#preview=iframe) so serve's clean-URL rewriting doesn't strip the param
+		const hash = window.location.hash.slice(1); // remove leading '#'
+		const hashParams = new URLSearchParams(hash);
+		const previewParam = hashParams.get('preview');
+		if (previewParam === 'iframe' && window.parent) {
 			window.openvgal_preview_mode = true;
 			window.openvgal_cdn_base = window.parent.openvgal_cdn_base || window.location.origin;
 			console.log('Preview mode: CDN base =', window.openvgal_cdn_base);
@@ -537,7 +540,9 @@
 		fontContent=await fontfile.json();
 		
 		//read json files - check for preview mode first
-		const previewParam = new URLSearchParams(window.location.search).get('preview');
+		// Use hash fragment to detect preview mode (query params get stripped by some static servers)
+		const hashParams = new URLSearchParams(window.location.hash.slice(1));
+		const previewParam = hashParams.get('preview');
 		if (previewParam === 'iframe' && window.parent && window.parent.openvgal_config) {
 			// Iframe preview mode - access parent's blob URLs directly
 			config_file_content = window.parent.openvgal_config;
