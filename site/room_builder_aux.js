@@ -1,382 +1,520 @@
-async function  doDownload(filename, scene) {
-	console.log('start download  ' + filename);
-	
-	await BABYLON.GLTF2Export.GLBAsync(scene, filename).then((glb) => {
-	  glb.downloadFiles();
-	  console.log('end download  ' + filename);
-	});
+async function doDownload(filename, scene) {
+  console.log("start download  " + filename);
 
+  await BABYLON.GLTF2Export.GLBAsync(scene, filename).then((glb) => {
+    glb.downloadFiles();
+    console.log("end download  " + filename);
+  });
 }
 
+var text3D_builder = function (name, item_position, vector, parent, scene) {
+  const north_vector = new BABYLON.Vector3(0, 0, 1);
+  maxLength = 1.3;
 
-var text3D_builder=function(name, item_position, vector, parent, scene){
-	const north_vector=new BABYLON.Vector3(0, 0, 1);
-	maxLength=1.3;
-	
-	texto=name.replace("root", "Hall");
-	texto=texto.replace(/d_(.+)_\d+/, "$1");
-	
-	myText = BABYLON.MeshBuilder.CreateText("T_" + texto, texto, fontContent, {
-		size: 0.2,
-		resolution: 5, 
-		depth: 0.1,
-		sideOrientation:2 }, scene);
+  texto = name.replace("root", "Hall");
+  texto = texto.replace(/d_(.+)_\d+/, "$1");
 
-	//scale it
-	scene.executeWhenReady(function () {
-		// Assuming the text is aligned along the X axis, measure its length
-		myText.refreshBoundingInfo();
-		var boundingInfo = myText.getBoundingInfo();
-		var textWidth = boundingInfo.maximum.x - boundingInfo.minimum.x;
+  myText = BABYLON.MeshBuilder.CreateText(
+    "T_" + texto,
+    texto,
+    fontContent,
+    {
+      size: 0.2,
+      resolution: 5,
+      depth: 0.1,
+      sideOrientation: 2,
+    },
+    scene,
+  );
 
-		// Check if the text exceeds the maximum length
-		if (textWidth > maxLength) {
-			// Calculate the required scaling factor
-			var scaleFactor = maxLength / textWidth;
+  //scale it
+  scene.executeWhenReady(function () {
+    // Assuming the text is aligned along the X axis, measure its length
+    myText.refreshBoundingInfo();
+    var boundingInfo = myText.getBoundingInfo();
+    var textWidth = boundingInfo.maximum.x - boundingInfo.minimum.x;
 
-			// Apply the scaling factor to the text mesh
-			myText.scaling.x = scaleFactor;
-			myText.scaling.y = scaleFactor; // Optional: Scale uniformly in Y to maintain aspect ratio
-			// Note: Adjust Z scaling as needed, or leave it if uniform scaling is desired
-		}
-	});
-	
-	//place it
-	myText.parent=parent;
-	myText.position=new BABYLON.Vector3(item_position.x, item_position.y, item_position.z);
-	
-	//rotate
-	var crossProduct = BABYLON.Vector3.Cross(north_vector, vector);
-	// Calculate the dot product and use it to find the angle between vectors
-    let dotProduct = BABYLON.Vector3.Dot(north_vector, vector);
-    let angle = Math.acos(dotProduct);
-	
-	// Adjust the angle based on the direction of the cross product
-    if (crossProduct.y < 0) {
-        angle = -angle;
+    // Check if the text exceeds the maximum length
+    if (textWidth > maxLength) {
+      // Calculate the required scaling factor
+      var scaleFactor = maxLength / textWidth;
+
+      // Apply the scaling factor to the text mesh
+      myText.scaling.x = scaleFactor;
+      myText.scaling.y = scaleFactor; // Optional: Scale uniformly in Y to maintain aspect ratio
+      // Note: Adjust Z scaling as needed, or leave it if uniform scaling is desired
     }
-	//let angle=Math.acos(BABYLON.Vector3.Dot(north_vector, vector)) * Math.sign(crossProduct.y);
-		
-	myText.rotate(BABYLON.Axis.Y, angle  , BABYLON.Space.LOCAL);
-	
-	//assign material
-	myText.material = BJS_materials["BJS_black_metal"];
-		
+  });
 
-}
+  //place it
+  myText.parent = parent;
+  myText.position = new BABYLON.Vector3(
+    item_position.x,
+    item_position.y,
+    item_position.z,
+  );
 
-var plaque_builder = function(name, item_position, item_size, vector, scene, metadata) {
-	// Dimensions of the plaque itself
-	const plaque_w = Math.min(item_size.width * 0.45, 0.9);
-	const plaque_h = plaque_w * 0.28;
-	const plaque_depth = 0.012;
+  //rotate
+  var crossProduct = BABYLON.Vector3.Cross(north_vector, vector);
+  // Calculate the dot product and use it to find the angle between vectors
+  let dotProduct = BABYLON.Vector3.Dot(north_vector, vector);
+  let angle = Math.acos(dotProduct);
 
-	// Offset: sit just in front of the frame (same depth plane as the frame face)
-	const depth_offset = item_separation / 2 + plaque_depth / 2 + 0.001;
+  // Adjust the angle based on the direction of the cross product
+  if (crossProduct.y < 0) {
+    angle = -angle;
+  }
+  //let angle=Math.acos(BABYLON.Vector3.Dot(north_vector, vector)) * Math.sign(crossProduct.y);
 
-	// Align to bottom-right of the artwork:
-	//   - right edge of artwork  → shift +plaque_w/2 from right edge of artwork
-	//   - below bottom edge      → shift down by plaque_h * 0.6 from bottom edge
-	const right_offset = item_size.width / 2 - plaque_w / 2;  // right-align inside artwork width
-	const down_offset  = -(item_size.height / 2 + plaque_h * 1.1); // clear below the frame bottom edge
+  myText.rotate(BABYLON.Axis.Y, angle, BABYLON.Space.LOCAL);
 
-	// Build the plaque box
-	const north_vector = new BABYLON.Vector3(0, 0, 1);
-	let plaque = BABYLON.MeshBuilder.CreateBox("plaque_" + name, {
-		width:  plaque_w,
-		height: plaque_h,
-		depth:  plaque_depth,
-		updatable: false
-	}, scene);
-
-	// Rotate to face the same direction as the artwork wall normal.
-	// Add Math.PI so the textured +Z face points outward (away from wall) rather than inward.
-	const angle = Math.acos(BABYLON.Vector3.Dot(vector, north_vector));
-	const cross  = BABYLON.Vector3.Cross(north_vector, vector);
-	plaque.rotate(BABYLON.Axis.Y, (cross.y >= 0 ? angle : -angle) + Math.PI, BABYLON.Space.LOCAL);
-
-	// Lateral offset is in the plane perpendicular to the normal:
-	// "right" in wall-space is (normal × up).normalise()
-	const up = new BABYLON.Vector3(0, 1, 0);
-	const wall_right = BABYLON.Vector3.Cross(vector, up).normalize();
-
-	plaque.position = new BABYLON.Vector3(item_position.x, item_position.y, item_position.z)
-		.add(vector.scale(depth_offset))
-		.add(wall_right.scale(right_offset))
-		.add(up.scale(down_offset));
-
-	// --- DynamicTexture for the label text ---
-	const tex_w = 512, tex_h = Math.round(512 * (plaque_h / plaque_w));
-	const dynTex = new BABYLON.DynamicTexture("plaque_tex_" + name, { width: tex_w, height: tex_h }, scene, false);
-	const ctx = dynTex.getContext();
-
-	// Background: warm off-white / gallery-cream
-	ctx.fillStyle = "#F5F0E8";
-	ctx.fillRect(0, 0, tex_w, tex_h);
-
-	// Thin dark border
-	ctx.strokeStyle = "#C8B89A";
-	ctx.lineWidth = 6;
-	ctx.strokeRect(3, 3, tex_w - 6, tex_h - 6);
-
-	// Parse metadata: "Title|Subtitle" format, or plain text (legacy/fallback)
-	let title, subtitle;
-	if (metadata && metadata.includes("|")) {
-		const parts = metadata.split("|");
-		title    = parts[0].trim();
-		subtitle = parts[1].trim();
-	} else {
-		// Fallback: strip legacy "ID #N " prefix, use filename stem as title
-		const raw = (metadata && metadata.trim().length > 0)
-			? metadata.replace(/^ID #\d+\s*/, "")
-			: name.replace(/_\d+$/, "").replace(/_/g, " ");
-		title    = raw;
-		subtitle = "";
-	}
-
-	const padding = tex_w * 0.07;
-	const title_y  = subtitle ? tex_h * 0.38 : tex_h * 0.5;
-	const sub_y    = tex_h * 0.72;
-
-	ctx.fillStyle = "#1A1A1A";
-	ctx.font = `bold ${Math.round(tex_h * 0.28)}px Arial, sans-serif`;
-	ctx.textBaseline = "middle";
-
-	// Truncate title to fit
-	let display_title = title;
-	while (ctx.measureText(display_title).width > tex_w - padding * 2 && display_title.length > 1) {
-		display_title = display_title.slice(0, -1);
-	}
-	if (display_title !== title) display_title = display_title.slice(0, -1) + "…";
-	ctx.fillText(display_title, padding, title_y);
-
-	// Subtitle (only if provided)
-	if (subtitle) {
-		ctx.fillStyle = "#555555";
-		ctx.font = `${Math.round(tex_h * 0.22)}px Arial, sans-serif`;
-		let display_sub = subtitle;
-		while (ctx.measureText(display_sub).width > tex_w - padding * 2 && display_sub.length > 1) {
-			display_sub = display_sub.slice(0, -1);
-		}
-		if (display_sub !== subtitle) display_sub = display_sub.slice(0, -1) + "…";
-		ctx.fillText(display_sub, padding, sub_y);
-	}
-
-	dynTex.update();
-
-	// Material
-	const plaque_mat = new BABYLON.StandardMaterial("plaque_mat_" + name, scene);
-	plaque_mat.diffuseTexture = dynTex;
-	plaque_mat.specularColor = new BABYLON.Color3(0.08, 0.08, 0.08);
-	plaque_mat.emissiveColor = new BABYLON.Color3(0.15, 0.14, 0.12); // slight self-illumination so it's readable in low light
-	plaque.material = plaque_mat;
-
-	return plaque;
+  //assign material
+  myText.material = BJS_materials["BJS_black_metal"];
 };
 
-var item_builder= function(name, item_position, item_size, vector, material,scene, item_shadow_material=null, metadata=null){
-	//places artwork as an image texture
-	//adds a frame and both elements have a customizable separation from the wall
-	//the thickness of the frame is half the separation
-	
-	const shadow_scale=1.3;
-	var base_vector=new BABYLON.Vector3(0, 0, 0);
-	const north_vector=new BABYLON.Vector3(0, 0, 1);
-	var abstractPlane = BABYLON.Plane.FromPositionAndNormal(base_vector,vector );
-	var item = BABYLON.MeshBuilder.CreatePlane(name, {sourcePlane: abstractPlane, width:item_size.width, height: item_size.height, sideOrientation: BABYLON.Mesh.SINGLESIDE},scene);
+var plaque_builder = function (
+  name,
+  item_position,
+  item_size,
+  vector,
+  scene,
+  metadata,
+) {
+  // Dimensions of the plaque itself
+  const plaque_w = Math.min(item_size.width * 0.45, 0.9);
+  const plaque_h = plaque_w * 0.28;
+  const plaque_depth = 0.012;
 
-	//create the item shadow
-	if (item_shadow_material!=null) {
-		var item_shadow = BABYLON.MeshBuilder.CreatePlane("shadow", {sourcePlane: abstractPlane, width:item_size.width*shadow_scale, height: item_size.height*shadow_scale, sideOrientation: BABYLON.Mesh.SINGLESIDE},scene);
-		item_shadow.position=new BABYLON.Vector3(item_position.x, item_position.y, item_position.z).add(vector.scale(0.01));
-		item_shadow.material=item_shadow_material;
-		
-		let existing_shadow_object=scene.getMeshByName('shadows');
-		if (existing_shadow_object){
-			var merged_mesh = BABYLON.Mesh.MergeMeshes([existing_shadow_object, item_shadow], true);
-			merged_mesh.name="shadows";
-		} else {
-			item_shadow.name="shadows";
-		}
+  // Offset: sit just in front of the frame (same depth plane as the frame face)
+  const depth_offset = item_separation / 2 + plaque_depth / 2 + 0.001;
 
-	}
-	
-	
-	//the position is shifted away from the wall in the direction of the item vector (normal)
-	item.position=new BABYLON.Vector3(item_position.x, item_position.y, item_position.z).add(vector.scale(3*item_separation/2));
-	item.checkCollisions= true;
-	if (material!=  undefined){
-		item.material=material;
-		item.material.specularColor=new BABYLON.Color3(0,0,0);
-		
-	}
+  // Align to bottom-right of the artwork:
+  //   - right edge of artwork  → shift +plaque_w/2 from right edge of artwork
+  //   - below bottom edge      → shift down by plaque_h * 0.6 from bottom edge
+  const right_offset = item_size.width / 2 - plaque_w / 2; // right-align inside artwork width
+  const down_offset = -(item_size.height / 2 + plaque_h * 1.1); // clear below the frame bottom edge
 
+  // Build the plaque box — texture only on the front face (face index 1 = +Z).
+  // All other faces get a 0×0 UV region (invisible/black) and a solid cream faceColor.
+  const north_vector = new BABYLON.Vector3(0, 0, 1);
+  const faceUV = [
+    new BABYLON.Vector4(0, 0, 0, 0), // back
+    new BABYLON.Vector4(0, 0, 1, 1), // front  ← textured face
+    new BABYLON.Vector4(0, 0, 0, 0), // right
+    new BABYLON.Vector4(0, 0, 0, 0), // left
+    new BABYLON.Vector4(0, 0, 0, 0), // top
+    new BABYLON.Vector4(0, 0, 0, 0), // bottom
+  ];
+  // Solid cream color for the non-textured edges/back
+  const edgeColor = new BABYLON.Color4(0.93, 0.93, 0.92, 1);
+  const faceColors = [
+    edgeColor,
+    edgeColor,
+    edgeColor,
+    edgeColor,
+    edgeColor,
+    edgeColor,
+  ];
 
+  let plaque = BABYLON.MeshBuilder.CreateBox(
+    "plaque_" + name,
+    {
+      width: plaque_w,
+      height: plaque_h,
+      depth: plaque_depth,
+      faceUV: faceUV,
+      faceColors: faceColors,
+      wrap: true,
+      updatable: false,
+    },
+    scene,
+  );
 
-	// Create the box at the position of the base vector with the plane's rotation
-	let item2 = BABYLON.MeshBuilder.CreateBox("box" +name, {
-		size: 1, 
-		updatable: true
-	}, scene);
+  // Rotate to face the same direction as the artwork wall normal.
+  // Add Math.PI so the textured +Z face points outward (away from wall) rather than inward.
+  const angle = Math.acos(BABYLON.Vector3.Dot(vector, north_vector));
+  const cross = BABYLON.Vector3.Cross(north_vector, vector);
+  plaque.rotate(
+    BABYLON.Axis.Y,
+    (cross.y >= 0 ? angle : -angle) + Math.PI,
+    BABYLON.Space.LOCAL,
+  );
 
-	// Set the position, rotation and scale of the box/frame
-	item2.position = new BABYLON.Vector3(item_position.x, item_position.y, item_position.z).add(vector.scale(item_separation/2-0.001));
-	item2.rotate(BABYLON.Axis.Y,  Math.acos(BABYLON.Vector3.Dot(vector, north_vector)), BABYLON.Space.LOCAL);
-	item2.scaling = new BABYLON.Vector3(item_size.width+margin, item_size.height+margin, item_separation); 
-	
-	
-	//check if the mesh that merges all the frames is already created
-	let existing_frame_object=scene.getMeshByName('frames');
-	if (existing_frame_object){
-		var merged_mesh = BABYLON.Mesh.MergeMeshes([existing_frame_object, item2], true);
-		merged_mesh.name="frames";
-	} else {
-		item2.name="frames";
-	}
+  // Lateral offset is in the plane perpendicular to the normal:
+  // "right" in wall-space is (normal × up).normalise()
+  const up = new BABYLON.Vector3(0, 1, 0);
+  const wall_right = BABYLON.Vector3.Cross(vector, up).normalize();
 
-	// Add gallery plaque below-right of the artwork
-	plaque_builder(name, item_position, item_size, vector, scene, metadata);
+  plaque.position = new BABYLON.Vector3(
+    item_position.x,
+    item_position.y,
+    item_position.z,
+  )
+    .add(vector.scale(depth_offset))
+    .add(wall_right.scale(right_offset))
+    .add(up.scale(down_offset));
 
-	return item
+  // --- DynamicTexture for the label text ---
+  const tex_w = 512,
+    tex_h = Math.round(512 * (plaque_h / plaque_w));
+  const dynTex = new BABYLON.DynamicTexture(
+    "plaque_tex_" + name,
+    { width: tex_w, height: tex_h },
+    scene,
+    false,
+  );
+  const ctx = dynTex.getContext();
+
+  // Background: warm off-white / gallery-cream
+  ctx.fillStyle = "#FfFfFf";
+  ctx.fillRect(0, 0, tex_w, tex_h);
+
+  // Thin dark border
+  ctx.strokeStyle = "#a8a8a8";
+  ctx.lineWidth = 6;
+  ctx.strokeRect(3, 3, tex_w - 6, tex_h - 6);
+
+  // Parse metadata: "Title|Subtitle" format, or plain text (legacy/fallback)
+  let title, subtitle;
+  if (metadata && metadata.includes("|")) {
+    const parts = metadata.split("|");
+    title = parts[0].trim();
+    subtitle = parts[1].trim();
+  } else {
+    // Fallback: strip legacy "ID #N " prefix, use filename stem as title
+    const raw =
+      metadata && metadata.trim().length > 0
+        ? metadata.replace(/^ID #\d+\s*/, "")
+        : name.replace(/_\d+$/, "").replace(/_/g, " ");
+    title = raw;
+    subtitle = "";
+  }
+
+  const padding = tex_w * 0.07;
+  const title_y = subtitle ? tex_h * 0.38 : tex_h * 0.5;
+  const sub_y = tex_h * 0.72;
+
+  ctx.fillStyle = "#1A1A1A";
+  ctx.font = `bold ${Math.round(tex_h * 0.28)}px Arial, sans-serif`;
+  ctx.textBaseline = "middle";
+
+  // Truncate title to fit
+  let display_title = title;
+  while (
+    ctx.measureText(display_title).width > tex_w - padding * 2 &&
+    display_title.length > 1
+  ) {
+    display_title = display_title.slice(0, -1);
+  }
+  if (display_title !== title) display_title = display_title.slice(0, -1) + "…";
+  ctx.fillText(display_title, padding, title_y);
+
+  // Subtitle (only if provided)
+  if (subtitle) {
+    ctx.fillStyle = "#555555";
+    ctx.font = `${Math.round(tex_h * 0.22)}px Arial, sans-serif`;
+    let display_sub = subtitle;
+    while (
+      ctx.measureText(display_sub).width > tex_w - padding * 2 &&
+      display_sub.length > 1
+    ) {
+      display_sub = display_sub.slice(0, -1);
+    }
+    if (display_sub !== subtitle) display_sub = display_sub.slice(0, -1) + "…";
+    ctx.fillText(display_sub, padding, sub_y);
+  }
+
+  dynTex.update();
+
+  // Fully matte material — no specular highlight, no emissive glow.
+  // A small ambient boost keeps the plaque readable even in low-light spots.
+  const plaque_mat = new BABYLON.StandardMaterial("plaque_mat_" + name, scene);
+  plaque_mat.diffuseTexture = dynTex;
+  plaque_mat.specularColor = new BABYLON.Color3(0.01, 0.01, 0.01); // no shininess at all
+  plaque_mat.ambientColor = new BABYLON.Color3(0.14, 0.14, 0.14); // warm ambient so text stays legible
+  plaque_mat.maxSimultaneousLights = max_lights;
+  plaque.material = plaque_mat;
+
+  return plaque;
+};
+
+var item_builder = function (
+  name,
+  item_position,
+  item_size,
+  vector,
+  material,
+  scene,
+  item_shadow_material = null,
+  metadata = null,
+) {
+  //places artwork as an image texture
+  //adds a frame and both elements have a customizable separation from the wall
+  //the thickness of the frame is half the separation
+
+  const shadow_scale = 1.3;
+  var base_vector = new BABYLON.Vector3(0, 0, 0);
+  const north_vector = new BABYLON.Vector3(0, 0, 1);
+  var abstractPlane = BABYLON.Plane.FromPositionAndNormal(base_vector, vector);
+  var item = BABYLON.MeshBuilder.CreatePlane(
+    name,
+    {
+      sourcePlane: abstractPlane,
+      width: item_size.width,
+      height: item_size.height,
+      sideOrientation: BABYLON.Mesh.SINGLESIDE,
+    },
+    scene,
+  );
+
+  //create the item shadow
+  if (item_shadow_material != null) {
+    var item_shadow = BABYLON.MeshBuilder.CreatePlane(
+      "shadow",
+      {
+        sourcePlane: abstractPlane,
+        width: item_size.width * shadow_scale,
+        height: item_size.height * shadow_scale,
+        sideOrientation: BABYLON.Mesh.SINGLESIDE,
+      },
+      scene,
+    );
+    item_shadow.position = new BABYLON.Vector3(
+      item_position.x,
+      item_position.y,
+      item_position.z,
+    ).add(vector.scale(0.01));
+    item_shadow.material = item_shadow_material;
+
+    let existing_shadow_object = scene.getMeshByName("shadows");
+    if (existing_shadow_object) {
+      var merged_mesh = BABYLON.Mesh.MergeMeshes(
+        [existing_shadow_object, item_shadow],
+        true,
+      );
+      merged_mesh.name = "shadows";
+    } else {
+      item_shadow.name = "shadows";
+    }
+  }
+
+  //the position is shifted away from the wall in the direction of the item vector (normal)
+  item.position = new BABYLON.Vector3(
+    item_position.x,
+    item_position.y,
+    item_position.z,
+  ).add(vector.scale((3 * item_separation) / 2));
+  item.checkCollisions = true;
+  if (material != undefined) {
+    item.material = material;
+    item.material.specularColor = new BABYLON.Color3(0, 0, 0);
+  }
+
+  // Create the box at the position of the base vector with the plane's rotation
+  let item2 = BABYLON.MeshBuilder.CreateBox(
+    "box" + name,
+    {
+      size: 1,
+      updatable: true,
+    },
+    scene,
+  );
+
+  // Set the position, rotation and scale of the box/frame
+  item2.position = new BABYLON.Vector3(
+    item_position.x,
+    item_position.y,
+    item_position.z,
+  ).add(vector.scale(item_separation / 2 - 0.001));
+  item2.rotate(
+    BABYLON.Axis.Y,
+    Math.acos(BABYLON.Vector3.Dot(vector, north_vector)),
+    BABYLON.Space.LOCAL,
+  );
+  item2.scaling = new BABYLON.Vector3(
+    item_size.width + margin,
+    item_size.height + margin,
+    item_separation,
+  );
+
+  //check if the mesh that merges all the frames is already created
+  let existing_frame_object = scene.getMeshByName("frames");
+  if (existing_frame_object) {
+    var merged_mesh = BABYLON.Mesh.MergeMeshes(
+      [existing_frame_object, item2],
+      true,
+    );
+    merged_mesh.name = "frames";
+  } else {
+    item2.name = "frames";
+  }
+
+  // Add gallery plaque below-right of the artwork
+  plaque_builder(name, item_position, item_size, vector, scene, metadata);
+
+  return item;
+};
+
+function populate_template(config_file, room_name, scene) {
+  let item_size = config_file["Technical"]["scaleFactor"]; //parameter controlling the scale of the items
+
+  const vector_n = new BABYLON.Vector3(0, 0, 1);
+  const vector_s = new BABYLON.Vector3(0, 0, -1);
+  const vector_e = new BABYLON.Vector3(1, 0, 0);
+  const vector_w = new BABYLON.Vector3(-1, 0, 0);
+
+  //position the items
+  // get all the non image items
+  var gallery = config_file[room_name];
+  var dict_items = Object.keys(gallery).filter(
+    (key) => gallery[key]["resource_type"] == "image",
+  );
+  num_items = dict_items.length;
+
+  //get frame shadow material
+  var shadow_texture = new BABYLON.Texture(
+    materials_folder + "/shadow.png",
+    scene,
+    false,
+    BABYLON.Texture.LINEAR_LINEAR,
+  );
+  shadow_texture.hasAlpha = true;
+
+  var item_shadow_material = new BABYLON.StandardMaterial("shadow_mat", scene);
+  item_shadow_material.specularColor = new BABYLON.Color3(0, 0, 0);
+  item_shadow_material.diffuseTexture = shadow_texture;
+  item_shadow_material.useAlphaFromDiffuseTexture = true;
+
+  let i = 3;
+  for (var item of dict_items) {
+    //get location
+    let location = JSON.parse(gallery[item]["location"]);
+
+    //get material
+    let items_material = new BABYLON.StandardMaterial("item_mat_" + item);
+    items_material.freeze();
+    items_material.specularColor = new BABYLON.Color3(0, 0, 0);
+    items_material.maxSimultaneousLights = max_lights;
+    let tex = new BABYLON.Texture(
+      window.resolveImageUrl(gallery[item]["resource"]),
+      scene,
+    );
+    items_material.diffuseTexture = tex;
+
+    //get orientation
+    let orientation = JSON.parse(gallery[item]["vector"]);
+    orientation = new BABYLON.Vector3(orientation[0], 0, orientation[1]);
+
+    //get sizse
+    scaled_width = item_size * gallery[item]["width"];
+    scaled_height = item_size * gallery[item]["height"];
+
+    //notice that y and z are flippped
+    item_builder(
+      item + "_" + i,
+      { x: location[0], y: location[2], z: location[1] },
+      { width: scaled_width, height: scaled_height },
+      orientation,
+      items_material,
+      scene,
+      item_shadow_material,
+      gallery[item]["metadata"],
+    );
+
+    //update loading bar in sync loop so browser can paint
+    const round_per = Math.round(((i - 2) / num_items) * 100);
+    document.getElementById("percentLoaded_artwork").textContent =
+      `${round_per}%`;
+    document.getElementById("loadingBar_artwork").style.width = `${round_per}%`;
+
+    //trigger reset when texture actually loads
+    tex.onLoadObservable.add(
+      ((j) => {
+        return () => {
+          percentage_artwork = percentage_artwork + j;
+          if (Math.round(percentage_artwork) >= 100) {
+            reset_loadbar();
+          }
+        };
+      })(100 / num_items),
+    );
+
+    i = i + 1;
+  }
+
+  if (dict_items.length > 0) {
+    scene.getMeshByName("frames").createNormals(true);
+    scene.getMeshByName("frames").material = BJS_materials[frame_material];
+  } else {
+    reset_loadbar();
+  }
+
+  //locate doors in the json file
+  var renamed_doors = 0;
+  dict_items = Object.keys(gallery).filter(
+    (key) => gallery[key]["resource_type"] == "door",
+  );
+  max_doors = dict_items.length;
+
+  //go through the mesh check for doors and replace materials
+  scene.meshes.map((mesh) => {
+    if (mesh.material != null && mesh.material.name.startsWith("BJS_")) {
+      console.log("updating material " + mesh.material.name);
+      let temp_name = mesh.material.name;
+      mesh.material = BJS_materials[temp_name];
+      mesh.material.maxSimultaneousLights = max_lights;
+    }
+
+    if (regul_exp_door.test(mesh.name)) {
+      if (renamed_doors >= max_doors) {
+        //delete the door from the mesh
+        mesh.name = "dummydoor" + renamed_doors;
+      } else {
+        mesh.name = "d_" + dict_items[renamed_doors] + "_" + renamed_doors;
+        normals = mesh.getVerticesData(BABYLON.VertexBuffer.NormalKind);
+        normal = new BABYLON.Vector3(normals[0], normals[1], normals[2]);
+
+        //put text
+        text3D_builder(
+          dict_items[renamed_doors].replace("#", " "),
+          mesh.position,
+          normal,
+          mesh.parent,
+          scene,
+        );
+      }
+      renamed_doors++;
+    }
+  });
+
+  if (renamed_doors < max_doors) {
+    console.log(
+      "ERROR: Some doors in the json are not present in the template",
+    );
+  }
+
+  //remove replaced materials
+  scene.materials.forEach((material) => {
+    if (material.name.startsWith("BJS_")) material.dispose();
+  });
 }
 
-function populate_template(config_file, room_name,scene){
-
-    let item_size=config_file["Technical"]["scaleFactor"];		 //parameter controlling the scale of the items
-	
-	const vector_n=new BABYLON.Vector3(0, 0, 1);
-	const vector_s=new BABYLON.Vector3(0, 0, -1);
-	const vector_e=new BABYLON.Vector3(1, 0, 0);
-	const vector_w=new BABYLON.Vector3(-1, 0, 0);
-	
-	//position the items
-	// get all the non image items
-	var gallery=config_file[room_name];
-	var dict_items=Object.keys(gallery).filter(key => gallery[key]["resource_type"]== "image");
-	num_items=dict_items.length;
-
-	//get frame shadow material
-	var shadow_texture = new BABYLON.Texture(materials_folder +"/shadow.png", scene, false, BABYLON.Texture.LINEAR_LINEAR);
-	shadow_texture.hasAlpha=true;
-	
-	var item_shadow_material = new BABYLON.StandardMaterial("shadow_mat", scene);
-	item_shadow_material.specularColor=new BABYLON.Color3(0,0,0);
-	item_shadow_material.diffuseTexture = shadow_texture;
-	item_shadow_material.useAlphaFromDiffuseTexture = true;
-	
-	let i=3
-	for (var item of dict_items){
-		//get location
-		let location=JSON.parse(gallery[item]["location"])
-
-		//get material
-		let items_material=new BABYLON.StandardMaterial("item_mat_"+ item);
-		items_material.freeze();
-		items_material.specularColor=new BABYLON.Color3(0,0,0);
-		items_material.maxSimultaneousLights=max_lights;
-		let tex=new BABYLON.Texture(window.resolveImageUrl(gallery[item]["resource"]), scene);
-		items_material.diffuseTexture=tex;
-
-		//get orientation
-		let orientation=JSON.parse(gallery[item]["vector"])
-		orientation=new BABYLON.Vector3(orientation[0], 0, orientation[1])
-
-		//get sizse
-		scaled_width=item_size*gallery[item]["width"];
-		scaled_height=item_size*gallery[item]["height"];
-
-		//notice that y and z are flippped
-		item_builder(item + "_" + i ,{x:location[0], y:location[2], z:location[1]}, {width:scaled_width, height:scaled_height}, orientation, items_material, scene, item_shadow_material, gallery[item]["metadata"]);
-
-		//update loading bar in sync loop so browser can paint
-		const round_per=Math.round(((i - 2) / num_items) * 100);
-		document.getElementById("percentLoaded_artwork").textContent = `${round_per}%`;
-		document.getElementById("loadingBar_artwork").style.width =`${round_per}%`;
-
-		//trigger reset when texture actually loads
-		tex.onLoadObservable.add(((j) => {
-			return() => {
-				percentage_artwork=percentage_artwork + j;
-				if (Math.round(percentage_artwork) >= 100){
-					reset_loadbar();
-				}
-			};
-		})(100/num_items));
-
-
-		i=i+1;
-	}
-	
-	if (dict_items.length>0)	{
-		scene.getMeshByName("frames").createNormals(true);
-		scene.getMeshByName("frames").material=BJS_materials[frame_material];
-	} else {
-		reset_loadbar();
-	}
-	
-
-	
-	//locate doors in the json file
-	var renamed_doors=0;
-	dict_items=Object.keys(gallery).filter(key => gallery[key]["resource_type"]== "door");
-	max_doors=dict_items.length;
-	
-	//go through the mesh check for doors and replace materials
-	scene.meshes.map((mesh) => {
-
-		if ((mesh.material != null) && mesh.material.name.startsWith("BJS_")){
-			console.log("updating material " + mesh.material.name);
-			let temp_name=mesh.material.name;
-			mesh.material=BJS_materials[temp_name];
-			mesh.material.maxSimultaneousLights =max_lights;
-		}
-		
-		if (regul_exp_door.test(mesh.name)){
-			if (renamed_doors >= max_doors){ //delete the door from the mesh
-				mesh.name="dummydoor" + renamed_doors;
-								
-			} else {
-				mesh.name="d_" + dict_items[renamed_doors] + "_" + renamed_doors;
-				normals = mesh.getVerticesData(BABYLON.VertexBuffer.NormalKind);
-				normal = new BABYLON.Vector3(normals[0], normals[1], normals[2]);
-
-				//put text
-				text3D_builder(dict_items[renamed_doors].replace("#", " "), mesh.position, normal, mesh.parent, scene);
-				
-			}
-			renamed_doors++;
-		}
-	});
-	
-	if (renamed_doors < max_doors){
-		console.log("ERROR: Some doors in the json are not present in the template");
-	}
-
-		
-
-	
-	//remove replaced materials
-	scene.materials.forEach(material => {
-		if (material.name.startsWith('BJS_'))
-			material.dispose(); 
-		
-	});
-	
-
-}	
-
-
-function reset_loadbar(){
-	percentage_materials=0;
-	percentage_template=0;
-	percentage_artwork=0;	
-	document.getElementById("loader").style.display = "none";
-	document.getElementById("loader").id= "loaded";
-	document.getElementById("percentLoaded_template").textContent = `${percentage_template}%`;
-	document.getElementById("loadingBar_template").style.width =`${percentage_template}%`;
-	document.getElementById("percentLoaded_materials").textContent = `${percentage_materials}%`;
-	document.getElementById("loadingBar_materials").style.width =`${percentage_materials}%`;
-	document.getElementById("percentLoaded_artwork").textContent = `${percentage_artwork}%`;
-	document.getElementById("loadingBar_artwork").style.width =`${percentage_artwork}%`;
+function reset_loadbar() {
+  percentage_materials = 0;
+  percentage_template = 0;
+  percentage_artwork = 0;
+  document.getElementById("loader").style.display = "none";
+  document.getElementById("loader").id = "loaded";
+  document.getElementById("percentLoaded_template").textContent =
+    `${percentage_template}%`;
+  document.getElementById("loadingBar_template").style.width =
+    `${percentage_template}%`;
+  document.getElementById("percentLoaded_materials").textContent =
+    `${percentage_materials}%`;
+  document.getElementById("loadingBar_materials").style.width =
+    `${percentage_materials}%`;
+  document.getElementById("percentLoaded_artwork").textContent =
+    `${percentage_artwork}%`;
+  document.getElementById("loadingBar_artwork").style.width =
+    `${percentage_artwork}%`;
 }
-
