@@ -299,6 +299,91 @@
       flex-shrink: 0;
     }
 
+    .gallery-labels-btn {
+      background: none;
+      border: 1px solid rgba(255,255,255,0.07);
+      color: #52525b;
+      cursor: pointer;
+      padding: 0.2rem 0.55rem;
+      border-radius: 5px;
+      font-size: 0.7rem;
+      font-family: inherit;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .gallery-labels-btn:hover {
+      color: #a1a1aa;
+      border-color: rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.03);
+    }
+    .gallery-labels-btn.open {
+      color: #818cf8;
+      border-color: rgba(99,102,241,0.35);
+      background: rgba(99,102,241,0.06);
+    }
+
+    .gallery-labels-panel {
+      display: none;
+      margin-top: 0.5rem;
+      border-top: 1px solid rgba(255,255,255,0.04);
+      padding-top: 0.6rem;
+    }
+    .gallery-labels-panel.open { display: block; }
+
+    .label-hint {
+      font-size: 0.68rem;
+      color: #3f3f46;
+      margin-bottom: 0.5rem;
+    }
+
+    .label-row {
+      display: grid;
+      grid-template-columns: minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr);
+      gap: 0.35rem;
+      align-items: center;
+      margin-bottom: 0.3rem;
+    }
+    .label-row-filename {
+      font-size: 0.7rem;
+      color: #52525b;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      padding-left: 0.1rem;
+    }
+    .label-input {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      color: #d4d4d8;
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-family: inherit;
+      width: 100%;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .label-input:focus {
+      outline: none;
+      border-color: rgba(99,102,241,0.4);
+      background: rgba(255,255,255,0.05);
+    }
+    .label-input::placeholder { color: #3f3f46; }
+
+    .label-cols-header {
+      display: grid;
+      grid-template-columns: minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr);
+      gap: 0.35rem;
+      margin-bottom: 0.25rem;
+    }
+    .label-cols-header span {
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #3f3f46;
+      padding-left: 0.1rem;
+    }
+
     .gallery-remove {
       background: none;
       border: none;
@@ -1065,9 +1150,15 @@
 
       // Add gallery items
       galleries.forEach(function(gallery, index) {
+        // Ensure labels map exists
+        if (!gallery.labels) gallery.labels = {};
+
+        var wrapper = document.createElement('div');
+
+        // --- top row ---
         var item = document.createElement('div');
         item.className = 'gallery-item';
-        // Build gallery item with DOM APIs to avoid innerHTML XSS with user folder names
+
         var iconDiv = document.createElement('div');
         iconDiv.className = 'gallery-icon';
         iconDiv.innerHTML = folderSvg;
@@ -1092,6 +1183,11 @@
         countSpan.className = 'gallery-count';
         countSpan.textContent = gallery.files.length + ' images';
 
+        var labelsBtn = document.createElement('button');
+        labelsBtn.className = 'gallery-labels-btn';
+        labelsBtn.dataset.index = index;
+        labelsBtn.textContent = 'Labels';
+
         var removeBtn = document.createElement('button');
         removeBtn.className = 'gallery-remove';
         removeBtn.dataset.index = index;
@@ -1101,11 +1197,84 @@
         item.appendChild(iconDiv);
         item.appendChild(detailsDiv);
         item.appendChild(countSpan);
+        item.appendChild(labelsBtn);
         item.appendChild(removeBtn);
-        galleryList.appendChild(item);
+
+        // --- labels panel (hidden until toggled) ---
+        var panel = document.createElement('div');
+        panel.className = 'gallery-labels-panel';
+
+        var hint = document.createElement('div');
+        hint.className = 'label-hint';
+        hint.textContent = 'Plaque text shown next to each artwork in the gallery.';
+        panel.appendChild(hint);
+
+        var colHeader = document.createElement('div');
+        colHeader.className = 'label-cols-header';
+        ['File', 'Title', 'Subtitle'].forEach(function(h) {
+          var s = document.createElement('span');
+          s.textContent = h;
+          colHeader.appendChild(s);
+        });
+        panel.appendChild(colHeader);
+
+        // One row per image file
+        var imageFiles = filterImageFiles(gallery.files);
+        imageFiles.forEach(function(file) {
+          if (!gallery.labels[file.name]) {
+            gallery.labels[file.name] = {
+              title: file.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' '),
+              subtitle: ''
+            };
+          }
+          var row = document.createElement('div');
+          row.className = 'label-row';
+
+          var fnSpan = document.createElement('div');
+          fnSpan.className = 'label-row-filename';
+          fnSpan.title = file.name;
+          fnSpan.textContent = file.name;
+
+          var titleInput = document.createElement('input');
+          titleInput.type = 'text';
+          titleInput.className = 'label-input';
+          titleInput.placeholder = 'Title';
+          titleInput.value = gallery.labels[file.name].title;
+          titleInput.addEventListener('input', (function(galleryIdx, filename) {
+            return function(e) {
+              galleries[galleryIdx].labels[filename].title = e.target.value;
+            };
+          })(index, file.name));
+
+          var subInput = document.createElement('input');
+          subInput.type = 'text';
+          subInput.className = 'label-input';
+          subInput.placeholder = 'e.g. 2024 · Oil on canvas';
+          subInput.value = gallery.labels[file.name].subtitle;
+          subInput.addEventListener('input', (function(galleryIdx, filename) {
+            return function(e) {
+              galleries[galleryIdx].labels[filename].subtitle = e.target.value;
+            };
+          })(index, file.name));
+
+          row.appendChild(fnSpan);
+          row.appendChild(titleInput);
+          row.appendChild(subInput);
+          panel.appendChild(row);
+        });
+
+        labelsBtn.addEventListener('click', function() {
+          var isOpen = panel.classList.toggle('open');
+          labelsBtn.classList.toggle('open', isOpen);
+          labelsBtn.textContent = isOpen ? 'Done' : 'Labels';
+        });
+
+        wrapper.appendChild(item);
+        wrapper.appendChild(panel);
+        galleryList.appendChild(wrapper);
       });
 
-      // Add name change handlers
+      // Name change handlers
       galleryList.querySelectorAll('.gallery-name-input').forEach(function(input) {
         input.addEventListener('change', function(e) {
           var index = parseInt(e.target.dataset.index);
@@ -1113,7 +1282,7 @@
         });
       });
 
-      // Add remove handlers
+      // Remove handlers
       galleryList.querySelectorAll('.gallery-remove').forEach(function(btn) {
         btn.addEventListener('click', function(e) {
           var target = e.target.closest('.gallery-remove');

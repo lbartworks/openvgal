@@ -400,6 +400,18 @@ async function buildGalleryJSON(galleries, onProgress = null) {
         // Construct the resource path - use FOLDER name, not gallery display name
         const resourcePath = `/${folderName}/${name}`;
 
+        // Build plaque metadata: "Title|Subtitle" when user has provided labels,
+        // otherwise fall back to the legacy "ID #N baseName" format.
+        const fileLabels = gallery.labels && gallery.labels[name];
+        let metadata;
+        if (fileLabels && (fileLabels.title || fileLabels.subtitle)) {
+          const plaqueTitle    = (fileLabels.title    || baseName).trim();
+          const plaqueSubtitle = (fileLabels.subtitle || "").trim();
+          metadata = `${plaqueTitle}|${plaqueSubtitle}`;
+        } else {
+          metadata = `ID #${uniqueId} ${baseName}`;
+        }
+
         building[galleryName][baseName] = {
           resource: resourcePath,
           resource_type: 'image',
@@ -407,7 +419,7 @@ async function buildGalleryJSON(galleries, onProgress = null) {
           height: normHeight.toFixed(2),
           location: `[${positions[k][0].toFixed(3)},${positions[k][1].toFixed(3)},${positions[k][2].toFixed(3)}]`,
           vector: `[${vectors[k][0].toFixed(1)},${vectors[k][1].toFixed(1)}]`,
-          metadata: `ID #${uniqueId} ${baseName}`
+          metadata: metadata
         };
         uniqueId++;
       }

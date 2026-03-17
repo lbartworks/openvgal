@@ -65,7 +65,116 @@ var text3D_builder=function(name, item_position, vector, parent, scene){
 
 }
 
-var item_builder= function(name, item_position, item_size, vector, material,scene, item_shadow_material=null){
+var plaque_builder = function(name, item_position, item_size, vector, scene, metadata) {
+	// Dimensions of the plaque itself
+	const plaque_w = Math.min(item_size.width * 0.45, 0.9);
+	const plaque_h = plaque_w * 0.28;
+	const plaque_depth = 0.012;
+
+	// Offset: sit just in front of the frame (same depth plane as the frame face)
+	const depth_offset = item_separation / 2 + plaque_depth / 2 + 0.001;
+
+	// Align to bottom-right of the artwork:
+	//   - right edge of artwork  → shift +plaque_w/2 from right edge of artwork
+	//   - below bottom edge      → shift down by plaque_h * 0.6 from bottom edge
+	const right_offset = item_size.width / 2 - plaque_w / 2;  // right-align inside artwork width
+	const down_offset  = -(item_size.height / 2 + plaque_h * 1.1); // clear below the frame bottom edge
+
+	// Build the plaque box
+	const north_vector = new BABYLON.Vector3(0, 0, 1);
+	let plaque = BABYLON.MeshBuilder.CreateBox("plaque_" + name, {
+		width:  plaque_w,
+		height: plaque_h,
+		depth:  plaque_depth,
+		updatable: false
+	}, scene);
+
+	// Rotate to face the same direction as the artwork wall normal.
+	// Add Math.PI so the textured +Z face points outward (away from wall) rather than inward.
+	const angle = Math.acos(BABYLON.Vector3.Dot(vector, north_vector));
+	const cross  = BABYLON.Vector3.Cross(north_vector, vector);
+	plaque.rotate(BABYLON.Axis.Y, (cross.y >= 0 ? angle : -angle) + Math.PI, BABYLON.Space.LOCAL);
+
+	// Lateral offset is in the plane perpendicular to the normal:
+	// "right" in wall-space is (normal × up).normalise()
+	const up = new BABYLON.Vector3(0, 1, 0);
+	const wall_right = BABYLON.Vector3.Cross(vector, up).normalize();
+
+	plaque.position = new BABYLON.Vector3(item_position.x, item_position.y, item_position.z)
+		.add(vector.scale(depth_offset))
+		.add(wall_right.scale(right_offset))
+		.add(up.scale(down_offset));
+
+	// --- DynamicTexture for the label text ---
+	const tex_w = 512, tex_h = Math.round(512 * (plaque_h / plaque_w));
+	const dynTex = new BABYLON.DynamicTexture("plaque_tex_" + name, { width: tex_w, height: tex_h }, scene, false);
+	const ctx = dynTex.getContext();
+
+	// Background: warm off-white / gallery-cream
+	ctx.fillStyle = "#F5F0E8";
+	ctx.fillRect(0, 0, tex_w, tex_h);
+
+	// Thin dark border
+	ctx.strokeStyle = "#C8B89A";
+	ctx.lineWidth = 6;
+	ctx.strokeRect(3, 3, tex_w - 6, tex_h - 6);
+
+	// Parse metadata: "Title|Subtitle" format, or plain text (legacy/fallback)
+	let title, subtitle;
+	if (metadata && metadata.includes("|")) {
+		const parts = metadata.split("|");
+		title    = parts[0].trim();
+		subtitle = parts[1].trim();
+	} else {
+		// Fallback: strip legacy "ID #N " prefix, use filename stem as title
+		const raw = (metadata && metadata.trim().length > 0)
+			? metadata.replace(/^ID #\d+\s*/, "")
+			: name.replace(/_\d+$/, "").replace(/_/g, " ");
+		title    = raw;
+		subtitle = "";
+	}
+
+	const padding = tex_w * 0.07;
+	const title_y  = subtitle ? tex_h * 0.38 : tex_h * 0.5;
+	const sub_y    = tex_h * 0.72;
+
+	ctx.fillStyle = "#1A1A1A";
+	ctx.font = `bold ${Math.round(tex_h * 0.28)}px Arial, sans-serif`;
+	ctx.textBaseline = "middle";
+
+	// Truncate title to fit
+	let display_title = title;
+	while (ctx.measureText(display_title).width > tex_w - padding * 2 && display_title.length > 1) {
+		display_title = display_title.slice(0, -1);
+	}
+	if (display_title !== title) display_title = display_title.slice(0, -1) + "…";
+	ctx.fillText(display_title, padding, title_y);
+
+	// Subtitle (only if provided)
+	if (subtitle) {
+		ctx.fillStyle = "#555555";
+		ctx.font = `${Math.round(tex_h * 0.22)}px Arial, sans-serif`;
+		let display_sub = subtitle;
+		while (ctx.measureText(display_sub).width > tex_w - padding * 2 && display_sub.length > 1) {
+			display_sub = display_sub.slice(0, -1);
+		}
+		if (display_sub !== subtitle) display_sub = display_sub.slice(0, -1) + "…";
+		ctx.fillText(display_sub, padding, sub_y);
+	}
+
+	dynTex.update();
+
+	// Material
+	const plaque_mat = new BABYLON.StandardMaterial("plaque_mat_" + name, scene);
+	plaque_mat.diffuseTexture = dynTex;
+	plaque_mat.specularColor = new BABYLON.Color3(0.08, 0.08, 0.08);
+	plaque_mat.emissiveColor = new BABYLON.Color3(0.15, 0.14, 0.12); // slight self-illumination so it's readable in low light
+	plaque.material = plaque_mat;
+
+	return plaque;
+};
+
+var item_builder= function(name, item_position, item_size, vector, material,scene, item_shadow_material=null, metadata=null){
 	//places artwork as an image texture
 	//adds a frame and both elements have a customizable separation from the wall
 	//the thickness of the frame is half the separation
@@ -125,9 +234,8 @@ var item_builder= function(name, item_position, item_size, vector, material,scen
 		item2.name="frames";
 	}
 
-
-
-
+	// Add gallery plaque below-right of the artwork
+	plaque_builder(name, item_position, item_size, vector, scene, metadata);
 
 	return item
 }
@@ -178,7 +286,7 @@ function populate_template(config_file, room_name,scene){
 		scaled_height=item_size*gallery[item]["height"];
 
 		//notice that y and z are flippped
-		item_builder(item + "_" + i ,{x:location[0], y:location[2], z:location[1]}, {width:scaled_width, height:scaled_height}, orientation, items_material, scene, item_shadow_material);
+		item_builder(item + "_" + i ,{x:location[0], y:location[2], z:location[1]}, {width:scaled_width, height:scaled_height}, orientation, items_material, scene, item_shadow_material, gallery[item]["metadata"]);
 
 		//update loading bar in sync loop so browser can paint
 		const round_per=Math.round(((i - 2) / num_items) * 100);
