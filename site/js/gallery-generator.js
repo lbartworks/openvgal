@@ -5,14 +5,14 @@
  */
 
 // Supported image types
-const IMAGE_TYPES = ['jpg', 'jpeg', 'png', 'tif', 'tiff', 'webp'];
+const IMAGE_TYPES = ["jpg", "jpeg", "png", "tif", "tiff", "webp"];
 
 // Direction vectors for wall orientations
 const VECTORS = {
   N: [0, 1],
   S: [0, -1],
   W: [-1, 0],
-  E: [1, 0]
+  E: [1, 0],
 };
 
 /**
@@ -32,22 +32,33 @@ class GalleryWithOptionalPanels {
       freeSpace: 0.75,
       itemMaxSize: 2.5,
       minSpacing: 3,
-      door: 1
+      door: 1,
     };
 
     this.densitySaturation = 1 / this.geometry.minSpacing;
 
     // Calculate available lengths for each wall segment
     const longWall = L - this.geometry.freeSpace * 2;
-    const shortWall = W / 2 - this.geometry.door / 2 - this.geometry.freeSpace * 2;
+    const shortWall =
+      W / 2 - this.geometry.door / 2 - this.geometry.freeSpace * 2;
     const panel = Math.max(0.1, panelLength - this.geometry.freeSpace * 2);
 
     // 14 placement areas: 6 walls + 8 panel sides
     this.lengths = [
-      longWall, shortWall, shortWall,  // walls 1-3
-      longWall, shortWall, shortWall,  // walls 4-6
-      panel, panel, panel, panel,       // panels 7-10
-      panel, panel, panel, panel        // panels 11-14
+      longWall,
+      shortWall,
+      shortWall, // walls 1-3
+      longWall,
+      shortWall,
+      shortWall, // walls 4-6
+      panel,
+      panel,
+      panel,
+      panel, // panels 7-10
+      panel,
+      panel,
+      panel,
+      panel, // panels 11-14
     ];
 
     this.occupancy = null;
@@ -60,8 +71,10 @@ class GalleryWithOptionalPanels {
    * Returns 1 on success, -1 if items don't fit
    */
   assignOccupancy(n, silent = true) {
-    const occupancyMax = this.lengths.map(len =>
-      Math.floor((len - this.geometry.itemMaxSize) / this.geometry.minSpacing + 1)
+    const occupancyMax = this.lengths.map((len) =>
+      Math.floor(
+        (len - this.geometry.itemMaxSize) / this.geometry.minSpacing + 1,
+      ),
     );
 
     this.occupancy = new Array(this.lengths.length).fill(0);
@@ -73,23 +86,26 @@ class GalleryWithOptionalPanels {
     }
 
     this.density = this.occupancy.map((occ, i) =>
-      occupancyMax[i] === 0 ? 999 : occ / this.lengths[i]
+      occupancyMax[i] === 0 ? 999 : occ / this.lengths[i],
     );
 
     this.assignments = new Array(n).fill(0);
 
     for (let i = 0; i < n; i++) {
       // Case 1: Find first empty segment
-      const emptyIdx = this.density.findIndex(d => d === 0);
+      const emptyIdx = this.density.findIndex((d) => d === 0);
       if (emptyIdx !== -1) {
         this.assignments[i] = emptyIdx;
         this.occupancy[emptyIdx] = 1;
-        this.density[emptyIdx] = this.occupancy[emptyIdx] / this.lengths[emptyIdx];
+        this.density[emptyIdx] =
+          this.occupancy[emptyIdx] / this.lengths[emptyIdx];
         continue;
       }
 
       // Case 2: Find segment with most remaining capacity
-      const remaining = occupancyMax.map((max, idx) => max - this.occupancy[idx]);
+      const remaining = occupancyMax.map(
+        (max, idx) => max - this.occupancy[idx],
+      );
       const maxRemaining = Math.max(...remaining);
 
       if (maxRemaining > 0) {
@@ -106,9 +122,13 @@ class GalleryWithOptionalPanels {
         for (let j = 6; j < this.occupancy.length; j++) {
           this.occupancy[j] = 0;
         }
-        this.density = this.occupancy.map((occ, idx) => occ / this.lengths[idx]);
+        this.density = this.occupancy.map(
+          (occ, idx) => occ / this.lengths[idx],
+        );
 
-        const newRemaining = occupancyMax.map((max, idx) => max - this.occupancy[idx]);
+        const newRemaining = occupancyMax.map(
+          (max, idx) => max - this.occupancy[idx],
+        );
         const chosen = newRemaining.indexOf(Math.max(...newRemaining));
         this.assignments[i] = chosen;
         this.occupancy[chosen] = 1;
@@ -118,7 +138,9 @@ class GalleryWithOptionalPanels {
 
       // Failed to place item
       if (!silent) {
-        console.error(`Item ${i} could not be assigned with the constraints given`);
+        console.error(
+          `Item ${i} could not be assigned with the constraints given`,
+        );
       }
       return -1;
     }
@@ -159,34 +181,73 @@ class GalleryWithOptionalPanels {
       4: (init, j, sp) => [[-g.W / 2, init + j * sp, g.itemHeight], VECTORS.E],
       5: (init, j, sp) => [[init - j * sp, g.L / 2, g.itemHeight], VECTORS.S],
       6: (init, j, sp) => [[init + j * sp, g.L / 2, g.itemHeight], VECTORS.S],
-      7: (init, j, sp) => [[-g.panelPositionX + g.panelThickness / 2, init + j * sp, g.itemHeight], VECTORS.E],
-      8: (init, j, sp) => [[g.panelPositionX - g.panelThickness / 2, init + j * sp, g.itemHeight], VECTORS.W],
-      9: (init, j, sp) => [[-g.panelPositionX + g.panelThickness / 2, init + j * sp, g.itemHeight], VECTORS.E],
-      10: (init, j, sp) => [[g.panelPositionX - g.panelThickness / 2, init + j * sp, g.itemHeight], VECTORS.W],
-      11: (init, j, sp) => [[-g.panelPositionX - g.panelThickness / 2, init + j * sp, g.itemHeight], VECTORS.W],
-      12: (init, j, sp) => [[-g.panelPositionX - g.panelThickness / 2, init + j * sp, g.itemHeight], VECTORS.W],
-      13: (init, j, sp) => [[g.panelPositionX + g.panelThickness / 2, init + j * sp, g.itemHeight], VECTORS.E],
-      14: (init, j, sp) => [[g.panelPositionX + g.panelThickness / 2, init + j * sp, g.itemHeight], VECTORS.E]
+      7: (init, j, sp) => [
+        [-g.panelPositionX + g.panelThickness / 2, init + j * sp, g.itemHeight],
+        VECTORS.E,
+      ],
+      8: (init, j, sp) => [
+        [g.panelPositionX - g.panelThickness / 2, init + j * sp, g.itemHeight],
+        VECTORS.W,
+      ],
+      9: (init, j, sp) => [
+        [-g.panelPositionX + g.panelThickness / 2, init + j * sp, g.itemHeight],
+        VECTORS.E,
+      ],
+      10: (init, j, sp) => [
+        [g.panelPositionX - g.panelThickness / 2, init + j * sp, g.itemHeight],
+        VECTORS.W,
+      ],
+      11: (init, j, sp) => [
+        [-g.panelPositionX - g.panelThickness / 2, init + j * sp, g.itemHeight],
+        VECTORS.W,
+      ],
+      12: (init, j, sp) => [
+        [-g.panelPositionX - g.panelThickness / 2, init + j * sp, g.itemHeight],
+        VECTORS.W,
+      ],
+      13: (init, j, sp) => [
+        [g.panelPositionX + g.panelThickness / 2, init + j * sp, g.itemHeight],
+        VECTORS.E,
+      ],
+      14: (init, j, sp) => [
+        [g.panelPositionX + g.panelThickness / 2, init + j * sp, g.itemHeight],
+        VECTORS.E,
+      ],
     };
 
     // Initial position offsets for each wall segment
     const getInitial = (wallNum, length, spacing) => {
       switch (wallNum) {
-        case 1: return -length / 2 + spacing / 2;
-        case 2: return g.W / 2 - g.freeSpace - spacing / 2;
-        case 3: return -g.W / 2 + g.freeSpace + spacing / 2;
-        case 4: return -length / 2 + spacing / 2;
-        case 5: return g.W / 2 - g.freeSpace - spacing / 2;
-        case 6: return -g.W / 2 + g.freeSpace + spacing / 2;
-        case 7: return g.panelPositionY - length / 2 + spacing / 2;
-        case 8: return g.panelPositionY - length / 2 + spacing / 2;
-        case 9: return -g.panelPositionY - length / 2 + spacing / 2;
-        case 10: return -g.panelPositionY - length / 2 + spacing / 2;
-        case 11: return g.panelPositionY - length / 2 + spacing / 2;
-        case 12: return -g.panelPositionY - length / 2 + spacing / 2;
-        case 13: return -g.panelPositionY - length / 2 + spacing / 2;
-        case 14: return g.panelPositionY - length / 2 + spacing / 2;
-        default: return 0;
+        case 1:
+          return -length / 2 + spacing / 2;
+        case 2:
+          return g.W / 2 - g.freeSpace - spacing / 2;
+        case 3:
+          return -g.W / 2 + g.freeSpace + spacing / 2;
+        case 4:
+          return -length / 2 + spacing / 2;
+        case 5:
+          return g.W / 2 - g.freeSpace - spacing / 2;
+        case 6:
+          return -g.W / 2 + g.freeSpace + spacing / 2;
+        case 7:
+          return g.panelPositionY - length / 2 + spacing / 2;
+        case 8:
+          return g.panelPositionY - length / 2 + spacing / 2;
+        case 9:
+          return -g.panelPositionY - length / 2 + spacing / 2;
+        case 10:
+          return -g.panelPositionY - length / 2 + spacing / 2;
+        case 11:
+          return g.panelPositionY - length / 2 + spacing / 2;
+        case 12:
+          return -g.panelPositionY - length / 2 + spacing / 2;
+        case 13:
+          return -g.panelPositionY - length / 2 + spacing / 2;
+        case 14:
+          return g.panelPositionY - length / 2 + spacing / 2;
+        default:
+          return 0;
       }
     };
 
@@ -195,8 +256,8 @@ class GalleryWithOptionalPanels {
       const wallNum = i + 1;
       const length = this.lengths[i];
       const wallAssigns = this.assignments
-        .map((a, idx) => a === i ? idx : -1)
-        .filter(idx => idx !== -1);
+        .map((a, idx) => (a === i ? idx : -1))
+        .filter((idx) => idx !== -1);
 
       if (wallAssigns.length === 0) continue;
 
@@ -213,11 +274,11 @@ class GalleryWithOptionalPanels {
     // Determine template based on configuration
     let template;
     if (this.geometry.panelLength === 0) {
-      template = 'T_small.glb';
+      template = "T_small.glb";
     } else if (this.panelsOff) {
-      template = 'T_nopannels.glb';
+      template = "T_nopannels.glb";
     } else {
-      template = 'T_pannels.glb';
+      template = "T_pannels.glb";
     }
 
     return { positions, vectors, template };
@@ -245,7 +306,7 @@ async function getImageDimensions(file) {
       resolve({
         width: img.naturalWidth,
         height: img.naturalHeight,
-        name: file.name
+        name: file.name,
       });
       URL.revokeObjectURL(img.src);
     };
@@ -261,8 +322,8 @@ async function getImageDimensions(file) {
  * Filter files to only include supported image types
  */
 function filterImageFiles(files) {
-  return Array.from(files).filter(file => {
-    const ext = file.name.split('.').pop().toLowerCase();
+  return Array.from(files).filter((file) => {
+    const ext = file.name.split(".").pop().toLowerCase();
     return IMAGE_TYPES.includes(ext);
   });
 }
@@ -272,8 +333,8 @@ function filterImageFiles(files) {
  */
 function getGalleryName(file) {
   // webkitRelativePath gives us "folderName/subfolder/file.jpg"
-  const parts = file.webkitRelativePath.split('/');
-  return parts.length > 1 ? parts[parts.length - 2] : 'gallery';
+  const parts = file.webkitRelativePath.split("/");
+  return parts.length > 1 ? parts[parts.length - 2] : "gallery";
 }
 
 /**
@@ -282,17 +343,17 @@ function getGalleryName(file) {
 function groupFilesByFolder(files) {
   const groups = {};
 
-  files.forEach(file => {
-    const parts = file.webkitRelativePath.split('/');
+  files.forEach((file) => {
+    const parts = file.webkitRelativePath.split("/");
     // Get the immediate parent folder name
-    const folderPath = parts.slice(0, -1).join('/');
-    const folderName = parts.length > 1 ? parts[parts.length - 2] : 'root';
+    const folderPath = parts.slice(0, -1).join("/");
+    const folderName = parts.length > 1 ? parts[parts.length - 2] : "root";
 
     if (!groups[folderPath]) {
       groups[folderPath] = {
         name: folderName,
         path: folderPath,
-        files: []
+        files: [],
       };
     }
     groups[folderPath].files.push(file);
@@ -312,10 +373,10 @@ async function buildGalleryJSON(galleries, onProgress = null) {
   let uniqueId = 0;
 
   // Create root gallery
-  building['root'] = {
-    parent: 'none',
-    resource: 'root.glb',
-    template: 'T_root.glb'
+  building["root"] = {
+    parent: "none",
+    resource: "root.glb",
+    template: "T_root.glb",
   };
 
   const totalImages = galleries.reduce((sum, g) => sum + g.files.length, 0);
@@ -334,7 +395,11 @@ async function buildGalleryJSON(galleries, onProgress = null) {
     const folderName = gallery.folderName || gallery.name;
 
     if (onProgress) {
-      onProgress(processedImages, totalImages, `Processing ${galleryDisplayName}...`);
+      onProgress(
+        processedImages,
+        totalImages,
+        `Processing ${galleryDisplayName}...`,
+      );
     }
 
     // Get dimensions for all images in this gallery
@@ -360,22 +425,24 @@ async function buildGalleryJSON(galleries, onProgress = null) {
     let itemsLeft = imageDimensions.length;
     let itemIndex = 0;
     let subGalleryIndex = 0;
-    let lastParent = 'root';
+    let lastParent = "root";
 
     while (itemsLeft > 0) {
       const itemsForThisGallery = Math.min(itemsLeft, maxItems);
       const galleryManager = createGalleryManager(itemsForThisGallery);
-      const { positions, vectors, template } = galleryManager.solveGallery(itemsForThisGallery);
+      const { positions, vectors, template } =
+        galleryManager.solveGallery(itemsForThisGallery);
 
       // Gallery naming: "gallery" or "gallery#1", "gallery#2" for overflow
-      const galleryName = subGalleryIndex === 0
-        ? galleryDisplayName
-        : `${galleryDisplayName}#${subGalleryIndex}`;
+      const galleryName =
+        subGalleryIndex === 0
+          ? galleryDisplayName
+          : `${galleryDisplayName}#${subGalleryIndex}`;
 
       building[galleryName] = {
         parent: lastParent,
         resource: `${galleryName}.glb`,
-        template: template
+        template: template,
       };
 
       // Add images to this gallery
@@ -395,7 +462,7 @@ async function buildGalleryJSON(galleries, onProgress = null) {
         }
 
         // Get filename without extension for the key
-        const baseName = name.replace(/\.[^/.]+$/, '');
+        const baseName = name.replace(/\.[^/.]+$/, "");
 
         // Construct the resource path - use FOLDER name, not gallery display name
         const resourcePath = `/${folderName}/${name}`;
@@ -405,8 +472,10 @@ async function buildGalleryJSON(galleries, onProgress = null) {
         const fileLabels = gallery.labels && gallery.labels[name];
         let metadata;
         if (fileLabels && (fileLabels.title || fileLabels.subtitle)) {
-          const plaqueTitle    = (fileLabels.title    || baseName).trim();
-          const plaqueSubtitle = (fileLabels.subtitle || "").trim();
+          const plaqueTitle = (fileLabels.title || baseName).trim();
+          const plaqueSubtitle = (
+            fileLabels.subtitle || new Date().getFullYear() + " - Tegaki"
+          ).trim();
           metadata = `${plaqueTitle}|${plaqueSubtitle}`;
         } else {
           metadata = `ID #${uniqueId} ${baseName}`;
@@ -414,12 +483,12 @@ async function buildGalleryJSON(galleries, onProgress = null) {
 
         building[galleryName][baseName] = {
           resource: resourcePath,
-          resource_type: 'image',
+          resource_type: "image",
           width: normWidth.toFixed(2),
           height: normHeight.toFixed(2),
           location: `[${positions[k][0].toFixed(3)},${positions[k][1].toFixed(3)},${positions[k][2].toFixed(3)}]`,
           vector: `[${vectors[k][0].toFixed(1)},${vectors[k][1].toFixed(1)}]`,
-          metadata: metadata
+          metadata: metadata,
         };
         uniqueId++;
       }
@@ -434,29 +503,29 @@ async function buildGalleryJSON(galleries, onProgress = null) {
   // Add doors between galleries
   for (const galleryName of Object.keys(building)) {
     const parent = building[galleryName].parent;
-    if (parent && parent !== 'none') {
+    if (parent && parent !== "none") {
       // Door in parent pointing to this gallery
       building[parent][galleryName] = {
         resource: `${galleryName}.glb`,
-        resource_type: 'door'
+        resource_type: "door",
       };
       // Door in this gallery pointing to parent
       building[galleryName][parent] = {
         resource: `${parent}.glb`,
-        resource_type: 'door'
+        resource_type: "door",
       };
     }
   }
 
   // Add technical settings
-  building['Technical'] = {
+  building["Technical"] = {
     ambientLight: 0.5,
     pointLight: 50,
-    scaleFactor: galleryDist.geometry.itemMaxSize
+    scaleFactor: galleryDist.geometry.itemMaxSize,
   };
 
   if (onProgress) {
-    onProgress(totalImages, totalImages, 'Done!');
+    onProgress(totalImages, totalImages, "Done!");
   }
 
   return building;
@@ -482,12 +551,12 @@ function buildFileMap(galleries) {
 /**
  * Download JSON as a file
  */
-function downloadJSON(data, filename = 'building_v2.json') {
+function downloadJSON(data, filename = "building_v2.json") {
   const json = JSON.stringify(data, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
+  const blob = new Blob([json], { type: "application/json" });
   const url = URL.createObjectURL(blob);
 
-  const a = document.createElement('a');
+  const a = document.createElement("a");
   a.href = url;
   a.download = filename;
   document.body.appendChild(a);
@@ -497,7 +566,7 @@ function downloadJSON(data, filename = 'building_v2.json') {
 }
 
 // Export for use in other modules
-if (typeof module !== 'undefined' && module.exports) {
+if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     GalleryWithOptionalPanels,
     createGalleryManager,
@@ -507,6 +576,6 @@ if (typeof module !== 'undefined' && module.exports) {
     buildGalleryJSON,
     buildFileMap,
     downloadJSON,
-    IMAGE_TYPES
+    IMAGE_TYPES,
   };
 }

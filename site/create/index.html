@@ -548,6 +548,7 @@
       <div class="section-hint">
         Each folder becomes a separate room in your gallery.
         You can rename rooms after adding them.
+        Save the generated JSON as <code>gallery.json</code> alongside your folders to restore room names and plaque labels next time.
       </div>
 
       <input type="file" id="folderInput" class="folder-input" webkitdirectory multiple>
@@ -624,6 +625,9 @@
         <button class="btn btn-subtle" id="downloadBtn">
           JSON only
         </button>
+        <button class="btn btn-subtle" id="copyJsonBtn">
+          Copy JSON
+        </button>
       </div>
 
       <div class="progress-container" id="zipProgressContainer" style="display: none;">
@@ -670,6 +674,7 @@
     const progressText = document.getElementById('progressText');
     const resultSection = document.getElementById('resultSection');
     const downloadBtn = document.getElementById('downloadBtn');
+    const copyJsonBtn = document.getElementById('copyJsonBtn');
     const downloadZipBtn = document.getElementById('downloadZipBtn');
     const previewBtn = document.getElementById('previewBtn');
     const jsonPreview = document.getElementById('jsonPreview');
@@ -679,6 +684,68 @@
     const zipProgressFill = document.getElementById('zipProgressFill');
     const zipProgressText = document.getElementById('zipProgressText');
 
+    // ---------------------------------------------------------------------------
+    // Label hydration from a saved gallery.json / building_v2.json
+    // ---------------------------------------------------------------------------
+
+    // Parse a gallery JSON object and return a flat map:
+    //   { "filename.jpg": { title, subtitle }, ... }
+    // keyed by bare filename (no folder path) for each image entry found.
+    function extractLabelsFromJSON(json) {
+      var map = {};
+      for (var roomKey in json) {
+        if (roomKey === 'Technical' || roomKey === 'root') continue;
+        var room = json[roomKey];
+        for (var itemKey in room) {
+          var item = room[itemKey];
+          if (!item || item.resource_type !== 'image') continue;
+          // resource looks like "/folderName/filename.jpg" — take the basename
+          var filename = item.resource ? item.resource.split('/').pop() : null;
+          if (!filename) continue;
+          var metadata = item.metadata || '';
+          var title = '', subtitle = '';
+          if (metadata.includes('|')) {
+            var parts = metadata.split('|');
+            title    = parts[0].trim();
+            subtitle = parts[1].trim();
+          } else {
+            // Legacy "ID #N basename" — strip the prefix, use as title
+            title = metadata.replace(/^ID #\d+\s*/, '').trim();
+          }
+          map[filename] = { title: title, subtitle: subtitle };
+        }
+      }
+      return map;
+    }
+
+    // Apply a label map to all galleries whose files match the keys in the map.
+    function applyLabels(labelMap) {
+      if (!labelMap || Object.keys(labelMap).length === 0) return;
+      galleries.forEach(function(gallery) {
+        if (!gallery.labels) gallery.labels = {};
+        var imageFiles = filterImageFiles(gallery.files);
+        imageFiles.forEach(function(file) {
+          if (labelMap[file.name]) {
+            gallery.labels[file.name] = {
+              title:    labelMap[file.name].title,
+              subtitle: labelMap[file.name].subtitle
+            };
+          }
+        });
+      });
+    }
+
+    // Try to read a File object as text JSON; return parsed object or null.
+    async function tryParseJSONFile(file) {
+      try {
+        var text = await file.text();
+        return JSON.parse(text);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // ---------------------------------------------------------------------------
     // Drag-and-drop: recursively read all files from a dropped directory
     async function readAllFiles(dirEntry, basePath) {
       const results = [];
@@ -707,6 +774,17 @@
 
     async function addDroppedFolder(dirEntry) {
       var allFiles = await readAllFiles(dirEntry, dirEntry.name);
+
+      // Check for a gallery.json or building_v2.json anywhere in the dropped tree
+      var jsonFile = null;
+      for (var i = 0; i < allFiles.length; i++) {
+        var n = allFiles[i].file.name.toLowerCase();
+        if (n === 'gallery.json' || n === 'building_v2.json') {
+          jsonFile = allFiles[i].file;
+          break;
+        }
+      }
+
       // Group by immediate parent folder
       var groups = {};
       for (var i = 0; i < allFiles.length; i++) {
@@ -731,6 +809,12 @@
             });
           }
         }
+      }
+
+      // If a JSON file was found, parse it and pre-populate labels
+      if (jsonFile) {
+        var parsed = await tryParseJSONFile(jsonFile);
+        if (parsed) applyLabels(extractLabelsFromJSON(parsed));
       }
     }
 
@@ -773,9 +857,15 @@
     // Event Listeners
     addFolderBtn.addEventListener('click', function() { folderInput.click(); });
 
-    folderInput.addEventListener('change', function(e) {
+    folderInput.addEventListener('change', async function(e) {
       var files = Array.from(e.target.files);
       if (files.length === 0) return;
+
+      // Check for a gallery.json or building_v2.json in the selected files
+      var jsonFile = files.find(function(f) {
+        var n = f.name.toLowerCase();
+        return n === 'gallery.json' || n === 'building_v2.json';
+      }) || null;
 
       // Group files by their immediate parent folder
       var grouped = groupFilesByFolder(files);
@@ -796,6 +886,12 @@
           }
         }
       });
+
+      // If a JSON file was found, parse it and pre-populate labels
+      if (jsonFile) {
+        var parsed = await tryParseJSONFile(jsonFile);
+        if (parsed) applyLabels(extractLabelsFromJSON(parsed));
+      }
 
       updateGalleryList();
       folderInput.value = ''; // Reset for next selection
@@ -830,6 +926,29 @@
       if (generatedJSON) {
         downloadJSON(generatedJSON);
       }
+    });
+
+    copyJsonBtn.addEventListener('click', function() {
+      if (!generatedJSON) return;
+      var text = JSON.stringify(generatedJSON, null, 2);
+      navigator.clipboard.writeText(text).then(function() {
+        var orig = copyJsonBtn.textContent;
+        copyJsonBtn.textContent = 'Copied!';
+        setTimeout(function() { copyJsonBtn.textContent = orig; }, 1800);
+      }).catch(function() {
+        // Fallback for browsers that block clipboard without HTTPS
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        var orig = copyJsonBtn.textContent;
+        copyJsonBtn.textContent = 'Copied!';
+        setTimeout(function() { copyJsonBtn.textContent = orig; }, 1800);
+      });
     });
 
     // ZIP Download - bundles everything needed to deploy
@@ -1224,7 +1343,7 @@
           if (!gallery.labels[file.name]) {
             gallery.labels[file.name] = {
               title: file.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' '),
-              subtitle: ''
+              subtitle: new Date().getFullYear() + ' - Tegaki'
             };
           }
           var row = document.createElement('div');
