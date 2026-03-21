@@ -134,7 +134,14 @@ var plaque_builder = function(name, item_position, item_size, vector, metadata, 
 
 	plaquePlane.material = plaqueMat;
 	plaquePlane.isPickable = false;
-	plaquePlane.name = "plaque";
+
+	let existing_plaques = scene.getMeshByName('plaques');
+	if (existing_plaques) {
+		var merged_mesh = BABYLON.Mesh.MergeMeshes([existing_plaques, plaquePlane], true, false, undefined, false, true);
+		merged_mesh.name = "plaques";
+	} else {
+		plaquePlane.name = "plaques";
+	}
 }
 
 var item_builder= function(name, item_position, item_size, vector, material,scene, item_shadow_material=null){
@@ -206,7 +213,8 @@ var item_builder= function(name, item_position, item_size, vector, material,scen
 
 function populate_template(config_file, room_name,scene){
 
-    var showPlaques = config_file["Technical"]["show_plaques"] === true;
+    var _pt = document.getElementById('plaquesToggle');
+    var showPlaques = _pt ? _pt.checked : (config_file["Technical"]["show_plaques"] === true);
     let item_size=config_file["Technical"]["scaleFactor"];		 //parameter controlling the scale of the items
 	
 	const vector_n=new BABYLON.Vector3(0, 0, 1);
@@ -254,7 +262,7 @@ function populate_template(config_file, room_name,scene){
 		item_builder(item + "_" + i ,{x:location[0], y:location[2], z:location[1]}, {width:scaled_width, height:scaled_height}, orientation, items_material, scene, item_shadow_material);
 
 		//plaque below artwork (only if metadata has content beyond the ID prefix)
-		if (showPlaques && gallery[item]["metadata"]) {
+		if (gallery[item]["metadata"]) {
 			plaque_builder(item + "_" + i, {x:location[0], y:location[2], z:location[1]}, {width:scaled_width, height:scaled_height}, orientation, gallery[item]["metadata"], scene);
 		}
 
@@ -283,6 +291,10 @@ function populate_template(config_file, room_name,scene){
 	} else {
 		reset_loadbar();
 	}
+
+	// Set plaque visibility from toggle state
+	var plaqueMesh = scene.getMeshByName("plaques");
+	if (plaqueMesh) plaqueMesh.isVisible = showPlaques;
 	
 
 	

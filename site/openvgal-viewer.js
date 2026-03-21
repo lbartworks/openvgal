@@ -107,13 +107,8 @@
 	// Toggle plaque visibility at runtime (called from overlay.html switch)
 	window.togglePlaques = function(checkbox) {
 		if (!scene) return;
-		var show = checkbox ? checkbox.checked : undefined;
-		var meshes = scene.meshes;
-		for (var i = 0; i < meshes.length; i++) {
-			if (meshes[i].name.indexOf('plaque') !== -1) {
-				meshes[i].isVisible = (show !== undefined) ? show : !meshes[i].isVisible;
-			}
-		}
+		var plaqueMesh = scene.getMeshByName('plaques');
+		if (plaqueMesh) plaqueMesh.isVisible = checkbox.checked;
 	};
 
 	window.initFunction = async function() {
@@ -283,10 +278,6 @@
 								console.log("material " + frame_material + " loaded");
 							}
 							populate_template(config_file_content, current_gallery, scene);
-							// Sync plaque checkbox with config (default off for old JSONs without show_plaques)
-							var _pt = document.getElementById('plaquesToggle');
-							var _showPlaques = config_file_content["Technical"]["show_plaques"] === true;
-							if (_pt) _pt.checked = _showPlaques;
 							console.log("template populated");
 					}
 
@@ -295,6 +286,11 @@
 				} else {
 					galleries[current_gallery]._wasAddedToScene=false;
 					galleries[current_gallery].addAllToScene();
+
+					// Sync plaque visibility with toggle after restoring cached room
+					var _pt = document.getElementById('plaquesToggle');
+					var _plaqueMesh = scene.getMeshByName('plaques');
+					if (_pt && _plaqueMesh) _plaqueMesh.isVisible = _pt.checked;
 				}
 
 

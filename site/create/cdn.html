@@ -931,151 +931,20 @@
       downloadZipBtn.disabled = false;
     });
 
-    function generateLoaderHtml() {
-      return '<!DOCTYPE html>\n' +
-'<html lang="en">\n' +
-'<head>\n' +
-'  <meta charset="UTF-8">\n' +
-'  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
-'  <title>Virtual 3D Art Gallery | OpenVGAL</title>\n' +
-'  <meta name="description" content="Interactive 3D virtual art gallery powered by OpenVGAL.">\n' +
-'  <meta name="robots" content="index, follow">\n' +
-'  <meta property="og:title" content="Virtual 3D Art Gallery | OpenVGAL">\n' +
-'  <meta property="og:description" content="Step into an immersive 3D virtual gallery.">\n' +
-'  <meta property="og:type" content="website">\n' +
-'  <style>\n' +
-'    html, body {\n' +
-'      overflow: hidden;\n' +
-'      width: 100%;\n' +
-'      height: 100%;\n' +
-'      margin: 0;\n' +
-'      padding: 0;\n' +
-'    }\n' +
-'    #renderCanvas {\n' +
-'      width: 100%;\n' +
-'      height: 100%;\n' +
-'      touch-action: none;\n' +
-'    }\n' +
-'    #loader {\n' +
-'      width: 100%;\n' +
-'      height: 100%;\n' +
-'      background: #000;\n' +
-'      margin: auto;\n' +
-'      display: flex;\n' +
-'      justify-content: center;\n' +
-'      align-items: center;\n' +
-"      font-family: 'Inter', system-ui, -apple-system, sans-serif;\n" +
-'    }\n' +
-'    #loader .loader-card {\n' +
-'      background: #18181b;\n' +
-'      border: 1px solid #27272a;\n' +
-'      border-radius: 16px;\n' +
-'      padding: 2rem 2.5rem;\n' +
-'      display: flex;\n' +
-'      flex-direction: column;\n' +
-'      gap: 0.2rem;\n' +
-'      min-width: 320px;\n' +
-'      width: min(420px, 80vw);\n' +
-'    }\n' +
-'    #loader p {\n' +
-'      color: #a1a1aa;\n' +
-'      font-size: 0.85rem;\n' +
-'      font-weight: 500;\n' +
-'      letter-spacing: 0.05em;\n' +
-'      text-transform: uppercase;\n' +
-'      margin: 0;\n' +
-'      padding-top: 1rem;\n' +
-'    }\n' +
-'    #loader .percent-text {\n' +
-'      color: #d4d4d8;\n' +
-'      font-size: 0.8rem;\n' +
-'      font-variant-numeric: tabular-nums;\n' +
-'      margin: 0;\n' +
-'      padding-top: 0.25rem;\n' +
-'    }\n' +
-'    #loaded {\n' +
-'      opacity: 0;\n' +
-'      transition: opacity 1s ease;\n' +
-'    }\n' +
-'    .loadingContainer {\n' +
-'      width: 100%;\n' +
-'      height: 12px;\n' +
-'      background: #27272a;\n' +
-'      border-radius: 6px;\n' +
-'      overflow: hidden;\n' +
-'      margin-top: 0.3rem;\n' +
-'    }\n' +
-'    .loadingBar {\n' +
-'      height: 100%;\n' +
-'      background: linear-gradient(90deg, #818cf8, #a78bfa);\n' +
-'      border-radius: 6px;\n' +
-'      width: 0%;\n' +
-'    }\n' +
-'  </style>\n' +
-'\n' +
-'  <!-- Local config (sets window.openvgal_location) -->\n' +
-'  <script src="site-config.js"><\/script>\n' +
-'\n' +
-'  <!-- 3D engine from CDN -->\n' +
-'  <script src="' + CDN_BASE + '/core/babylon.js"><\/script>\n' +
-'  <script src="' + CDN_BASE + '/core/babylonjs.loaders.min.js"><\/script>\n' +
-'  <script src="https://code.jquery.com/pep/0.4.3/pep.js"><\/script>\n' +
-'  <script src="https://unpkg.com/earcut@2.1.1/dist/earcut.min.js"><\/script>\n' +
-'  <link rel="stylesheet" href="' + CDN_BASE + '/core/overlay.css">\n' +
-'\n' +
-'  <script>\n' +
-'  // Preview mode detection\n' +
-'  (function() {\n' +
-'    var urlParams = new URLSearchParams(window.location.search);\n' +
-'    if (urlParams.get("preview") === "iframe" && window.parent) {\n' +
-'      window.openvgal_preview_mode = true;\n' +
-'      window.openvgal_cdn_base = window.parent.openvgal_cdn_base || window.location.origin;\n' +
-'    }\n' +
-'  })();\n' +
-'  <\/script>\n' +
-'</head>\n' +
-'<body>\n' +
-'  <div id="loader">\n' +
-'    <div class="loader-card">\n' +
-'      <p>Loading template</p>\n' +
-'      <div class="loadingContainer">\n' +
-'        <div class="loadingBar" id="loadingBar_template"></div>\n' +
-'      </div>\n' +
-'      <p class="percent-text" id="percentLoaded_template">0%</p>\n' +
-'      <p>Loading materials</p>\n' +
-'      <div class="loadingContainer">\n' +
-'        <div class="loadingBar" id="loadingBar_materials"></div>\n' +
-'      </div>\n' +
-'      <p class="percent-text" id="percentLoaded_materials">0%</p>\n' +
-'      <p>Loading artworks</p>\n' +
-'      <div class="loadingContainer">\n' +
-'        <div class="loadingBar" id="loadingBar_artwork"></div>\n' +
-'      </div>\n' +
-'      <p class="percent-text" id="percentLoaded_artwork">0%</p>\n' +
-'    </div>\n' +
-'  </div>\n' +
-'\n' +
-'  <script src="' + CDN_BASE + '/core/declarations.js"><\/script>\n' +
-'\n' +
-'  <canvas id="renderCanvas" touch-action="none"></canvas>\n' +
-'\n' +
-'  <script src="' + CDN_BASE + '/core/room_builder_aux.js"><\/script>\n' +
-'  <script>\n' +
-'  // Load overlay.js: local first (for custom button callbacks), CDN fallback\n' +
-'  (function() {\n' +
-'    var s = document.createElement("script");\n' +
-'    s.src = "overlay.js";\n' +
-'    s.onerror = function() {\n' +
-'      var f = document.createElement("script");\n' +
-'      f.src = (window.openvgal_cdn_base || "' + CDN_BASE + '") + "/core/overlay.js";\n' +
-'      document.body.appendChild(f);\n' +
-'    };\n' +
-'    document.body.appendChild(s);\n' +
-'  })();\n' +
-'  <\/script>\n' +
-'  <script src="' + CDN_BASE + '/core/openvgal-viewer.js"><\/script>\n' +
-'</body>\n' +
-'</html>';
+    async function generateCdnIndexHtml() {
+      // Fetch the real viewer.html and replace local script paths with CDN paths
+      var response = await fetch('../viewer.html');
+      var html = await response.text();
+
+      // Replace local script/link paths with CDN equivalents
+      html = html.replace('src="babylon.js"', 'src="' + CDN_BASE + '/core/babylon.js"');
+      html = html.replace('src="babylonjs.loaders.min.js"', 'src="' + CDN_BASE + '/core/babylonjs.loaders.min.js"');
+      html = html.replace("src='declarations.js'", "src='" + CDN_BASE + "/core/declarations.js'");
+      html = html.replace("src='room_builder_aux.js'", "src='" + CDN_BASE + "/core/room_builder_aux.js'");
+      html = html.replace("src='openvgal-viewer.js'", "src='" + CDN_BASE + "/core/openvgal-viewer.js'");
+      html = html.replace('href="overlay.css"', 'href="' + CDN_BASE + '/core/overlay.css"');
+
+      return html;
     }
 
     /**
@@ -1273,8 +1142,8 @@
         }
       } else {
         // Full mode: everything
-        // +4: index.html, site-config.js, building_v2.json, README
-        var totalFiles = imageEntries.length + 4;
+        // +3: index.html, building_v2.json, README
+        var totalFiles = imageEntries.length + 3;
         var fetchedCount = 0;
 
         var updateProgress = function(message) {
@@ -1285,21 +1154,10 @@
 
         onProgress(0, 'Generating package...');
 
-        // 1. index.html - thin CDN loader
-        zip.file('index.html', generateLoaderHtml());
+        // 1. index.html - viewer.html with CDN script paths
+        var indexHtml = await generateCdnIndexHtml();
+        zip.file('index.html', indexHtml);
         updateProgress('Created index.html');
-
-        // 2. site-config.js
-        var siteConfig = [
-          '// OpenVGAL Site Configuration',
-          '// This file is loaded before CDN scripts and sets per-site values.',
-          '//',
-          "// openvgal_location: '.' means gallery files are next to index.html.",
-          "// Change this if your building_v2.json and images are in a different folder.",
-          "window.openvgal_location = '.';"
-        ].join('\n') + '\n';
-        zip.file('site-config.js', siteConfig);
-        updateProgress('Created site-config.js');
 
         // 3. building_v2.json
         zip.file('building_v2.json', JSON.stringify(config, null, 2));
@@ -1331,8 +1189,7 @@
           'templates, materials, overlay) loads from `cdn.openvgal.com`. Your deployment\n' +
           'only contains content and configuration:\n\n' +
           '```\nyour-gallery/\n' +
-          '  index.html          <- thin loader (loads scripts from CDN)\n' +
-          '  site-config.js      <- per-site settings\n' +
+          '  index.html          <- viewer (loads scripts from CDN)\n' +
           '  building_v2.json    <- gallery configuration\n' +
           galleryFolders.map(function(k) { return '  ' + k + '/               <- your images'; }).join('\n') + '\n```\n\n' +
           '## Updating\n\n' +
@@ -1342,10 +1199,8 @@
           '- **Custom logo**: Add `materials/logo.png` next to index.html. White artwork\n' +
           '  on black background, 1024x512 px recommended. The viewer checks for a local\n' +
           '  logo first, then falls back to the CDN default.\n' +
-          '- **Custom overlay**: Add `overlay.html` next to index.html to override the\n' +
-          '  default CDN overlay UI.\n' +
-          '- **site-config.js**: Change `openvgal_location` if your content is in a\n' +
-          '  different folder.\n\n' +
+          '- **Custom overlay**: Add `overlay.js` next to index.html to override the\n' +
+          '  default CDN overlay behavior.\n\n' +
           '## Need the self-contained version?\n\n' +
           'Visit https://openvgal.com/create/ for a ZIP that includes all code and\n' +
           'works offline (no CDN dependency).\n\n' +
