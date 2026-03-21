@@ -931,20 +931,21 @@
       downloadZipBtn.disabled = false;
     });
 
-    async function generateCdnIndexHtml() {
-      // Fetch the real viewer.html and replace local script paths with CDN paths
-      var response = await fetch('../viewer.html');
-      var html = await response.text();
-
-      // Replace local script/link paths with CDN equivalents
-      html = html.replace('src="babylon.js"', 'src="' + CDN_BASE + '/core/babylon.js"');
-      html = html.replace('src="babylonjs.loaders.min.js"', 'src="' + CDN_BASE + '/core/babylonjs.loaders.min.js"');
-      html = html.replace("src='declarations.js'", "src='" + CDN_BASE + "/core/declarations.js'");
-      html = html.replace("src='room_builder_aux.js'", "src='" + CDN_BASE + "/core/room_builder_aux.js'");
-      html = html.replace("src='openvgal-viewer.js'", "src='" + CDN_BASE + "/core/openvgal-viewer.js'");
-      html = html.replace('href="overlay.css"', 'href="' + CDN_BASE + '/core/overlay.css"');
-
-      return html;
+    function generateCdnIndexHtml() {
+      // Thin loader that fetches viewer.html from CDN at runtime.
+      // The page origin stays local so building_v2.json and images resolve locally.
+      return '<!DOCTYPE html>\n' +
+        '<html><head><meta charset="utf-8"></head>\n' +
+        '<body style="margin:0;background:#000;color:#a1a1aa;font-family:Inter,system-ui,sans-serif;' +
+        'display:flex;align-items:center;justify-content:center;height:100vh">\n' +
+        '<p id="cdn-status">Loading gallery...</p>\n' +
+        '<script>\n' +
+        'fetch("' + CDN_BASE + '/core/viewer.html")\n' +
+        '  .then(function(r) { if (!r.ok) throw new Error(r.status); return r.text(); })\n' +
+        '  .then(function(html) { document.open(); document.write(html); document.close(); })\n' +
+        '  .catch(function(e) { document.getElementById("cdn-status").textContent = "Failed to load viewer from CDN: " + e.message; });\n' +
+        '<\/script>\n' +
+        '</body></html>';
     }
 
     /**

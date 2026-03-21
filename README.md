@@ -1,6 +1,6 @@
 https://github.com/lbartworks/openvgal/assets/121262093/517b6b67-7a87-4f2c-8166-b5c9314ff9e9
 
-# OpenVGAL v3.1
+# OpenVGAL v3.2
 
 Open-source 3D virtual gallery platform built on [Babylon.js](https://www.babylonjs.com/). Create interactive WebGL art galleries from your images, download a ZIP, host it anywhere.
 
@@ -131,7 +131,7 @@ Note: the `file://` protocol will not work in Chrome due to cross-origin iframe 
 
 ## Changelog
 
-**v3.1 (March 2026)**
+**v3.2 (March 2026)**
 - CDN-first mode for lightweight ZIPs with automatic viewer updates
 - Metadata editor for artwork titles and subtitles
 - Gallery map for visual room navigation

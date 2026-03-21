@@ -14,6 +14,7 @@ on:
       - 'site/babylon.js'
       - 'site/babylonjs.loaders.min.js'
       - 'site/js/gallery-settings.js'
+      - 'site/viewer.html'
       - 'site/icons/**'
 jobs:
   deploy:
@@ -34,6 +35,17 @@ jobs:
           cp site/babylon.js cdn/core/
           cp site/babylonjs.loaders.min.js cdn/core/
           cp -r site/icons/* cdn/core/icons/
+
+          # Build CDN viewer.html with absolute CDN script paths
+          CDN=https://cdn.openvgal.com/core
+          sed \
+            -e "s|src=\"babylon.js\"|src=\"${CDN}/babylon.js\"|" \
+            -e "s|src=\"babylonjs.loaders.min.js\"|src=\"${CDN}/babylonjs.loaders.min.js\"|" \
+            -e "s|src='declarations.js'|src='${CDN}/declarations.js'|" \
+            -e "s|src='room_builder_aux.js'|src='${CDN}/room_builder_aux.js'|" \
+            -e "s|src='openvgal-viewer.js'|src='${CDN}/openvgal-viewer.js'|" \
+            -e "s|href=\"overlay.css\"|href=\"${CDN}/overlay.css\"|" \
+            site/viewer.html > cdn/core/viewer.html
 
       - uses: cloudflare/wrangler-action@v3
         with:
