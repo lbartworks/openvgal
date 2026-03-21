@@ -1,5 +1,5 @@
 	//user custom variables that are not modified in general
-	const debug_scene=true;
+	const debug_scene=false;
 	const margin=0.2; 			//frame margin
 	const item_separation=0.05; 	//separation from the wall
 	const max_lights=7;
@@ -283,9 +283,10 @@
 								console.log("material " + frame_material + " loaded");
 							}
 							populate_template(config_file_content, current_gallery, scene);
-							// Sync plaque visibility with runtime toggle
+							// Sync plaque checkbox with config (default off for old JSONs without show_plaques)
 							var _pt = document.getElementById('plaquesToggle');
-							if (_pt && !_pt.checked) togglePlaques(_pt);
+							var _showPlaques = config_file_content["Technical"]["show_plaques"] === true;
+							if (_pt) _pt.checked = _showPlaques;
 							console.log("template populated");
 					}
 
