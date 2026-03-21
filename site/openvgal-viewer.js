@@ -1,5 +1,5 @@
 	//user custom variables that are not modified in general
-	const debug_scene=false;
+	const debug_scene=true;
 	const margin=0.2; 			//frame margin
 	const item_separation=0.05; 	//separation from the wall
 	const max_lights=7;
@@ -103,6 +103,18 @@
 		xhr.send();
 		return xhr.status >= 200 && xhr.status < 300;
 	}
+
+	// Toggle plaque visibility at runtime (called from overlay.html switch)
+	window.togglePlaques = function(checkbox) {
+		if (!scene) return;
+		var show = checkbox ? checkbox.checked : undefined;
+		var meshes = scene.meshes;
+		for (var i = 0; i < meshes.length; i++) {
+			if (meshes[i].name.indexOf('plaque') !== -1) {
+				meshes[i].isVisible = (show !== undefined) ? show : !meshes[i].isVisible;
+			}
+		}
+	};
 
 	window.initFunction = async function() {
 		var createDefaultEngine = function() {
@@ -271,6 +283,9 @@
 								console.log("material " + frame_material + " loaded");
 							}
 							populate_template(config_file_content, current_gallery, scene);
+							// Sync plaque visibility with runtime toggle
+							var _pt = document.getElementById('plaquesToggle');
+							if (_pt && !_pt.checked) togglePlaques(_pt);
 							console.log("template populated");
 					}
 

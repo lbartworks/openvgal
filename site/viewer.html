@@ -157,6 +157,174 @@
 
 
 
+        /* Navigation Map */
+        #map-button {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 25;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            color: #d4d4d8;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s, border-color 0.2s, color 0.2s;
+        }
+        #map-button:hover {
+            background: rgba(99, 102, 241, 0.15);
+            border-color: rgba(99, 102, 241, 0.4);
+            color: #a5b4fc;
+        }
+        #map-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 40;
+            background: rgba(0, 0, 0, 0.92);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            flex-direction: column;
+            align-items: center;
+            padding: 0;
+            overflow-y: auto;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        #map-header {
+            width: 100%;
+            max-width: 900px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px 32px 8px;
+            box-sizing: border-box;
+        }
+        #map-title {
+            color: #fafafa;
+            font-size: 1.25rem;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+        }
+        #map-close {
+            background: none;
+            border: none;
+            color: #71717a;
+            font-size: 1.75rem;
+            cursor: pointer;
+            padding: 4px 8px;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+        #map-close:hover {
+            color: #fafafa;
+        }
+        #map-grid {
+            width: 100%;
+            max-width: 960px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 18px;
+            padding: 16px 32px 40px;
+            box-sizing: border-box;
+        }
+        .map-card {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 14px;
+            cursor: pointer;
+            overflow: hidden;
+            transition: transform 0.25s ease, border-color 0.25s, box-shadow 0.3s;
+        }
+        .map-card:hover {
+            transform: translateY(-4px) scale(1.015);
+            border-color: rgba(99, 102, 241, 0.45);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(99, 102, 241, 0.15);
+        }
+        .map-card.map-card-active {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 1px #6366f1, 0 6px 20px rgba(99, 102, 241, 0.2);
+        }
+        .map-card-thumb-wrap {
+            position: relative;
+            overflow: hidden;
+        }
+        .map-card-thumb-wrap::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 40%;
+            background: linear-gradient(to top, rgba(0,0,0,0.5), transparent);
+            pointer-events: none;
+        }
+        .map-card-thumb {
+            width: 100%;
+            aspect-ratio: 3 / 2;
+            object-fit: cover;
+            display: block;
+            background: #18181b;
+            transition: transform 0.3s ease;
+        }
+        .map-card:hover .map-card-thumb {
+            transform: scale(1.05);
+        }
+        .map-card-placeholder {
+            width: 100%;
+            aspect-ratio: 3 / 2;
+            background: linear-gradient(135deg, #18181b 0%, #27272a 50%, #1e1b4b 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .map-card-info {
+            padding: 12px 14px 14px;
+            text-align: center;
+        }
+        .map-card-name {
+            color: #e4e4e7;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin: 0 0 3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .map-card-count {
+            color: #71717a;
+            font-size: 0.75rem;
+            font-weight: 400;
+            margin: 0;
+        }
+        @media screen and (max-width: 600px) {
+            #map-button {
+                top: 12px;
+                left: 12px;
+                width: 38px;
+                height: 38px;
+            }
+            #map-header {
+                padding: 16px 16px 4px;
+            }
+            #map-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+                padding: 10px 16px 24px;
+            }
+            .map-card-info {
+                padding: 8px 10px 10px;
+            }
+            .map-card-name {
+                font-size: 0.8rem;
+            }
+        }
+
     </style>
 
     <script src="babylon.js"></script>
@@ -233,7 +401,7 @@
 	var percentage_template=0;
 	var percentage_materials=0;
 	var percentage_artwork=0;
-	let config_file_content;
+	var config_file_content;
 	let style_file_content;
 	let fontContent;
 	var galleries=new Object();
@@ -314,7 +482,19 @@
 		xhr.send();
 		return xhr.status >= 200 && xhr.status < 300;
 	}
-	
+
+	// Toggle plaque visibility at runtime (called from overlay.html switch)
+	window.togglePlaques = function(checkbox) {
+		if (!scene) return;
+		var show = checkbox ? checkbox.checked : undefined;
+		var meshes = scene.meshes;
+		for (var i = 0; i < meshes.length; i++) {
+			if (meshes[i].name.indexOf('plaque') !== -1) {
+				meshes[i].isVisible = (show !== undefined) ? show : !meshes[i].isVisible;
+			}
+		}
+	};
+
 	window.initFunction = async function() {
 		var createDefaultEngine = function() { 
 			return new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true,  disableWebGL2Support: false}); 
@@ -482,6 +662,9 @@
 								console.log("material " + frame_material + " loaded");
 							}
 							populate_template(config_file_content, current_gallery, scene);
+							// Sync plaque visibility with runtime toggle
+							var _pt = document.getElementById('plaquesToggle');
+							if (_pt && !_pt.checked) togglePlaques(_pt);
 							console.log("template populated");
 					} 
 
@@ -592,10 +775,114 @@
 	
 	initFunction().then(() => {sceneToRender = scene });
 
-		
 
-	
-	  
+
+
+
+    </script>
+
+    <!-- Navigation Map -->
+    <button id="map-button" onclick="toggleMap()" title="Gallery Map" style="display:none;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7" rx="1"/>
+            <rect x="14" y="3" width="7" height="7" rx="1"/>
+            <rect x="3" y="14" width="7" height="7" rx="1"/>
+            <rect x="14" y="14" width="7" height="7" rx="1"/>
+        </svg>
+    </button>
+
+    <div id="map-modal">
+        <div id="map-header">
+            <span id="map-title">Gallery Map</span>
+            <button id="map-close" onclick="toggleMap()">&times;</button>
+        </div>
+        <div id="map-grid"></div>
+    </div>
+
+    <script>
+    function toggleMap() {
+        var modal = document.getElementById('map-modal');
+        if (!modal) return;
+        var isHidden = modal.style.display === 'none' || modal.style.display === '';
+        if (isHidden) {
+            populateMap();
+            modal.style.display = 'flex';
+        } else {
+            modal.style.display = 'none';
+        }
+    }
+
+    function populateMap() {
+        var grid = document.getElementById('map-grid');
+        if (!grid || typeof config_file_content === 'undefined') return;
+        grid.innerHTML = '';
+
+        for (var galleryName in config_file_content) {
+            if (galleryName === 'Technical') continue;
+
+            var gallery = config_file_content[galleryName];
+            var imageKeys = Object.keys(gallery).filter(function(k) {
+                return gallery[k] && gallery[k].resource_type === 'image';
+            });
+
+            var card = document.createElement('div');
+            card.className = 'map-card';
+            if (galleryName === current_gallery) card.className += ' map-card-active';
+            card.onclick = (function(name) {
+                return function() { navigateToGallery(name); };
+            })(galleryName);
+
+            var wrap = document.createElement('div');
+            wrap.className = 'map-card-thumb-wrap';
+            if (imageKeys.length > 0) {
+                var img = document.createElement('img');
+                img.className = 'map-card-thumb';
+                var resourcePath = gallery[imageKeys[0]].resource;
+                img.src = (typeof window.resolveImageUrl === 'function')
+                    ? window.resolveImageUrl(resourcePath)
+                    : hallspics_prefix + resourcePath;
+                img.alt = galleryName;
+                img.loading = 'lazy';
+                wrap.appendChild(img);
+            } else {
+                var placeholder = document.createElement('div');
+                placeholder.className = 'map-card-placeholder';
+                wrap.appendChild(placeholder);
+            }
+            card.appendChild(wrap);
+
+            var info = document.createElement('div');
+            info.className = 'map-card-info';
+
+            var nameEl = document.createElement('p');
+            nameEl.className = 'map-card-name';
+            nameEl.textContent = galleryName === 'root' ? 'Main Hall' : galleryName.replace(/#/g, ' ');
+            info.appendChild(nameEl);
+
+            var countEl = document.createElement('p');
+            countEl.className = 'map-card-count';
+            countEl.textContent = imageKeys.length + (imageKeys.length === 1 ? ' artwork' : ' artworks');
+            info.appendChild(countEl);
+
+            card.appendChild(info);
+            grid.appendChild(card);
+        }
+    }
+
+    function navigateToGallery(name) {
+        var params = new URLSearchParams(window.location.search);
+        params.set('gallery', name);
+        window.location.search = params.toString();
+    }
+
+    (function waitForConfig() {
+        if (typeof config_file_content !== 'undefined' && config_file_content) {
+            document.getElementById('map-button').style.display = 'flex';
+        } else {
+            setTimeout(waitForConfig, 200);
+        }
+    })();
     </script>
   </body>
 </html>

@@ -88,7 +88,7 @@ Each item is either an artwork or a door:
 | `width`, `height` | Normalized dimensions (0 to 1). The longer side is 1. |
 | `location` | `[x, y, z]` position in 3D space. Z is up. |
 | `vector` | `[x, y]` normal vector indicating which direction the artwork faces. |
-| `metadata` | Text shown when hovering on the artwork. |
+| `metadata` | Text shown when hovering on the artwork. Title and subtitle are separated by `\n` (newline). The subtitle appears on a second line in the overlay and on artwork plaques. |
 
 ### Technical Section
 

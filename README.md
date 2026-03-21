@@ -1,6 +1,6 @@
 https://github.com/lbartworks/openvgal/assets/121262093/517b6b67-7a87-4f2c-8166-b5c9314ff9e9
 
-# OpenVGAL v3
+# OpenVGAL v3.1
 
 Open-source 3D virtual gallery platform built on [Babylon.js](https://www.babylonjs.com/). Create interactive WebGL art galleries from your images, download a ZIP, host it anywhere.
 
@@ -31,6 +31,14 @@ The philosophy has not changed: **you own your gallery**. The output is plain HT
 
 That's it. The ZIP contains everything: images, 3D room templates, PBR materials, the viewer, and configuration. Works in any subfolder, no configuration needed.
 
+### CDN-first mode
+
+If you prefer smaller ZIPs and automatic updates, use [openvgal.com/create/cdn](https://openvgal.com/create/cdn.html). The ZIP only includes your images and configuration. Templates, materials, and viewer code load from `cdn.openvgal.com` at runtime. You can also import an existing gallery and add new rooms without regenerating everything.
+
+### Metadata editor
+
+After generating a gallery, use the [metadata editor](https://openvgal.com/create/editor.html) to add or change artwork titles and subtitles. Import your `building_v2.json`, edit per-image or in batch, and download the updated file.
+
 ### Custom Logo
 
 Replace `materials/logo.png` in the ZIP with your own image. Use white artwork on a black background (the white areas glow in the gallery). Recommended size: 1024x512 px, PNG format.
@@ -41,11 +49,14 @@ Replace `materials/logo.png` in the ZIP with your own image. Use white artwork o
 
 - **Browser-based generator.** No more Python, no more executables. Everything runs in the browser at [openvgal.com/create](https://openvgal.com/create).
 - **Self-contained ZIP output.** The generated ZIP includes all assets. Drop it on a web server and it works. No CDN dependency, no external calls.
+- **CDN-first mode.** A lightweight alternative: the ZIP contains only the JSON config and your images. Templates, materials, viewer code, and Babylon.js load from [cdn.openvgal.com](https://cdn.openvgal.com) at runtime. Smaller ZIPs, and your galleries automatically pick up viewer updates.
+- **Metadata editor.** A dedicated tool at [openvgal.com/create/editor](https://openvgal.com/create/editor.html) for editing artwork titles and subtitles. Import an existing `building_v2.json`, batch-edit or per-image edit metadata, and export the updated file.
+- **Gallery map.** A visual overview of all rooms in a gallery. Click any room card to jump directly to it. Shows a thumbnail from the first artwork and the artwork count per room.
+- **Artwork plaques.** Museum-style labels rendered below each artwork showing title and subtitle. Toggle them on or off from the viewer overlay or the generator settings.
 - **Live 3D preview.** Preview your gallery directly in the generator before building.
-- **CDN architecture.** Templates and materials are served from [cdn.openvgal.com](https://cdn.openvgal.com) for the online tools. The ZIP bundles everything locally.
+- **CDN architecture.** Templates and materials are served from [cdn.openvgal.com](https://cdn.openvgal.com) for the online tools. Self-contained ZIPs bundle everything locally.
 - **New landing page.** [openvgal.com](https://openvgal.com) has a proper homepage now.
 - **Electron app removed.** It was a good experiment but the browser-based approach is simpler and more portable.
-- **Repository restructured.** Clean separation between site, CDN assets, server, and legacy Python code.
 
 The Python CLI still works and is available in [GitHub Releases](https://github.com/lbartworks/openvgal/releases) for those who prefer it, but the browser generator is the recommended path going forward.
 
@@ -55,7 +66,7 @@ The Python CLI still works and is available in [GitHub Releases](https://github.
 
 OpenVGAL uses a `building_v2.json` file to describe interconnected gallery rooms. Each room references a GLB template and contains items (artworks or doors to other rooms). The viewer loads templates, applies PBR node materials, places artwork textures at calculated positions, and handles navigation between rooms via door meshes.
 
-The browser generator at `/create` automates all of this: it takes your image folders, runs the layout algorithm, generates the JSON, fetches templates and materials from the CDN, and packages everything into a deployable ZIP.
+The browser generator at `/create` automates all of this: it takes your image folders, runs the layout algorithm, generates the JSON, fetches templates and materials from the CDN, and packages everything into a deployable ZIP. A CDN-first mode at `/create/cdn` produces lighter ZIPs that load shared assets from `cdn.openvgal.com` at runtime. A separate metadata editor at `/create/editor` lets you add or change artwork titles and subtitles after generation.
 
 For a deeper dive into the JSON format, the layout algorithm, the material system, and how to create custom templates, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -65,9 +76,8 @@ For a deeper dive into the JSON format, the layout algorithm, the material syste
 
 | Directory | Deploys to | Description |
 |-----------|-----------|-------------|
-| `site/` | openvgal.com | Landing page + 3D viewer + gallery generator |
-| `cdn/` | cdn.openvgal.com (Cloudflare Pages) | GLB templates + node materials + textures |
-| `server/` | api.openvgal.com (future) | API server for managed hosting |
+| `site/` | openvgal.com | Landing page + 3D viewer + generator + editor |
+| `cdn/` | cdn.openvgal.com | GLB templates + node materials + core scripts |
 | `python/` | GitHub Releases | Legacy CLI for gallery generation |
 | `examples/` | Not deployed | Sample galleries for testing |
 
@@ -75,19 +85,23 @@ For a deeper dive into the JSON format, the layout algorithm, the material syste
 
 The main web application:
 - `index.html` -- Landing page
-- `viewer.html` -- 3D gallery viewer (Babylon.js)
-- `create/index.html` -- Browser-based gallery generator
+- `viewer.html` -- 3D gallery viewer (Babylon.js), includes gallery map
+- `create/index.html` -- Browser-based gallery generator (self-contained ZIP)
+- `create/cdn.html` -- CDN-first gallery generator (lightweight ZIP)
+- `create/editor.html` -- Metadata editor for artwork titles and subtitles
 - `js/gallery-generator.js` -- Layout algorithm (ported from Python)
-- `room_builder_aux.js` -- Room building and item placement
+- `js/gallery-settings.js` -- Gallery-wide settings (plaques, etc.)
+- `room_builder_aux.js` -- Room building, item placement, plaque rendering
 - `declarations.js` -- Asset path configuration
-- `overlay.js`, `overlay.html`, `overlay.css` -- Viewer UI (artwork info, navigation help, automatic tour)
+- `overlay.js`, `overlay.html`, `overlay.css` -- Viewer UI (artwork info, navigation help, automatic tour, plaques toggle)
 
 ### cdn/
 
-Static assets served with CORS headers:
-- `templates/` -- GLB room templates (T_root, T_pannels, T_nopannels, T_small)
+Static assets served with CORS headers. CI builds `core/` at deploy time from `site/` files (viewer scripts, overlay, icons, Babylon.js).
+- `templates/` -- GLB room templates (T_root, T_root_classic, T_pannels, T_nopannels, T_small)
 - `materials/` -- Babylon.js node material JSONs, PBR textures, logo, shadow
-- `_headers` -- Cloudflare Pages CORS configuration
+- `core/` -- (built by CI, not in repo) Viewer scripts, overlay, icons, Babylon.js
+- `_headers` -- CORS configuration
 
 ### python/
 
@@ -116,6 +130,12 @@ Note: the `file://` protocol will not work in Chrome due to cross-origin iframe 
 ---
 
 ## Changelog
+
+**v3.1 (March 2026)**
+- CDN-first mode for lightweight ZIPs with automatic viewer updates
+- Metadata editor for artwork titles and subtitles
+- Gallery map for visual room navigation
+- Artwork plaques (museum-style labels below each artwork)
 
 **v3 (February 2026)**
 - Browser-based gallery generator at openvgal.com/create
@@ -170,7 +190,7 @@ Yes. Touch devices are detected automatically. Navigation uses touch controls in
 Yes. The ZIP output is fully self-contained. Any static file server works (Apache, Nginx, Netlify, GitHub Pages, S3, etc.).
 
 **Do I need to keep the CDN connection?**
-No. The ZIP bundles all templates, materials, and assets locally. The CDN is only used by the online generator at openvgal.com/create.
+It depends on which mode you used. The standard generator produces a fully self-contained ZIP with no CDN dependency. The CDN-first generator produces a lighter ZIP that loads templates, materials, and viewer code from `cdn.openvgal.com` at runtime, so it does need an internet connection.
 
 ---
 
@@ -181,6 +201,10 @@ No. The ZIP bundles all templates, materials, and assets locally. The CDN is onl
 - [ ] Alternative hall templates beyond rectangular halls
 - [ ] Code to detect overlapping artwork or erroneous configurations
 - [ ] Logo upload in the generator (currently: replace `materials/logo.png` manually)
+- [x] CDN-first deployment mode (v3.1)
+- [x] Metadata editor (v3.1)
+- [x] Gallery map (v3.1)
+- [x] Artwork plaques (v3.1)
 - [x] Browser-based generator (v3)
 - [x] Self-contained ZIP deployment (v3)
 - [x] Live 3D preview in generator (v3)

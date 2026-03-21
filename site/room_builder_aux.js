@@ -65,6 +65,78 @@ var text3D_builder=function(name, item_position, vector, parent, scene){
 
 }
 
+var plaque_builder = function(name, item_position, item_size, vector, metadata, scene) {
+	// Renders an optional museum-style plaque below artwork using DynamicTexture
+	// metadata format: "ID #N Title\nSubtitle" — ID prefix is stripped for display
+
+	var plaqueText = metadata.replace(/^ID\s*#\d+\s*/, '');
+	if (!plaqueText.trim()) return;
+
+	var lines = plaqueText.split('\n');
+	var titleText = lines[0] || '';
+	var subtitleText = lines.length > 1 ? lines[1] : '';
+
+	// Plaque dimensions proportional to artwork
+	var plaqueW = item_size.width * 0.3;
+	var plaqueH = plaqueW * 0.3;
+	var texW = 512;
+	var texH = Math.round(texW * (plaqueH / plaqueW));
+
+	var dynTex = new BABYLON.DynamicTexture("plaqueTex_" + name, {width: texW, height: texH}, scene, false);
+	var ctx = dynTex.getContext();
+
+	// Warm neutral background
+	ctx.fillStyle = "#d8d5d0";
+	ctx.fillRect(0, 0, texW, texH);
+
+	// Title — subdued dark text, centered
+	var titleSize = Math.round(texH * 0.32);
+	ctx.font = "bold " + titleSize + "px Inter, Arial, sans-serif";
+	ctx.fillStyle = "#4a4a44";
+	ctx.textAlign = "center";
+	ctx.textBaseline = "middle";
+	var centerX = texW / 2;
+	var centerY = subtitleText ? (texH * 0.38) : (texH / 2);
+	ctx.fillText(titleText, centerX, centerY);
+
+	// Subtitle — muted text, centered
+	if (subtitleText) {
+		var subSize = Math.round(texH * 0.22);
+		ctx.font = subSize + "px Inter, Arial, sans-serif";
+		ctx.fillStyle = "#78786f";
+		ctx.fillText(subtitleText, centerX, centerY + titleSize * 0.9);
+	}
+
+	dynTex.update();
+
+	var plaqueMat = new BABYLON.StandardMaterial("plaqueMat_" + name, scene);
+	plaqueMat.diffuseTexture = dynTex;
+	plaqueMat.emissiveTexture = dynTex;
+	plaqueMat.specularColor = new BABYLON.Color3(0, 0, 0);
+	plaqueMat.disableLighting = true;
+
+	var base_vector = new BABYLON.Vector3(0, 0, 0);
+	var abstractPlane = BABYLON.Plane.FromPositionAndNormal(base_vector, vector);
+
+	var plaquePlane = BABYLON.MeshBuilder.CreatePlane("lbl_plaque_" + name, {
+		sourcePlane: abstractPlane,
+		width: plaqueW,
+		height: plaqueH,
+		sideOrientation: BABYLON.Mesh.SINGLESIDE
+	}, scene);
+
+	// Position: centered below frame
+	var plaqueOffsetDown = (item_size.height / 2 + margin / 2 + plaqueH / 2 + 0.03);
+
+	plaquePlane.position = new BABYLON.Vector3(item_position.x, item_position.y, item_position.z)
+		.add(vector.scale(3 * item_separation / 2))
+		.subtract(new BABYLON.Vector3(0, plaqueOffsetDown, 0));
+
+	plaquePlane.material = plaqueMat;
+	plaquePlane.isPickable = false;
+	plaquePlane.name = "plaque";
+}
+
 var item_builder= function(name, item_position, item_size, vector, material,scene, item_shadow_material=null){
 	//places artwork as an image texture
 	//adds a frame and both elements have a customizable separation from the wall
@@ -134,6 +206,7 @@ var item_builder= function(name, item_position, item_size, vector, material,scen
 
 function populate_template(config_file, room_name,scene){
 
+    var showPlaques = config_file["Technical"]["show_plaques"] === true;
     let item_size=config_file["Technical"]["scaleFactor"];		 //parameter controlling the scale of the items
 	
 	const vector_n=new BABYLON.Vector3(0, 0, 1);
@@ -179,6 +252,11 @@ function populate_template(config_file, room_name,scene){
 
 		//notice that y and z are flippped
 		item_builder(item + "_" + i ,{x:location[0], y:location[2], z:location[1]}, {width:scaled_width, height:scaled_height}, orientation, items_material, scene, item_shadow_material);
+
+		//plaque below artwork (only if metadata has content beyond the ID prefix)
+		if (showPlaques && gallery[item]["metadata"]) {
+			plaque_builder(item + "_" + i, {x:location[0], y:location[2], z:location[1]}, {width:scaled_width, height:scaled_height}, orientation, gallery[item]["metadata"], scene);
+		}
 
 		//update loading bar in sync loop so browser can paint
 		const round_per=Math.round(((i - 2) / num_items) * 100);

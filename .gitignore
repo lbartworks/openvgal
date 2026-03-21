@@ -6,3 +6,4 @@ server/routes/__pycache__/
 node_modules/
 .DS_Store
 *.pyc
+.mcp.json

@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit Metadata - OpenVGAL</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      background: #000;
+      color: #a1a1aa;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Ambient glow */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -200px; left: 50%;
+      transform: translateX(-50%);
+      width: 700px; height: 700px;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .page-wrapper {
+      position: relative;
+      z-index: 1;
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 0 1.5rem 4rem;
+    }
+
+    /* --- NAV --- */
+    nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.25rem 0;
+      margin-bottom: 1.5rem;
+    }
+    .nav-logo {
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      color: #fff;
+      text-decoration: none;
+    }
+    .nav-back {
+      color: #52525b;
+      text-decoration: none;
+      font-size: 0.8rem;
+      font-weight: 400;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      transition: color 0.15s;
+    }
+    .nav-back:hover { color: #a1a1aa; }
+    .nav-back svg { width: 14px; height: 14px; }
+
+    /* --- HEADER --- */
+    .page-header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+    .page-header h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: #fafafa;
+      margin-bottom: 0.5rem;
+    }
+    .page-header p {
+      color: #52525b;
+      font-size: 0.88rem;
+      font-weight: 400;
+    }
+
+    /* --- SECTIONS --- */
+    .section {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 14px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      margin-bottom: 1rem;
+    }
+    .step-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px; height: 24px;
+      border-radius: 6px;
+      background: rgba(99, 102, 241, 0.1);
+      color: #818cf8;
+      font-size: 0.7rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .section-title {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #e4e4e7;
+    }
+    .section-hint {
+      font-size: 0.8rem;
+      color: #a1a1aa;
+      line-height: 1.6;
+      margin-bottom: 1rem;
+    }
+
+    /* --- BUTTONS --- */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: inherit;
+      text-decoration: none;
+    }
+    .btn svg { width: 14px; height: 14px; }
+    .btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .btn-default {
+      background: rgba(255,255,255,0.06);
+      color: #d4d4d8;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .btn-default:hover:not(:disabled) {
+      background: rgba(255,255,255,0.1);
+      border-color: rgba(255,255,255,0.14);
+    }
+
+    .btn-primary {
+      background: #fff;
+      color: #09090b;
+    }
+    .btn-primary:hover:not(:disabled) {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    .btn-accent {
+      background: rgba(99, 102, 241, 0.1);
+      color: #a5b4fc;
+      border: 1px solid rgba(99, 102, 241, 0.15);
+    }
+    .btn-accent:hover:not(:disabled) {
+      background: rgba(99, 102, 241, 0.18);
+      border-color: rgba(99, 102, 241, 0.28);
+    }
+
+    .btn-subtle {
+      background: transparent;
+      color: #71717a;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .btn-subtle:hover:not(:disabled) {
+      background: rgba(255,255,255,0.04);
+      color: #a1a1aa;
+    }
+
+    /* --- DROP ZONE --- */
+    .drop-zone {
+      border: 1.5px dashed rgba(255,255,255,0.18);
+      border-radius: 12px;
+      padding: 2.5rem 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-top: 0.75rem;
+      position: relative;
+      background: rgba(255,255,255,0.02);
+    }
+    .drop-zone:hover {
+      border-color: rgba(99, 102, 241, 0.25);
+      background: rgba(99, 102, 241, 0.03);
+    }
+    .drop-zone:hover .drop-icon { color: #6366f1; }
+    .drop-zone:hover .drop-text { color: #a1a1aa; }
+
+    .drop-zone.drag-over {
+      border-color: #6366f1;
+      border-style: solid;
+      background: rgba(99, 102, 241, 0.06);
+    }
+    .drop-zone.drag-over .drop-icon { color: #818cf8; }
+    .drop-zone.drag-over .drop-text { color: #c7d2fe; }
+
+    .drop-icon {
+      color: #52525b;
+      margin-bottom: 0.75rem;
+      transition: color 0.2s;
+    }
+    .drop-icon svg { width: 36px; height: 36px; }
+    .drop-text {
+      font-size: 0.85rem;
+      color: #52525b;
+      margin-bottom: 0.2rem;
+      transition: color 0.2s;
+      font-weight: 500;
+    }
+    .drop-subtext {
+      font-size: 0.72rem;
+      color: #3f3f46;
+    }
+
+    .file-input { display: none; }
+
+    /* --- IMPORT ROW --- */
+    .import-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+    .import-row .url-input {
+      flex: 1;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      padding: 0.55rem 0.85rem;
+      color: #d4d4d8;
+      font-size: 0.82rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .import-row .url-input::placeholder { color: #3f3f46; }
+    .import-row .url-input:focus {
+      border-color: rgba(99, 102, 241, 0.4);
+      background: rgba(255,255,255,0.06);
+    }
+
+    /* --- BATCH TOOLBAR --- */
+    .batch-toolbar {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      margin-bottom: 1rem;
+    }
+    .batch-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .batch-row .batch-input {
+      flex: 1;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      padding: 0.5rem 0.75rem;
+      color: #d4d4d8;
+      font-size: 0.8rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .batch-row .batch-input::placeholder { color: #3f3f46; }
+    .batch-row .batch-input:focus {
+      border-color: rgba(99, 102, 241, 0.4);
+      background: rgba(255,255,255,0.06);
+    }
+    .batch-row .batch-label {
+      font-size: 0.75rem;
+      color: #71717a;
+      white-space: nowrap;
+      min-width: 90px;
+    }
+
+    /* --- IMAGE LIST --- */
+    .image-list {
+      max-height: 600px;
+      overflow-y: auto;
+      margin-top: 0.5rem;
+    }
+    .image-list::-webkit-scrollbar { width: 5px; }
+    .image-list::-webkit-scrollbar-track { background: transparent; }
+    .image-list::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.08);
+      border-radius: 3px;
+    }
+    .image-list::-webkit-scrollbar-thumb:hover {
+      background: rgba(255,255,255,0.14);
+    }
+
+    .room-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.6rem 0 0.4rem;
+      margin-top: 0.5rem;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .room-header:first-child { margin-top: 0; }
+    .room-header-icon {
+      color: #818cf8;
+      display: flex;
+      align-items: center;
+    }
+    .room-header-icon svg { width: 14px; height: 14px; }
+    .room-header-name {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #a5b4fc;
+    }
+    .room-header-count {
+      font-size: 0.68rem;
+      color: #52525b;
+    }
+
+    .image-row {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 10px;
+      padding: 0.55rem 0.75rem;
+      margin-bottom: 0.35rem;
+      transition: border-color 0.15s;
+    }
+    .image-row:hover {
+      border-color: rgba(255,255,255,0.1);
+    }
+
+    .image-thumb {
+      flex-shrink: 0;
+      width: 36px; height: 36px;
+      border-radius: 6px;
+      background: rgba(99, 102, 241, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #52525b;
+    }
+    .image-thumb svg { width: 16px; height: 16px; }
+
+    .image-key {
+      flex-shrink: 0;
+      width: 110px;
+      font-size: 0.72rem;
+      color: #71717a;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .image-fields {
+      flex: 1;
+      display: flex;
+      gap: 0.5rem;
+      min-width: 0;
+    }
+    .image-fields input {
+      flex: 1;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.06);
+      color: #d4d4d8;
+      padding: 0.35rem 0.55rem;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s, background 0.15s;
+      min-width: 0;
+    }
+    .image-fields input::placeholder { color: #3f3f46; }
+    .image-fields input:hover {
+      border-color: rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.02);
+    }
+    .image-fields input:focus {
+      border-color: rgba(99, 102, 241, 0.4);
+      background: rgba(255,255,255,0.03);
+    }
+
+    /* --- STATS --- */
+    .stats {
+      display: flex;
+      gap: 2rem;
+      margin-bottom: 1.5rem;
+    }
+    .stat { text-align: center; }
+    .stat-value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #fafafa;
+    }
+    .stat-label {
+      font-size: 0.68rem;
+      color: #52525b;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-weight: 500;
+    }
+
+    .actions {
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+
+    /* --- JSON PREVIEW --- */
+    details { margin-top: 1rem; }
+    details summary {
+      cursor: pointer;
+      font-size: 0.75rem;
+      color: #3f3f46;
+      transition: color 0.15s;
+    }
+    details summary:hover { color: #71717a; }
+    .json-preview {
+      background: rgba(255,255,255,0.015);
+      border: 1px solid rgba(255,255,255,0.04);
+      border-radius: 8px;
+      padding: 1rem;
+      max-height: 300px;
+      overflow: auto;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 0.7rem;
+      white-space: pre;
+      color: #71717a;
+      margin-top: 0.5rem;
+    }
+
+    /* --- EMPTY STATE --- */
+    .empty-state {
+      text-align: center;
+      color: #3f3f46;
+      padding: 1.5rem;
+      font-size: 0.82rem;
+    }
+
+    /* --- LOADED FILENAME --- */
+    .loaded-file {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(99, 102, 241, 0.06);
+      border: 1px solid rgba(99, 102, 241, 0.12);
+      border-radius: 8px;
+      padding: 0.55rem 0.85rem;
+      margin-top: 0.75rem;
+    }
+    .loaded-file-icon {
+      color: #818cf8;
+      display: flex;
+      align-items: center;
+    }
+    .loaded-file-icon svg { width: 14px; height: 14px; }
+    .loaded-file-name {
+      font-size: 0.8rem;
+      color: #a5b4fc;
+      font-weight: 500;
+    }
+    .loaded-file-count {
+      font-size: 0.72rem;
+      color: #52525b;
+      margin-left: auto;
+    }
+
+    /* --- HIDDEN --- */
+    .hidden { display: none; }
+
+    /* --- RESPONSIVE --- */
+    @media (max-width: 600px) {
+      .page-wrapper { padding: 0 1rem 3rem; }
+      .page-header h1 { font-size: 1.4rem; }
+      .section { padding: 1.25rem; }
+      .actions { flex-direction: column; }
+      .actions .btn { width: 100%; justify-content: center; }
+      .image-fields { flex-direction: column; }
+      .image-key { width: auto; }
+      .batch-row { flex-wrap: wrap; }
+      .batch-row .batch-label { min-width: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrapper">
+    <nav>
+      <a href="/" class="nav-logo">OPENVGAL</a>
+      <a href="/create/" class="nav-back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        Back to Create
+      </a>
+    </nav>
+
+    <div class="page-header">
+      <h1>Edit gallery metadata</h1>
+      <p>Add titles and subtitles to your artworks</p>
+    </div>
+
+    <!-- Step 1: Import -->
+    <div class="section">
+      <div class="section-header">
+        <span class="step-badge">1</span>
+        <span class="section-title">Import gallery JSON</span>
+      </div>
+      <div class="section-hint">
+        Load a <code style="background:rgba(99,102,241,0.1);padding:0.1rem 0.35rem;border-radius:3px;color:#a5b4fc;font-size:0.75rem;">building_v2.json</code> file from your computer or a URL.
+      </div>
+
+      <input type="file" id="fileInput" class="file-input" accept=".json,application/json">
+      <button class="btn btn-default" id="browseBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        Browse for JSON
+      </button>
+
+      <div class="import-row" style="margin-top: 0.75rem;">
+        <input type="text" class="url-input" id="urlInput" placeholder="https://example.com/building_v2.json">
+        <button class="btn btn-default" id="fetchBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9"/></svg>
+          Fetch
+        </button>
+      </div>
+
+      <div class="drop-zone" id="dropZone">
+        <div class="drop-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+        </div>
+        <div class="drop-text">Drop a JSON file here</div>
+        <div class="drop-subtext">building_v2.json</div>
+      </div>
+
+      <div id="loadedInfo" class="hidden">
+        <div class="loaded-file">
+          <div class="loaded-file-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+          <span class="loaded-file-name" id="loadedFileName"></span>
+          <span class="loaded-file-count" id="loadedFileCount"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gallery Settings -->
+    <div id="settings-container" class="hidden"></div>
+
+    <!-- Step 2: Batch Operations -->
+    <div class="section hidden" id="batchSection">
+      <div class="section-header">
+        <span class="step-badge">2</span>
+        <span class="section-title">Batch operations</span>
+      </div>
+      <div class="section-hint">
+        Apply changes to all artworks at once. Individual edits below override these.
+      </div>
+
+      <div class="batch-toolbar">
+        <div class="batch-row">
+          <span class="batch-label">Set all titles</span>
+          <input type="text" class="batch-input" id="batchTitleInput" placeholder="e.g. Untitled">
+          <button class="btn btn-default" id="batchTitleBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            Apply
+          </button>
+        </div>
+        <div class="batch-row">
+          <span class="batch-label">Set all subtitles</span>
+          <input type="text" class="batch-input" id="batchSubtitleInput" placeholder="e.g. 2024">
+          <button class="btn btn-default" id="batchSubtitleBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            Apply
+          </button>
+        </div>
+        <div class="batch-row">
+          <span class="batch-label">Move to subtitles</span>
+          <button class="btn btn-default" id="moveTitlesToSubBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+            Titles to subtitles
+          </button>
+        </div>
+        <div class="batch-row">
+          <span class="batch-label">Reset titles</span>
+          <button class="btn btn-subtle" id="resetFilenamesBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+            Reset to filenames
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Per-image Editor -->
+    <div class="section hidden" id="editorSection">
+      <div class="section-header">
+        <span class="step-badge">3</span>
+        <span class="section-title">Edit artworks</span>
+      </div>
+      <div class="section-hint">
+        Edit titles and subtitles for each artwork. Changes are applied live.
+      </div>
+
+      <div class="image-list" id="imageList">
+        <div class="empty-state">No images found</div>
+      </div>
+    </div>
+
+    <!-- Step 4: Export -->
+    <div class="section hidden" id="exportSection">
+      <div class="section-header">
+        <span class="step-badge">4</span>
+        <span class="section-title">Export</span>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-value" id="statRooms">0</div>
+          <div class="stat-label">Rooms</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="statArtworks">0</div>
+          <div class="stat-label">Artworks</div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-primary" id="downloadBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          Download JSON
+        </button>
+      </div>
+
+      <details>
+        <summary>Show JSON preview</summary>
+        <pre class="json-preview" id="jsonPreview"></pre>
+      </details>
+    </div>
+  </div>
+
+  <script src="../js/gallery-settings.js"></script>
+  <script>
+    // State
+    var galleryJSON = null;
+    var imageEntries = []; // { room, key, entry, idPrefix }
+
+    // DOM
+    var fileInput = document.getElementById('fileInput');
+    var browseBtn = document.getElementById('browseBtn');
+    var urlInput = document.getElementById('urlInput');
+    var fetchBtn = document.getElementById('fetchBtn');
+    var dropZone = document.getElementById('dropZone');
+    var loadedInfo = document.getElementById('loadedInfo');
+    var loadedFileName = document.getElementById('loadedFileName');
+    var loadedFileCount = document.getElementById('loadedFileCount');
+    var batchSection = document.getElementById('batchSection');
+    var editorSection = document.getElementById('editorSection');
+    var exportSection = document.getElementById('exportSection');
+    var imageList = document.getElementById('imageList');
+    var batchTitleInput = document.getElementById('batchTitleInput');
+    var batchSubtitleInput = document.getElementById('batchSubtitleInput');
+    var batchTitleBtn = document.getElementById('batchTitleBtn');
+    var batchSubtitleBtn = document.getElementById('batchSubtitleBtn');
+    var resetFilenamesBtn = document.getElementById('resetFilenamesBtn');
+    var downloadBtn = document.getElementById('downloadBtn');
+    var jsonPreview = document.getElementById('jsonPreview');
+    var statRooms = document.getElementById('statRooms');
+    var statArtworks = document.getElementById('statArtworks');
+    var settingsContainer = document.getElementById('settings-container');
+
+    // --- Utility functions ---
+
+    // Parse "ID #N Title\nSubtitle" into { idPrefix, title, subtitle }
+    function parseMetadata(metadata) {
+      var idPrefix = '';
+      var rest = metadata || '';
+      var idMatch = rest.match(/^(ID\s*#\d+\s*)/);
+      if (idMatch) {
+        idPrefix = idMatch[1];
+        rest = rest.substring(idPrefix.length);
+      }
+      var parts = rest.split('\n');
+      var title = parts[0] || '';
+      var subtitle = parts.length > 1 ? parts.slice(1).join('\n') : '';
+      return { idPrefix: idPrefix, title: title, subtitle: subtitle };
+    }
+
+    // Build metadata string from parts
+    function buildMetadata(idPrefix, title, subtitle) {
+      var result = idPrefix + title;
+      if (subtitle) {
+        result += '\n' + subtitle;
+      }
+      return result;
+    }
+
+    // Clean filename for display: remove extension, replace underscores/dashes with spaces
+    function cleanFilename(name) {
+      // Remove extension
+      var cleaned = name.replace(/\.[^.]+$/, '');
+      // Replace underscores and dashes with spaces
+      cleaned = cleaned.replace(/[_-]/g, ' ');
+      return cleaned;
+    }
+
+    // Extract filename from resource path
+    function getFilenameFromResource(resource) {
+      var parts = resource.split('/');
+      return parts[parts.length - 1];
+    }
+
+    // --- Load JSON ---
+
+    function processJSON(json, sourceName) {
+      galleryJSON = json;
+      imageEntries = [];
+
+      var roomKeys = Object.keys(json);
+      var roomCount = 0;
+
+      for (var r = 0; r < roomKeys.length; r++) {
+        var roomName = roomKeys[r];
+        var room = json[roomName];
+        if (roomName === 'Technical') continue;
+
+        var hasImages = false;
+        var entryKeys = Object.keys(room);
+        for (var e = 0; e < entryKeys.length; e++) {
+          var key = entryKeys[e];
+          var entry = room[key];
+          if (entry && entry.resource_type === 'image') {
+            var parsed = parseMetadata(entry.metadata);
+            imageEntries.push({
+              room: roomName,
+              key: key,
+              entry: entry,
+              idPrefix: parsed.idPrefix,
+              title: parsed.title,
+              subtitle: parsed.subtitle
+            });
+            hasImages = true;
+          }
+        }
+        if (hasImages) roomCount++;
+      }
+
+      // Update UI
+      loadedFileName.textContent = sourceName;
+      loadedFileCount.textContent = imageEntries.length + ' artworks in ' + roomCount + ' rooms';
+      loadedInfo.classList.remove('hidden');
+
+      statRooms.textContent = roomCount;
+      statArtworks.textContent = imageEntries.length;
+
+      batchSection.classList.remove('hidden');
+      editorSection.classList.remove('hidden');
+      exportSection.classList.remove('hidden');
+
+      // Mount and load gallery settings
+      settingsContainer.classList.remove('hidden');
+      GallerySettings.mount(settingsContainer);
+      GallerySettings.load(json.Technical);
+
+      renderImageList();
+      updateJSONPreview();
+    }
+
+    function loadFromFile(file) {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          var json = JSON.parse(e.target.result);
+          processJSON(json, file.name);
+        } catch (err) {
+          alert('Failed to parse JSON: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function loadFromURL(url) {
+      fetchBtn.disabled = true;
+      fetchBtn.textContent = 'Fetching...';
+      fetch(url)
+        .then(function(resp) {
+          if (!resp.ok) throw new Error('HTTP ' + resp.status);
+          return resp.json();
+        })
+        .then(function(json) {
+          var name = url.split('/').pop() || 'building_v2.json';
+          processJSON(json, name);
+        })
+        .catch(function(err) {
+          alert('Failed to fetch: ' + err.message);
+        })
+        .finally(function() {
+          fetchBtn.disabled = false;
+          fetchBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9"/></svg> Fetch';
+        });
+    }
+
+    // --- Event Listeners: Import ---
+
+    browseBtn.addEventListener('click', function() { fileInput.click(); });
+
+    fileInput.addEventListener('change', function(e) {
+      var files = Array.from(e.target.files);
+      if (files.length > 0) {
+        loadFromFile(files[0]);
+      }
+      fileInput.value = '';
+    });
+
+    fetchBtn.addEventListener('click', function() {
+      var url = urlInput.value.trim();
+      if (url) {
+        loadFromURL(url);
+      }
+    });
+
+    urlInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        var url = urlInput.value.trim();
+        if (url) {
+          loadFromURL(url);
+        }
+      }
+    });
+
+    // Drop zone
+    dropZone.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+
+    dropZone.addEventListener('dragleave', function() {
+      dropZone.classList.remove('drag-over');
+    });
+
+    dropZone.addEventListener('drop', function(e) {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      var files = Array.from(e.dataTransfer.files);
+      for (var i = 0; i < files.length; i++) {
+        if (files[i].name.endsWith('.json')) {
+          loadFromFile(files[i]);
+          return;
+        }
+      }
+      alert('Please drop a .json file.');
+    });
+
+    dropZone.addEventListener('click', function() {
+      fileInput.click();
+    });
+
+    // --- Render Image List ---
+
+    var imageSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
+    var roomSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>';
+
+    function renderImageList() {
+      imageList.innerHTML = '';
+
+      if (imageEntries.length === 0) {
+        imageList.innerHTML = '<div class="empty-state">No images found</div>';
+        return;
+      }
+
+      var currentRoom = null;
+
+      for (var i = 0; i < imageEntries.length; i++) {
+        var img = imageEntries[i];
+
+        // Room header
+        if (img.room !== currentRoom) {
+          currentRoom = img.room;
+          var roomImages = imageEntries.filter(function(x) { return x.room === currentRoom; });
+
+          var header = document.createElement('div');
+          header.className = 'room-header';
+
+          var headerIcon = document.createElement('div');
+          headerIcon.className = 'room-header-icon';
+          headerIcon.innerHTML = roomSvg;
+
+          var headerName = document.createElement('span');
+          headerName.className = 'room-header-name';
+          headerName.textContent = currentRoom;
+
+          var headerCount = document.createElement('span');
+          headerCount.className = 'room-header-count';
+          headerCount.textContent = roomImages.length + ' artworks';
+
+          header.appendChild(headerIcon);
+          header.appendChild(headerName);
+          header.appendChild(headerCount);
+          imageList.appendChild(header);
+        }
+
+        // Image row
+        var row = document.createElement('div');
+        row.className = 'image-row';
+
+        var thumb = document.createElement('div');
+        thumb.className = 'image-thumb';
+        thumb.innerHTML = imageSvg;
+
+        var keySpan = document.createElement('div');
+        keySpan.className = 'image-key';
+        keySpan.textContent = img.key;
+        keySpan.title = img.entry.resource || img.key;
+
+        var fields = document.createElement('div');
+        fields.className = 'image-fields';
+
+        var titleInput = document.createElement('input');
+        titleInput.type = 'text';
+        titleInput.placeholder = 'Title';
+        titleInput.value = img.title;
+        titleInput.dataset.index = i;
+        titleInput.dataset.field = 'title';
+
+        var subtitleInput = document.createElement('input');
+        subtitleInput.type = 'text';
+        subtitleInput.placeholder = 'Subtitle';
+        subtitleInput.value = img.subtitle;
+        subtitleInput.dataset.index = i;
+        subtitleInput.dataset.field = 'subtitle';
+
+        fields.appendChild(titleInput);
+        fields.appendChild(subtitleInput);
+
+        row.appendChild(thumb);
+        row.appendChild(keySpan);
+        row.appendChild(fields);
+        imageList.appendChild(row);
+      }
+
+      // Attach event listeners
+      var inputs = imageList.querySelectorAll('.image-fields input');
+      for (var j = 0; j < inputs.length; j++) {
+        inputs[j].addEventListener('input', onFieldChange);
+      }
+    }
+
+    function onFieldChange(e) {
+      var idx = parseInt(e.target.dataset.index);
+      var field = e.target.dataset.field;
+      var img = imageEntries[idx];
+
+      if (field === 'title') {
+        img.title = e.target.value;
+      } else if (field === 'subtitle') {
+        img.subtitle = e.target.value;
+      }
+
+      // Write back to JSON
+      img.entry.metadata = buildMetadata(img.idPrefix, img.title, img.subtitle);
+      updateJSONPreview();
+    }
+
+    // --- Batch Operations ---
+
+    batchTitleBtn.addEventListener('click', function() {
+      var newTitle = batchTitleInput.value;
+      for (var i = 0; i < imageEntries.length; i++) {
+        imageEntries[i].title = newTitle;
+        imageEntries[i].entry.metadata = buildMetadata(imageEntries[i].idPrefix, imageEntries[i].title, imageEntries[i].subtitle);
+      }
+      renderImageList();
+      updateJSONPreview();
+    });
+
+    batchSubtitleBtn.addEventListener('click', function() {
+      var newSubtitle = batchSubtitleInput.value;
+      for (var i = 0; i < imageEntries.length; i++) {
+        imageEntries[i].subtitle = newSubtitle;
+        imageEntries[i].entry.metadata = buildMetadata(imageEntries[i].idPrefix, imageEntries[i].title, imageEntries[i].subtitle);
+      }
+      renderImageList();
+      updateJSONPreview();
+    });
+
+    var moveTitlesToSubBtn = document.getElementById('moveTitlesToSubBtn');
+    moveTitlesToSubBtn.addEventListener('click', function() {
+      for (var i = 0; i < imageEntries.length; i++) {
+        var img = imageEntries[i];
+        if (img.title) {
+          img.subtitle = img.title;
+          img.title = '';
+          img.entry.metadata = buildMetadata(img.idPrefix, img.title, img.subtitle);
+        }
+      }
+      renderImageList();
+      updateJSONPreview();
+    });
+
+    resetFilenamesBtn.addEventListener('click', function() {
+      for (var i = 0; i < imageEntries.length; i++) {
+        var img = imageEntries[i];
+        var filename = getFilenameFromResource(img.entry.resource);
+        var cleaned = cleanFilename(filename);
+        img.title = cleaned;
+        img.subtitle = '';
+        img.entry.metadata = buildMetadata(img.idPrefix, img.title, img.subtitle);
+      }
+      renderImageList();
+      updateJSONPreview();
+    });
+
+    // --- Export ---
+
+    function updateJSONPreview() {
+      if (galleryJSON) {
+        jsonPreview.textContent = JSON.stringify(galleryJSON, null, 2);
+      }
+    }
+
+    downloadBtn.addEventListener('click', function() {
+      if (!galleryJSON) return;
+      // Merge gallery settings before export
+      if (galleryJSON.Technical) {
+        Object.assign(galleryJSON.Technical, GallerySettings.getValues());
+      }
+      var jsonStr = JSON.stringify(galleryJSON, null, 2);
+      var blob = new Blob([jsonStr], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'building_v2.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+  </script>
+</body>
+</html>

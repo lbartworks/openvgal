@@ -443,6 +443,11 @@ async function buildGalleryJSON(galleries, onProgress = null) {
     scaleFactor: galleryDist.geometry.itemMaxSize
   };
 
+  // Merge gallery settings if available
+  if (typeof GallerySettings !== 'undefined') {
+    Object.assign(building['Technical'], GallerySettings.getValues());
+  }
+
   if (onProgress) {
     onProgress(totalImages, totalImages, 'Done!');
   }

@@ -13,6 +13,7 @@ on:
       - 'site/openvgal-viewer.js'
       - 'site/babylon.js'
       - 'site/babylonjs.loaders.min.js'
+      - 'site/js/gallery-settings.js'
       - 'site/icons/**'
 jobs:
   deploy:
@@ -22,7 +23,8 @@ jobs:
 
       - name: Build CDN core
         run: |
-          mkdir -p cdn/core/icons
+          mkdir -p cdn/core/icons cdn/core/js
+          cp site/js/gallery-settings.js cdn/core/js/
           cp site/declarations.js cdn/core/
           cp site/room_builder_aux.js cdn/core/
           cp site/overlay.js cdn/core/

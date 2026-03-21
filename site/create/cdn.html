@@ -586,6 +586,9 @@
       </div>
     </div>
 
+    <!-- Gallery Settings -->
+    <div id="settings-container"></div>
+
     <!-- Step 2: Generate -->
     <div class="section">
       <div class="section-header">
@@ -678,11 +681,15 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="../js/gallery-settings.js"></script>
   <script src="../js/gallery-generator.js"></script>
   <script>
     // CDN Configuration
     const CDN_BASE = 'https://cdn.openvgal.com';
     window.openvgal_cdn_base = CDN_BASE;
+
+    // Mount gallery settings panel
+    GallerySettings.mount(document.getElementById('settings-container'));
 
     // State
     const galleries = [];
@@ -847,6 +854,7 @@
             return;
           }
           importedJSON = parsed;
+          GallerySettings.load(parsed.Technical);
           var roomCount = Object.keys(parsed).filter(function(k) { return k !== 'Technical' && k !== 'root'; }).length;
           importSummary.textContent = roomCount + ' room' + (roomCount !== 1 ? 's' : '') + ' imported';
           importInfo.style.display = 'flex';

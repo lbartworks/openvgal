@@ -490,6 +490,9 @@
       </div>
     </div>
 
+    <!-- Gallery Settings -->
+    <div id="settings-container"></div>
+
     <!-- Step 2: Generate -->
     <div class="section">
       <div class="section-header">
@@ -564,11 +567,15 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="../js/gallery-settings.js"></script>
   <script src="../js/gallery-generator.js"></script>
   <script>
     // CDN Configuration - templates and materials are served from Cloudflare CDN
     const CDN_BASE = 'https://cdn.openvgal.com';
     window.openvgal_cdn_base = CDN_BASE;
+
+    // Mount gallery settings panel
+    GallerySettings.mount(document.getElementById('settings-container'));
 
     // State
     const galleries = [];
@@ -816,7 +823,11 @@
         '../overlay.html',
         '../overlay.css',
         '../babylon.js',
-        '../babylonjs.loaders.min.js'
+        '../babylonjs.loaders.min.js',
+        '../icons/keyboard_move.png',
+        '../icons/keyboard_pan.png',
+        '../icons/touch_move.png',
+        '../icons/touch_pan.png'
       ];
 
       // Collect user images from fileMap
@@ -866,19 +877,25 @@
         var file = viewerFiles[i];
         try {
           var response = await fetch(file);
-          var content = await response.text();
-          // Strip ../ prefix for ZIP path
           var zipPath = file.replace(/^\.\.\//, '');
+          var isBinary = /\.(png|jpg|jpeg|gif|webp|glb)$/i.test(file);
 
-          // Modify viewer.html to set correct paths
-          if (zipPath === 'viewer.html') {
-            content = content.replace(
-              /window\.openvgal_location = '[^']*';/,
-              "window.openvgal_location = '.';"
-            );
+          if (isBinary) {
+            var blob = await response.blob();
+            zip.file(zipPath, blob);
+          } else {
+            var content = await response.text();
+
+            // Modify viewer.html to set correct paths
+            if (zipPath === 'viewer.html') {
+              content = content.replace(
+                /window\.openvgal_location = '[^']*';/,
+                "window.openvgal_location = '.';"
+              );
+            }
+
+            zip.file(zipPath, content);
           }
-
-          zip.file(zipPath, content);
           updateProgress('Fetched ' + zipPath);
         } catch (e) {
           var zipPath = file.replace(/^\.\.\//, '');

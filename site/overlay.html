@@ -17,6 +17,9 @@
     </div>
     <div class="overlay-section" id="help-section">
         <button class="help-button" onclick="toggleHelp()">Help</button>
+        <label style="display:flex;align-items:center;gap:0.4rem;margin-top:0.5rem;cursor:pointer;font-size:0.7rem;color:#ccc;">
+            <input type="checkbox" id="plaquesToggle" checked onchange="if(typeof togglePlaques==='function')togglePlaques(this)" style="accent-color:#818cf8;"> Plaques
+        </label>
     </div>
 </div>
 
