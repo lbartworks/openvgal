@@ -5,7 +5,7 @@
 var GallerySettings = (function() {
   var _mounted = false;
   var _state = {
-    show_plaques: true
+    show_plaques: false
   };
 
   function _injectStyles() {

@@ -137,6 +137,8 @@ var plaque_builder = function(name, item_position, item_size, vector, metadata, 
 
 	let existing_plaques = scene.getMeshByName('plaques');
 	if (existing_plaques) {
+		// Dispose the intermediate MultiMaterial before merge replaces it
+		if (existing_plaques.material) existing_plaques.material.dispose(false);
 		var merged_mesh = BABYLON.Mesh.MergeMeshes([existing_plaques, plaquePlane], true, false, undefined, false, true);
 		merged_mesh.name = "plaques";
 	} else {
@@ -178,7 +180,7 @@ var item_builder= function(name, item_position, item_size, vector, material,scen
 	if (material!=  undefined){
 		item.material=material;
 		item.material.specularColor=new BABYLON.Color3(0,0,0);
-		
+
 	}
 
 
@@ -249,6 +251,8 @@ function populate_template(config_file, room_name,scene){
 		items_material.maxSimultaneousLights=max_lights;
 		let tex=new BABYLON.Texture(window.resolveImageUrl(gallery[item]["resource"]), scene);
 		items_material.diffuseTexture=tex;
+		items_material.emissiveColor=new BABYLON.Color3(1, 1, 1);
+		items_material.disableLighting=true;
 
 		//get orientation
 		let orientation=JSON.parse(gallery[item]["vector"])
@@ -288,13 +292,19 @@ function populate_template(config_file, room_name,scene){
 	if (dict_items.length>0)	{
 		scene.getMeshByName("frames").createNormals(true);
 		scene.getMeshByName("frames").material=BJS_materials[frame_material];
+		scene.getMeshByName("frames").alwaysSelectAsActiveMesh=true;
+		let shadowMesh=scene.getMeshByName("shadows");
+		if (shadowMesh) shadowMesh.alwaysSelectAsActiveMesh=true;
 	} else {
 		reset_loadbar();
 	}
 
 	// Set plaque visibility from toggle state
 	var plaqueMesh = scene.getMeshByName("plaques");
-	if (plaqueMesh) plaqueMesh.isVisible = showPlaques;
+	if (plaqueMesh) {
+		plaqueMesh.isVisible = showPlaques;
+		plaqueMesh.alwaysSelectAsActiveMesh=true;
+	}
 	
 
 	
@@ -310,7 +320,7 @@ function populate_template(config_file, room_name,scene){
 			console.log("updating material " + mesh.material.name);
 			let temp_name=mesh.material.name;
 			mesh.material=BJS_materials[temp_name];
-			mesh.material.maxSimultaneousLights =max_lights;
+			mesh.alwaysSelectAsActiveMesh=true;
 		}
 		
 		if (regul_exp_door.test(mesh.name)){

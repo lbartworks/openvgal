@@ -11,11 +11,15 @@ on:
       - 'site/overlay.css'
       - 'site/overlay.html'
       - 'site/openvgal-viewer.js'
+      - 'site/openvgal-lighting.js'
       - 'site/babylon.js'
       - 'site/babylonjs.loaders.min.js'
       - 'site/js/gallery-settings.js'
+      - 'site/js/style-picker.js'
       - 'site/viewer.html'
       - 'site/icons/**'
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -26,12 +30,14 @@ jobs:
         run: |
           mkdir -p cdn/core/icons cdn/core/js
           cp site/js/gallery-settings.js cdn/core/js/
+          cp site/js/style-picker.js cdn/core/js/
           cp site/declarations.js cdn/core/
           cp site/room_builder_aux.js cdn/core/
           cp site/overlay.js cdn/core/
           cp site/overlay.css cdn/core/
           cp site/overlay.html cdn/core/
           cp site/openvgal-viewer.js cdn/core/
+          cp site/openvgal-lighting.js cdn/core/
           cp site/babylon.js cdn/core/
           cp site/babylonjs.loaders.min.js cdn/core/
           cp -r site/icons/* cdn/core/icons/
@@ -44,6 +50,7 @@ jobs:
             -e "s|src='declarations.js'|src='${CDN}/declarations.js'|" \
             -e "s|src='room_builder_aux.js'|src='${CDN}/room_builder_aux.js'|" \
             -e "s|src='openvgal-viewer.js'|src='${CDN}/openvgal-viewer.js'|" \
+            -e "s|src='openvgal-lighting.js'|src='${CDN}/openvgal-lighting.js'|" \
             -e "s|href=\"overlay.css\"|href=\"${CDN}/overlay.css\"|" \
             site/viewer.html > cdn/core/viewer.html
 

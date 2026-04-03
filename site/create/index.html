@@ -454,6 +454,9 @@
       <p>Add image folders, generate, download &mdash; everything runs in your browser</p>
     </div>
 
+    <!-- Style Picker -->
+    <div id="style-container"></div>
+
     <!-- Step 1: Add Folders -->
     <div class="section">
       <div class="section-header">
@@ -568,6 +571,7 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="../js/gallery-settings.js"></script>
+  <script src="../js/style-picker.js"></script>
   <script src="../js/gallery-generator.js"></script>
   <script>
     // CDN Configuration - templates and materials are served from Cloudflare CDN
@@ -576,6 +580,9 @@
 
     // Mount gallery settings panel
     GallerySettings.mount(document.getElementById('settings-container'));
+
+    // Mount style picker
+    StylePicker.mount(document.getElementById('style-container'), CDN_BASE);
 
     // State
     const galleries = [];
@@ -729,11 +736,13 @@
       resultSection.style.display = 'none';
 
       try {
+        var selectedStyle = StylePicker.getSelected();
+        var styleConfig = selectedStyle ? selectedStyle.config : null;
         generatedJSON = await buildGalleryJSON(galleries, function(current, total, message) {
           var percent = Math.round((current / total) * 100);
           progressFill.style.width = percent + '%';
           progressText.textContent = message;
-        });
+        }, styleConfig);
 
         // Build file map for preview blob URLs
         window.openvgal_fileMap = buildFileMap(galleries);
@@ -777,13 +786,24 @@
     async function createAndDownloadZip(config, onProgress) {
       var zip = new JSZip();
 
-      // Files to fetch from CDN
-      var cdnTemplates = [
-        'templates/T_root.glb',
-        'templates/T_small.glb',
-        'templates/T_pannels.glb',
-        'templates/T_nopannels.glb'
-      ];
+      // Templates from selected style (or fallback)
+      var selectedStyle = StylePicker.getSelected();
+      var cdnTemplates;
+      if (selectedStyle) {
+        cdnTemplates = [
+          'templates/' + selectedStyle.config.root.template
+        ];
+        selectedStyle.config.rooms.forEach(function(r) {
+          cdnTemplates.push('templates/' + r.template);
+        });
+      } else {
+        cdnTemplates = [
+          'templates/T_root.glb',
+          'templates/T_small.glb',
+          'templates/T_pannels.glb',
+          'templates/T_nopannels.glb'
+        ];
+      }
 
       var cdnMaterials = [
         'materials/BJS_white.json',

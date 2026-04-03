@@ -539,6 +539,9 @@
       <p>Tiny deployment package &mdash; code loads from CDN, updates automatically</p>
     </div>
 
+    <!-- Style Picker -->
+    <div id="style-container"></div>
+
     <!-- Step 1: Add Folders -->
     <div class="section">
       <div class="section-header">
@@ -682,6 +685,7 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="../js/gallery-settings.js"></script>
+  <script src="../js/style-picker.js"></script>
   <script src="../js/gallery-generator.js"></script>
   <script>
     // CDN Configuration
@@ -690,6 +694,9 @@
 
     // Mount gallery settings panel
     GallerySettings.mount(document.getElementById('settings-container'));
+
+    // Mount style picker
+    StylePicker.mount(document.getElementById('style-container'), CDN_BASE);
 
     // State
     const galleries = [];
@@ -855,6 +862,11 @@
           }
           importedJSON = parsed;
           GallerySettings.load(parsed.Technical);
+          // Infer style from root template
+          if (parsed.root && parsed.root.template) {
+            var inferredStyle = StylePicker.inferStyleFromTemplate(parsed.root.template);
+            StylePicker.selectStyle(inferredStyle);
+          }
           var roomCount = Object.keys(parsed).filter(function(k) { return k !== 'Technical' && k !== 'root'; }).length;
           importSummary.textContent = roomCount + ' room' + (roomCount !== 1 ? 's' : '') + ' imported';
           importInfo.style.display = 'flex';
@@ -887,12 +899,15 @@
           progressText.textContent = message;
         };
 
+        var selectedStyle = StylePicker.getSelected();
+        var styleConfig = selectedStyle ? selectedStyle.config : null;
+
         if (importedJSON && galleries.length > 0) {
-          generatedJSON = await extendGalleryJSON(importedJSON, galleries, progressCB);
+          generatedJSON = await extendGalleryJSON(importedJSON, galleries, progressCB, styleConfig);
         } else if (importedJSON) {
           generatedJSON = JSON.parse(JSON.stringify(importedJSON));
         } else {
-          generatedJSON = await buildGalleryJSON(galleries, progressCB);
+          generatedJSON = await buildGalleryJSON(galleries, progressCB, styleConfig);
         }
 
         window.openvgal_fileMap = buildFileMap(galleries);
@@ -952,7 +967,7 @@
      * Extend an existing building_v2.json with new gallery rooms.
      * Preserves all existing rooms, doors, and metadata.
      */
-    async function extendGalleryJSON(existingJSON, newGalleries, onProgress) {
+    async function extendGalleryJSON(existingJSON, newGalleries, onProgress, styleConfig) {
       // Deep clone
       var building = JSON.parse(JSON.stringify(existingJSON));
 
@@ -984,6 +999,7 @@
       var lastRoom = leafRooms.length > 0 ? leafRooms[leafRooms.length - 1] : 'root';
 
       // Gallery capacity
+      var templates = styleConfig ? styleConfig.templates : null;
       var galleryDist = new GalleryWithOptionalPanels();
       var maxItems = galleryDist.maxCapacity();
 
@@ -1028,7 +1044,7 @@
 
         while (itemsLeft > 0) {
           var itemsForThis = Math.min(itemsLeft, maxItems);
-          var galleryManager = createGalleryManager(itemsForThis);
+          var galleryManager = createGalleryManager(itemsForThis, 25, templates);
           var layout = galleryManager.solveGallery(itemsForThis);
 
           var galleryName = subGalleryIndex === 0

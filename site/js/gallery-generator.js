@@ -213,11 +213,11 @@ class GalleryWithOptionalPanels {
     // Determine template based on configuration
     let template;
     if (this.geometry.panelLength === 0) {
-      template = 'T_small.glb';
+      template = this._templateSmall || 'T_small.glb';
     } else if (this.panelsOff) {
-      template = 'T_nopannels.glb';
+      template = this._templateNopannels || 'T_nopannels.glb';
     } else {
-      template = 'T_pannels.glb';
+      template = this._templatePannels || 'T_pannels.glb';
     }
 
     return { positions, vectors, template };
@@ -227,11 +227,19 @@ class GalleryWithOptionalPanels {
 /**
  * Factory function to create appropriate gallery based on item count
  */
-function createGalleryManager(itemCount, smallThreshold = 25) {
-  if (itemCount > smallThreshold) {
-    return new GalleryWithOptionalPanels(30, 60, 15);
+function createGalleryManager(itemCount, smallThreshold = 25, templates = null) {
+  const manager = itemCount > smallThreshold
+    ? new GalleryWithOptionalPanels(30, 60, 15)
+    : new GalleryWithOptionalPanels(30, 30, 0);
+
+  // Override template names from style
+  if (templates) {
+    if (templates.small) manager._templateSmall = templates.small;
+    if (templates.nopannels) manager._templateNopannels = templates.nopannels;
+    if (templates.pannels) manager._templatePannels = templates.pannels;
   }
-  return new GalleryWithOptionalPanels(30, 30, 0);
+
+  return manager;
 }
 
 /**
@@ -307,16 +315,19 @@ function groupFilesByFolder(files) {
  * @param {Function} onProgress - Progress callback (current, total, message)
  * @returns {Object} The building_v2.json structure
  */
-async function buildGalleryJSON(galleries, onProgress = null) {
+async function buildGalleryJSON(galleries, onProgress = null, styleConfig = null) {
   const building = {};
   let uniqueId = 0;
 
   // Create root gallery
+  const rootTemplate = styleConfig ? styleConfig.root : 'T_root.glb';
   building['root'] = {
     parent: 'none',
     resource: 'root.glb',
-    template: 'T_root.glb'
+    template: rootTemplate
   };
+
+  const templates = styleConfig ? styleConfig.templates : null;
 
   const totalImages = galleries.reduce((sum, g) => sum + g.files.length, 0);
   let processedImages = 0;
@@ -364,7 +375,7 @@ async function buildGalleryJSON(galleries, onProgress = null) {
 
     while (itemsLeft > 0) {
       const itemsForThisGallery = Math.min(itemsLeft, maxItems);
-      const galleryManager = createGalleryManager(itemsForThisGallery);
+      const galleryManager = createGalleryManager(itemsForThisGallery, 25, templates);
       const { positions, vectors, template } = galleryManager.solveGallery(itemsForThisGallery);
 
       // Gallery naming: "gallery" or "gallery#1", "gallery#2" for overflow

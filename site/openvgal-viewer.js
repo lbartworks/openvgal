@@ -2,7 +2,7 @@
 	const debug_scene=false;
 	const margin=0.2; 			//frame margin
 	const item_separation=0.05; 	//separation from the wall
-	const max_lights=7;
+	const max_lights=14;
 
 
 
@@ -168,17 +168,26 @@
 			}
 
 
-			var light0 = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
-			var light00 = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, -1, 0), scene);
-
-			light0.intensity=config_file_content["Technical"]["ambientLight"];
-			light00.intensity=config_file_content["Technical"]["ambientLight"]/2;
-
+			// Lighting managed by openvgal-lighting.js
+			initGalleryLighting(scene, config_file_content);
 
 			scene.clearColor = new BABYLON.Color3(0.2, 0.3, 0.4);
 			if (debug_scene) {
 				scene.debugLayer.show();
 				}
+
+			// Ctrl+Shift+D toggles the Babylon.js Inspector
+			window.addEventListener("keydown", function (e) {
+				if (e.ctrlKey && e.shiftKey && e.key === "D") {
+					e.preventDefault();
+					if (scene.debugLayer.isVisible()) {
+						scene.debugLayer.hide();
+					} else {
+						scene.debugLayer.show();
+					}
+				}
+			});
+
             return scene;
         }
 
@@ -200,8 +209,12 @@
 
 					var keepAssets = new BABYLON.KeepAssets();
 					keepAssets.cameras.push(scene.cameras[0]);
-					keepAssets.lights.push(scene.lights[0]);
-					keepAssets.lights.push(scene.lights[1]);
+					// Keep ambient lights (managed by openvgal-lighting.js)
+					scene.lights.forEach(function(l) {
+						if (l.name === 'hemiLight_up' || l.name === 'hemiLight_down') {
+							keepAssets.lights.push(l);
+						}
+					});
 
 
 					for (const material in BJS_materials){
@@ -238,21 +251,14 @@
 						console.log("loading full glb for gallery " + current_gallery);
 						let temp_assetcontainer=await loadAsset(glb_file, scene);
 						temp_assetcontainer.addAllToScene();
+						setupRoomLighting(scene, config_file_content);
+						freezeGalleryMaterials();
 					} else {
 							glb_file=config_file_content[current_gallery]["template"];
 							//template
 							console.log("Loading template glb for gallery " + current_gallery);
 							let temp_assetcontainer=await loadAsset(glb_file, scene);
 							temp_assetcontainer.addAllToScene();
-
-							//set light intensities
-							scene.lights.forEach(light => {
-								if (light.name.startsWith("pointLight")) {
-
-									light.intensity=config_file_content["Technical"]["pointLight"];
-								}
-							});
-
 
 							// check BJS materials
 							const n_meshes=scene.meshes.length-1;
@@ -264,7 +270,6 @@
 									if (BJS_materials[name]== undefined){
 										BJS_materials[name] = await loadNodeMaterial('r' + name, materials_folder + '/' + name + '.json', scene);
 										console.log("material " + name + " loaded");
-										BJS_materials[name].freeze();
 									}
 								}
 								percentLoaded_materials=Math.round((i/n_meshes)*100);
@@ -277,8 +282,15 @@
 								BJS_materials[frame_material] = await loadNodeMaterial('r' + frame_material, materials_folder + '/' + frame_material + '.json', scene);
 								console.log("material " + frame_material + " loaded");
 							}
+							if (BJS_materials["BJS_black_metal"]==undefined){
+								BJS_materials["BJS_black_metal"] = await loadNodeMaterial('rBJS_black_metal', materials_folder + '/BJS_black_metal.json', scene);
+								console.log("material BJS_black_metal loaded");
+							}
+							// Room lighting setup first — rect lights must exist before materials are assigned to meshes
+							setupRoomLighting(scene, config_file_content);
 							populate_template(config_file_content, current_gallery, scene);
 							console.log("template populated");
+							freezeGalleryMaterials();
 					}
 
 
@@ -286,6 +298,8 @@
 				} else {
 					galleries[current_gallery]._wasAddedToScene=false;
 					galleries[current_gallery].addAllToScene();
+					setupRoomLighting(scene, config_file_content);
+					freezeGalleryMaterials();
 
 					// Sync plaque visibility with toggle after restoring cached room
 					var _pt = document.getElementById('plaquesToggle');
@@ -305,7 +319,7 @@
 					mesh.checkCollisions = true;
 					if (regul_exp_door.test(mesh.name)){
 						gallery_doors.push(mesh.name);
-					} else if (regul_exp_artworks.test(mesh.name))
+					} else if (regul_exp_artworks.test(mesh.name) && !mesh.name.startsWith('Occupancy_') && !mesh.name.startsWith('F_') && mesh.name !== 'door_title')
 						gallery_artworks.push(mesh.name);
 					});
 

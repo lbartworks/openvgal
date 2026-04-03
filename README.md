@@ -1,6 +1,6 @@
 https://github.com/lbartworks/openvgal/assets/121262093/517b6b67-7a87-4f2c-8166-b5c9314ff9e9
 
-# OpenVGAL v3.2
+# OpenVGAL v3.3
 
 Open-source 3D virtual gallery platform built on [Babylon.js](https://www.babylonjs.com/). Create interactive WebGL art galleries from your images, download a ZIP, host it anywhere.
 
@@ -50,6 +50,8 @@ Replace `materials/logo.png` in the ZIP with your own image. Use white artwork o
 - **Browser-based generator.** No more Python, no more executables. Everything runs in the browser at [openvgal.com/create](https://openvgal.com/create).
 - **Self-contained ZIP output.** The generated ZIP includes all assets. Drop it on a web server and it works. No CDN dependency, no external calls.
 - **CDN-first mode.** A lightweight alternative: the ZIP contains only the JSON config and your images. Templates, materials, viewer code, and Babylon.js load from [cdn.openvgal.com](https://cdn.openvgal.com) at runtime. Smaller ZIPs, and your galleries automatically pick up viewer updates.
+- **Gallery styles.** Choose between Classic, Minimalist, and Dark gallery styles. Each style provides a coordinated set of templates (root, rooms with panels, rooms without panels, small rooms) with matching materials and lighting. Select a style in the generator before building.
+- **Template-driven lighting.** Templates embed lighting configuration directly in the GLB file. Empty objects named `ambientLightUp_I{value}` and `ambientLightDown_I{value}` control ambient light intensity per template. Fixture meshes named `F_N_dx_dy_dz_I{value}` define RectAreaLights — position, direction, and intensity are all read from the mesh name and bounding box. This lets each style (e.g. Dark) define its own lighting atmosphere without any code changes.
 - **Metadata editor.** A dedicated tool at [openvgal.com/create/editor](https://openvgal.com/create/editor.html) for editing artwork titles and subtitles. Import an existing `building_v2.json`, batch-edit or per-image edit metadata, and export the updated file.
 - **Gallery map.** A visual overview of all rooms in a gallery. Click any room card to jump directly to it. Shows a thumbnail from the first artwork and the artwork count per room.
 - **Artwork plaques.** Museum-style labels rendered below each artwork showing title and subtitle. Toggle them on or off from the viewer overlay or the generator settings.
@@ -92,13 +94,16 @@ The main web application:
 - `js/gallery-generator.js` -- Layout algorithm (ported from Python)
 - `js/gallery-settings.js` -- Gallery-wide settings (plaques, etc.)
 - `room_builder_aux.js` -- Room building, item placement, plaque rendering
+- `openvgal-lighting.js` -- Lighting system: ambient lights, RectAreaLights from template fixtures
+- `js/style-picker.js` -- Style selection UI for the generator
 - `declarations.js` -- Asset path configuration
 - `overlay.js`, `overlay.html`, `overlay.css` -- Viewer UI (artwork info, navigation help, automatic tour, plaques toggle)
 
 ### cdn/
 
 Static assets served with CORS headers. CI builds `core/` at deploy time from `site/` files (viewer scripts, overlay, icons, Babylon.js).
-- `templates/` -- GLB room templates (T_root, T_root_classic, T_pannels, T_nopannels, T_small)
+- `templates/` -- GLB room templates in three styles: Classic (T_root, T_pannels, T_nopannels, T_small), Minimalist (_minimalist variants), Dark (_dark variants)
+- `styles/` -- Style definitions (styles.json) and thumbnails
 - `materials/` -- Babylon.js node material JSONs, PBR textures, logo, shadow
 - `core/` -- (built by CI, not in repo) Viewer scripts, overlay, icons, Babylon.js
 - `_headers` -- CORS configuration
@@ -131,7 +136,13 @@ Note: the `file://` protocol will not work in Chrome due to cross-origin iframe 
 
 ## Changelog
 
+**v3.3 (March 2026)**
+- Gallery styles: Classic, Minimalist, and Dark — each with coordinated templates, materials, and lighting
+- Template-driven lighting: ambient levels and RectAreaLight fixtures defined in GLB files via named empties/meshes
+
 **v3.2 (March 2026)**
+- Gallery styles: Classic, Minimalist, and Dark — each with coordinated templates, materials, and lighting
+- Template-driven lighting: ambient levels and RectAreaLight fixtures defined in GLB files via named empties/meshes
 - CDN-first mode for lightweight ZIPs with automatic viewer updates
 - Metadata editor for artwork titles and subtitles
 - Gallery map for visual room navigation
