@@ -1,10 +1,11 @@
 /**
  * OpenVGAL Style Picker
  * Horizontal carousel for selecting gallery styles.
- * Fetches styles.json from CDN, renders cards, exposes getSelected().
+ * Fetches catalog.json from CDN, renders cards from catalog.styles.
  */
 var StylePicker = (function() {
   var _styles = null;
+  var _catalog = null;
   var _selectedKey = 'classic';
   var _container = null;
   var _carousel = null;
@@ -128,7 +129,7 @@ var StylePicker = (function() {
     if (data.thumbnail) {
       var img = document.createElement('img');
       var cdnBase = window.openvgal_cdn_base || '';
-      img.src = cdnBase + '/styles/' + data.thumbnail;
+      img.src = cdnBase + '/templates/' + data.thumbnail;
       img.alt = data.name;
       img.onerror = function() {
         preview.innerHTML = '<div class="sp-placeholder">' + data.name + '</div>';
@@ -160,9 +161,9 @@ var StylePicker = (function() {
 
     var tags = document.createElement('div');
     tags.className = 'sp-tags';
-    var templateCount = data.templates ? Object.keys(data.templates).length : 0;
+    var roomCount = data.glbs ? Object.keys(data.glbs).length : 0;
     tags.innerHTML =
-      '<span class="sp-tag">' + templateCount + ' room type' + (templateCount !== 1 ? 's' : '') + '</span>';
+      '<span class="sp-tag">' + roomCount + ' room type' + (roomCount !== 1 ? 's' : '') + '</span>';
 
     info.appendChild(name);
     info.appendChild(desc);
@@ -273,24 +274,30 @@ var StylePicker = (function() {
     _container = containerEl;
 
     var base = cdnBase || window.openvgal_cdn_base || '';
-    var url = base + '/styles/styles.json';
+    var url = base + '/templates/catalog.json';
 
     var xhr = new XMLHttpRequest();
     xhr.open('GET', url, true);
     xhr.onload = function() {
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
-          _styles = JSON.parse(xhr.responseText);
+          _catalog = JSON.parse(xhr.responseText);
+          _styles = _catalog.styles || {};
+          // Fall back to first key if 'classic' isn't in the catalog.
+          if (!_styles[_selectedKey]) {
+            var firstKey = Object.keys(_styles)[0];
+            if (firstKey) _selectedKey = firstKey;
+          }
           _render();
         } catch (e) {
-          console.warn('StylePicker: failed to parse styles.json', e);
+          console.warn('StylePicker: failed to parse catalog.json', e);
         }
       } else {
-        console.warn('StylePicker: failed to fetch styles.json (' + xhr.status + ')');
+        console.warn('StylePicker: failed to fetch catalog.json (' + xhr.status + ')');
       }
     };
     xhr.onerror = function() {
-      console.warn('StylePicker: network error fetching styles.json');
+      console.warn('StylePicker: network error fetching catalog.json');
     };
     xhr.send();
   }
@@ -298,6 +305,10 @@ var StylePicker = (function() {
   function getSelected() {
     if (!_styles || !_styles[_selectedKey]) return null;
     return { key: _selectedKey, config: _styles[_selectedKey] };
+  }
+
+  function getCatalog() {
+    return _catalog;
   }
 
   function selectStyle(key) {
@@ -325,6 +336,7 @@ var StylePicker = (function() {
   return {
     mount: mount,
     getSelected: getSelected,
+    getCatalog: getCatalog,
     selectStyle: selectStyle,
     inferStyleFromTemplate: inferStyleFromTemplate
   };

@@ -538,6 +538,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
           Preview
         </button>
+        <button class="btn btn-default" id="customizeBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          Customize
+        </button>
         <button class="btn btn-primary" id="downloadZipBtn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
           Download ZIP
@@ -546,6 +550,8 @@
           JSON only
         </button>
       </div>
+
+      <div id="customize-host" hidden></div>
 
       <div class="progress-container" id="zipProgressContainer" style="display: none;">
         <div class="progress-bar">
@@ -573,9 +579,16 @@
   <script src="../js/gallery-settings.js"></script>
   <script src="../js/style-picker.js"></script>
   <script src="../js/gallery-generator.js"></script>
+  <script src="../js/gallery-page.js"></script>
   <script>
-    // CDN Configuration - templates and materials are served from Cloudflare CDN
-    const CDN_BASE = 'https://cdn.openvgal.com';
+    // CDN Configuration - templates and materials are served from Cloudflare CDN.
+    // Dev mode (?dev=1): pull templates/materials from local /cdn instead.
+    // Usage: from repo root run `python -m http.server 8080`, open
+    //   http://localhost:8080/site/create/index.html?dev=1
+    // The preview iframe inherits openvgal_cdn_base from window.parent (viewer.html).
+    const CDN_BASE = new URLSearchParams(window.location.search).get('dev') === '1'
+      ? '/cdn'
+      : 'https://cdn.openvgal.com';
     window.openvgal_cdn_base = CDN_BASE;
 
     // Mount gallery settings panel
@@ -608,126 +621,12 @@
     const zipProgressFill = document.getElementById('zipProgressFill');
     const zipProgressText = document.getElementById('zipProgressText');
 
-    // Drag-and-drop: recursively read all files from a dropped directory
-    async function readAllFiles(dirEntry, basePath) {
-      const results = [];
-      const reader = dirEntry.createReader();
-      const readBatch = function() {
-        return new Promise(function(resolve, reject) {
-          reader.readEntries(resolve, reject);
-        });
-      };
-      var entries;
-      do {
-        entries = await readBatch();
-        for (var i = 0; i < entries.length; i++) {
-          var entry = entries[i];
-          if (entry.isFile) {
-            var file = await new Promise(function(resolve, reject) { entry.file(resolve, reject); });
-            results.push({ file: file, folderPath: basePath, folderName: basePath.split('/').pop() });
-          } else if (entry.isDirectory) {
-            var subResults = await readAllFiles(entry, basePath + '/' + entry.name);
-            results.push.apply(results, subResults);
-          }
-        }
-      } while (entries.length > 0);
-      return results;
-    }
-
-    async function addDroppedFolder(dirEntry) {
-      var allFiles = await readAllFiles(dirEntry, dirEntry.name);
-      // Group by immediate parent folder
-      var groups = {};
-      for (var i = 0; i < allFiles.length; i++) {
-        var item = allFiles[i];
-        if (!groups[item.folderPath]) {
-          groups[item.folderPath] = { name: item.folderName, path: item.folderPath, files: [] };
-        }
-        groups[item.folderPath].files.push(item.file);
-      }
-      var keys = Object.keys(groups);
-      for (var k = 0; k < keys.length; k++) {
-        var group = groups[keys[k]];
-        var imageFiles = filterImageFiles(group.files);
-        if (imageFiles.length > 0) {
-          var exists = galleries.some(function(g) { return g.path === group.path; });
-          if (!exists) {
-            galleries.push({
-              name: group.name,
-              folderName: group.name,
-              path: group.path,
-              files: imageFiles
-            });
-          }
-        }
-      }
-    }
-
-    // Drop zone
-    var dropZone = document.getElementById('dropZone');
-
-    dropZone.addEventListener('dragover', function(e) {
-      e.preventDefault();
-      dropZone.classList.add('drag-over');
-    });
-
-    dropZone.addEventListener('dragleave', function() {
-      dropZone.classList.remove('drag-over');
-    });
-
-    dropZone.addEventListener('drop', async function(e) {
-      e.preventDefault();
-      dropZone.classList.remove('drag-over');
-      // Collect all entries synchronously before any async work,
-      // because DataTransfer is invalidated after the first await
-      var items = Array.from(e.dataTransfer.items);
-      var entries = [];
-      for (var i = 0; i < items.length; i++) {
-        var entry = items[i].webkitGetAsEntry();
-        if (entry && entry.isDirectory) {
-          entries.push(entry);
-        }
-      }
-      for (var i = 0; i < entries.length; i++) {
-        await addDroppedFolder(entries[i]);
-      }
-      updateGalleryList();
-    });
-
-    // Also allow clicking the drop zone to browse
-    dropZone.addEventListener('click', function() {
-      folderInput.click();
-    });
-
-    // Event Listeners
-    addFolderBtn.addEventListener('click', function() { folderInput.click(); });
-
-    folderInput.addEventListener('change', function(e) {
-      var files = Array.from(e.target.files);
-      if (files.length === 0) return;
-
-      // Group files by their immediate parent folder
-      var grouped = groupFilesByFolder(files);
-
-      // Filter to only folders with images
-      grouped.forEach(function(group) {
-        var imageFiles = filterImageFiles(group.files);
-        if (imageFiles.length > 0) {
-          // Check if folder already added
-          var exists = galleries.some(function(g) { return g.path === group.path; });
-          if (!exists) {
-            galleries.push({
-              name: group.name,
-              folderName: group.name,
-              path: group.path,
-              files: imageFiles
-            });
-          }
-        }
-      });
-
-      updateGalleryList();
-      folderInput.value = ''; // Reset for next selection
+    GalleryPage.setupDropZone({
+      dropZone: document.getElementById('dropZone'),
+      folderInput: folderInput,
+      addFolderBtn: addFolderBtn,
+      galleries: galleries,
+      onChange: function() { updateGalleryList(); }
     });
 
     generateBtn.addEventListener('click', async function() {
@@ -760,12 +659,18 @@
     downloadBtn.addEventListener('click', function() {
       if (generatedJSON) {
         downloadJSON(generatedJSON);
+        GalleryPage.openReadyPage(generatedJSON);
       }
     });
 
     // ZIP Download - bundles everything needed to deploy
     downloadZipBtn.addEventListener('click', async function() {
       if (!generatedJSON) return;
+
+      // Open the ready page synchronously inside the click stack so mobile
+      // browsers don't treat it as a deferred popup. Keeps tab order: download
+      // triggers right after, ZIP creation continues asynchronously.
+      GalleryPage.openReadyPage(generatedJSON);
 
       downloadZipBtn.disabled = true;
       zipProgressContainer.style.display = 'block';
@@ -789,12 +694,11 @@
       // Templates from selected style (or fallback)
       var selectedStyle = StylePicker.getSelected();
       var cdnTemplates;
-      if (selectedStyle) {
-        cdnTemplates = [
-          'templates/' + selectedStyle.config.root.template
-        ];
-        selectedStyle.config.rooms.forEach(function(r) {
-          cdnTemplates.push('templates/' + r.template);
+      if (selectedStyle && selectedStyle.config) {
+        cdnTemplates = ['templates/' + selectedStyle.config.root];
+        var glbs = selectedStyle.config.glbs || {};
+        Object.keys(glbs).forEach(function(shape) {
+          cdnTemplates.push('templates/' + glbs[shape]);
         });
       } else {
         cdnTemplates = [
@@ -1029,66 +933,99 @@
       onProgress(100, 'Download complete!');
     }
 
-    previewBtn.addEventListener('click', function() {
-      if (generatedJSON && window.openvgal_fileMap) {
-        // Create blob URLs in this window's context
-        window.openvgal_blobUrls = {};
-        var entries = Object.entries(window.openvgal_fileMap);
-        for (var i = 0; i < entries.length; i++) {
-          window.openvgal_blobUrls[entries[i][0]] = URL.createObjectURL(entries[i][1]);
-        }
+    // --- Customize editor: lazy-loaded fragment + module ---
+    var customizeBtn = document.getElementById('customizeBtn');
+    var customizeHost = document.getElementById('customize-host');
+    var _czApi = null;
+    var _czFragmentLoaded = false;
+    // Top-level sections to toggle while the editor is open.
+    var _czHiddenEls = function() {
+      return [
+        document.getElementById('style-container'),
+        document.querySelectorAll('.section')[0], // Add gallery rooms
+        document.getElementById('settings-container'),
+        generateBtn.closest('.section'), // Generate (index drifts once GallerySettings injects its own .section)
+        resultSection
+      ].filter(Boolean);
+    };
 
-        // Store config for iframe
-        window.openvgal_config = generatedJSON;
-
-        // Show fullscreen iframe preview
-        showPreviewIframe();
+    function _czHideOthers(hide) {
+      _czHiddenEls().forEach(function(el) {
+        if (el === resultSection) return; // keep result section so host stays mounted
+        el.style.display = hide ? 'none' : '';
+      });
+      // Within result section, hide everything except the customize host while editing.
+      var resultChildren = resultSection.children;
+      for (var i = 0; i < resultChildren.length; i++) {
+        var c = resultChildren[i];
+        if (c.id === 'customize-host') continue;
+        c.style.display = hide ? 'none' : '';
       }
-    });
-
-    function showPreviewIframe() {
-      // Create overlay
-      var overlay = document.createElement('div');
-      overlay.id = 'previewOverlay';
-      overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:9999;';
-
-      // Close button
-      var closeBtn = document.createElement('button');
-      closeBtn.textContent = 'Close Preview';
-      closeBtn.style.cssText = 'position:absolute;top:12px;right:12px;z-index:10000;padding:8px 20px;background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:6px;cursor:pointer;font-size:14px;font-family:Inter,sans-serif;transition:background 0.2s;';
-      closeBtn.onmouseover = function() { closeBtn.style.background = 'rgba(255,255,255,0.2)'; };
-      closeBtn.onmouseout = function() { closeBtn.style.background = 'rgba(255,255,255,0.1)'; };
-      closeBtn.onclick = function() {
-        overlay.remove();
-        // Revoke blob URLs
-        if (window.openvgal_blobUrls) {
-          Object.values(window.openvgal_blobUrls).forEach(function(url) { URL.revokeObjectURL(url); });
-        }
-      };
-
-      // Create iframe
-      var iframe = document.createElement('iframe');
-      iframe.style.cssText = 'width:100%;height:100%;border:none;';
-      iframe.src = '../viewer.html?preview=iframe';
-
-      overlay.appendChild(closeBtn);
-      overlay.appendChild(iframe);
-      document.body.appendChild(overlay);
     }
 
-    window.addEventListener('beforeunload', function(e) {
-      if (previewWindow && !previewWindow.closed) {
-        e.preventDefault();
+    customizeBtn.addEventListener('click', async function() {
+      if (!generatedJSON) return;
+      try {
+        if (!_czFragmentLoaded) {
+          var resp = await fetch('./customize.html');
+          if (!resp.ok) throw new Error('Failed to load customize.html');
+          customizeHost.innerHTML = await resp.text();
+          _czFragmentLoaded = true;
+        }
+        // Hide upload UI and result actions; show host.
+        _czHideOthers(true);
+        customizeHost.hidden = false;
+
+        var mod = await import('./customize.js');
+        var selectedStyleForCustomize = StylePicker.getSelected();
+        _czApi = mod.mountCustomize(customizeHost, {
+          config: generatedJSON,
+          fileMap: window.openvgal_fileMap || {},
+          styleConfig: selectedStyleForCustomize ? selectedStyleForCustomize.config : null,
+          cdnBase: CDN_BASE
+        });
+        _czApi.onApply(function() {
+          // Commit edits back into generatedJSON so subsequent preview/save use them.
+          generatedJSON = _czApi.getEdited();
+          jsonPreview.textContent = JSON.stringify(generatedJSON, null, 2);
+          _czApi.unmount();
+          _czApi = null;
+          _czFragmentLoaded = false; // unmount cleared host innerHTML; re-fetch next time
+          customizeHost.hidden = true;
+          _czHideOthers(false);
+        });
+        _czApi.onCancel(function() {
+          _czApi.unmount();
+          _czApi = null;
+          _czFragmentLoaded = false;
+          customizeHost.hidden = true;
+          _czHideOthers(false);
+        });
+      } catch (e) {
+        console.error('Customize failed:', e);
+        alert('Could not open customize: ' + e.message);
+        _czHideOthers(false);
+        customizeHost.hidden = true;
       }
     });
 
-    // SVG icon for gallery items
-    var folderSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>';
-    var removeSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>';
+    GalleryPage.setupPreview({
+      previewBtn: previewBtn,
+      getJSON: function() { return generatedJSON; },
+      getFileMap: function() { return window.openvgal_fileMap; }
+    });
 
-    // Functions
+    // Any change to the source folder list invalidates a previously-built gallery:
+    // the result section's preview/customize/download buttons would still operate
+    // on the old JSON. Hide the result section and force the user to rebuild.
+    function markResultStaleIfGenerated() {
+      if (!generatedJSON) return;
+      generatedJSON = null;
+      GalleryPage.clearStaleResultUI(resultSection);
+    }
+
     function updateGalleryList() {
-      // Clear existing items (except empty state)
+      markResultStaleIfGenerated();
       var items = galleryList.querySelectorAll('.gallery-item');
       items.forEach(function(item) { item.remove(); });
 
@@ -1101,89 +1038,16 @@
       emptyState.style.display = 'none';
       generateBtn.disabled = false;
 
-      // Add gallery items
-      galleries.forEach(function(gallery, index) {
-        var item = document.createElement('div');
-        item.className = 'gallery-item';
-        // Build gallery item with DOM APIs to avoid innerHTML XSS with user folder names
-        var iconDiv = document.createElement('div');
-        iconDiv.className = 'gallery-icon';
-        iconDiv.innerHTML = folderSvg;
-
-        var nameInput = document.createElement('input');
-        nameInput.type = 'text';
-        nameInput.className = 'gallery-name-input';
-        nameInput.value = gallery.name;
-        nameInput.dataset.index = index;
-        nameInput.placeholder = 'Room name';
-
-        var folderDiv = document.createElement('div');
-        folderDiv.className = 'gallery-folder';
-        folderDiv.textContent = gallery.folderName;
-
-        var detailsDiv = document.createElement('div');
-        detailsDiv.className = 'gallery-details';
-        detailsDiv.appendChild(nameInput);
-        detailsDiv.appendChild(folderDiv);
-
-        var countSpan = document.createElement('span');
-        countSpan.className = 'gallery-count';
-        countSpan.textContent = gallery.files.length + ' images';
-
-        var removeBtn = document.createElement('button');
-        removeBtn.className = 'gallery-remove';
-        removeBtn.dataset.index = index;
-        removeBtn.title = 'Remove';
-        removeBtn.innerHTML = removeSvg;
-
-        item.appendChild(iconDiv);
-        item.appendChild(detailsDiv);
-        item.appendChild(countSpan);
-        item.appendChild(removeBtn);
-        galleryList.appendChild(item);
-      });
-
-      // Add name change handlers
-      galleryList.querySelectorAll('.gallery-name-input').forEach(function(input) {
-        input.addEventListener('change', function(e) {
-          var index = parseInt(e.target.dataset.index);
-          galleries[index].name = e.target.value.trim() || galleries[index].folderName;
-        });
-      });
-
-      // Add remove handlers
-      galleryList.querySelectorAll('.gallery-remove').forEach(function(btn) {
-        btn.addEventListener('click', function(e) {
-          var target = e.target.closest('.gallery-remove');
-          var index = parseInt(target.dataset.index);
-          galleries.splice(index, 1);
-          updateGalleryList();
-        });
+      GalleryPage.renderGalleryItems(galleryList, galleries, {
+        onChange: function() { updateGalleryList(); }
       });
     }
 
     function showResults() {
       resultSection.style.display = 'block';
-
-      // Count galleries and images
-      var galleryCount = Object.keys(generatedJSON).filter(function(k) {
-        return k !== 'Technical' && k !== 'root';
-      }).length;
-
-      var imageCount = 0;
-      for (var key in generatedJSON) {
-        if (key === 'Technical') continue;
-        for (var item in generatedJSON[key]) {
-          if (generatedJSON[key][item].resource_type === 'image') {
-            imageCount++;
-          }
-        }
-      }
-
-      statGalleries.textContent = galleryCount;
-      statImages.textContent = imageCount;
-
-      // Show JSON preview
+      var stats = GalleryPage.computeStats(generatedJSON);
+      statGalleries.textContent = stats.galleryCount;
+      statImages.textContent = stats.imageCount;
       jsonPreview.textContent = JSON.stringify(generatedJSON, null, 2);
     }
   </script>

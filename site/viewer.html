@@ -337,7 +337,7 @@
     <link rel="stylesheet" href="overlay.css">
 
 	<script>
-	// Preview mode detection - must run before declarations.js
+	// URL-based mode overrides - must run before declarations.js
 	// To use local templates/materials instead of CDN, set: window.openvgal_cdn_base = '';
 	(function() {
 		const urlParams = new URLSearchParams(window.location.search);
@@ -345,6 +345,14 @@
 			window.openvgal_preview_mode = true;
 			window.openvgal_cdn_base = window.parent.openvgal_cdn_base || window.location.origin;
 			console.log('Preview mode: CDN base =', window.openvgal_cdn_base);
+		}
+		// Dev mode: serve repo root via static server, point viewer at examples/ + cdn/
+		// Usage: from repo root run `python -m http.server 8080`, open
+		//   http://localhost:8080/site/viewer.html?dev=1
+		if (urlParams.get('dev') === '1') {
+			window.openvgal_location = '/examples';
+			window.openvgal_cdn_base = '/cdn';
+			console.log('Dev mode: location=/examples, cdn=/cdn');
 		}
 	})();
 	</script>

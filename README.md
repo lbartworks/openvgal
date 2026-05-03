@@ -1,6 +1,6 @@
 https://github.com/lbartworks/openvgal/assets/121262093/517b6b67-7a87-4f2c-8166-b5c9314ff9e9
 
-# OpenVGAL v3.3
+# OpenVGAL v3.4
 
 Open-source 3D virtual gallery platform built on [Babylon.js](https://www.babylonjs.com/). Create interactive WebGL art galleries from your images, download a ZIP, host it anywhere.
 
@@ -10,7 +10,7 @@ Open-source 3D virtual gallery platform built on [Babylon.js](https://www.babylo
 
 ---
 
-## What is this
+## What is this ?
 
 OpenVGAL started in June 2022 as a personal project to give myself, and anyone, a way to build interactive 3D virtual galleries programmatically. No 3D modeling skills, no gallery design, no browser code to deal with. Just organize your images in folders and the code figures out the rest.
 
@@ -35,6 +35,10 @@ That's it. The ZIP contains everything: images, 3D room templates, PBR materials
 
 If you prefer smaller ZIPs and automatic updates, use [openvgal.com/create/cdn](https://openvgal.com/create/cdn.html). The ZIP only includes your images and configuration. Templates, materials, and viewer code load from `cdn.openvgal.com` at runtime. You can also import an existing gallery and add new rooms without regenerating everything.
 
+### Customize before download
+
+Click **Customize** in the generator to tweak each artwork before downloading: edit titles and subtitles, resize per artwork (S / M / L buckets or a free slider in cm or inches). Sizes are stored in real-world centimetres in `building_v2.json` so what you set is what visitors see.
+
 ### Metadata editor
 
 After generating a gallery, use the [metadata editor](https://openvgal.com/create/editor.html) to add or change artwork titles and subtitles. Import your `building_v2.json`, edit per-image or in batch, and download the updated file.
@@ -47,6 +51,11 @@ Replace `materials/logo.png` in the ZIP with your own image. Use white artwork o
 
 ## What's New in v3
 
+- **Occupancy-driven layout.** Wall and panel placement is now defined by `Occupancy_*` planes inside each template GLB. The generator probes them once, packs artworks across the strips with width-aware density balancing, and walks `selectionOrder` (smallest → largest) to overflow into additional rooms automatically. Adding a new room shape is a Blender + `catalog.json` change — no JS edit required.
+- **Single `catalog.json`.** Replaces the old `styles.json`. One file under `cdn/templates/catalog.json` describes shapes (with precomputed occupancies), `selectionOrder`, default `minSpacing`, and styles (each style maps shape → GLB). Build and edit it visually with the [Catalog Manager](https://openvgal.com/tools/catalog-manager.html).
+- **Real-world artwork sizes.** `width` and `height` in `building_v2.json` are now centimetres, not normalized 0–1. The viewer applies a single global `2.5/120` factor to convert cm to babylon scene units, so a 120 cm landscape print reads at the old 2.5 m default.
+- **Customize before download.** New per-artwork editor in the generator: edit title, subtitle, and size (S / M / L buckets or a free cm/inch slider, capped at 250 cm) without leaving the page.
+- **Post-download "ready" page.** Downloading a ZIP now opens a small landing with a free-hosting walkthrough link, a future "host it for me" CTA, and one-click share buttons.
 - **Browser-based generator.** No more Python, no more executables. Everything runs in the browser at [openvgal.com/create](https://openvgal.com/create).
 - **Self-contained ZIP output.** The generated ZIP includes all assets. Drop it on a web server and it works. No CDN dependency, no external calls.
 - **CDN-first mode.** A lightweight alternative: the ZIP contains only the JSON config and your images. Templates, materials, viewer code, and Babylon.js load from [cdn.openvgal.com](https://cdn.openvgal.com) at runtime. Smaller ZIPs, and your galleries automatically pick up viewer updates.
@@ -68,6 +77,8 @@ The Python CLI still works and is available in [GitHub Releases](https://github.
 
 OpenVGAL uses a `building_v2.json` file to describe interconnected gallery rooms. Each room references a GLB template and contains items (artworks or doors to other rooms). The viewer loads templates, applies PBR node materials, places artwork textures at calculated positions, and handles navigation between rooms via door meshes.
 
+The placement of artworks is driven by `Occupancy_*` planes baked into each template GLB — one plane per wall or panel side, defining the available strip's centre, normal, and width. The generator reads them from `cdn/templates/catalog.json` (or probes the GLB at runtime as a fallback), then packs artworks across strips with width-aware density balancing and overflows into additional rooms when the largest shape can't fit the remainder.
+
 The browser generator at `/create` automates all of this: it takes your image folders, runs the layout algorithm, generates the JSON, fetches templates and materials from the CDN, and packages everything into a deployable ZIP. A CDN-first mode at `/create/cdn` produces lighter ZIPs that load shared assets from `cdn.openvgal.com` at runtime. A separate metadata editor at `/create/editor` lets you add or change artwork titles and subtitles after generation.
 
 For a deeper dive into the JSON format, the layout algorithm, the material system, and how to create custom templates, see [ARCHITECTURE.md](ARCHITECTURE.md).
@@ -78,10 +89,11 @@ For a deeper dive into the JSON format, the layout algorithm, the material syste
 
 | Directory | Deploys to | Description |
 |-----------|-----------|-------------|
-| `site/` | openvgal.com | Landing page + 3D viewer + generator + editor |
-| `cdn/` | cdn.openvgal.com | GLB templates + node materials + core scripts |
+| `site/` | openvgal.com | Landing page + 3D viewer + generator + editors |
+| `cdn/` | cdn.openvgal.com | GLB templates + `catalog.json` + node materials + core scripts |
 | `python/` | GitHub Releases | Legacy CLI for gallery generation |
 | `examples/` | Not deployed | Sample galleries for testing |
+| `reference/` | Not deployed | Technical reference docs (mesh naming, runtime flow, template authoring) |
 
 ### site/
 
@@ -90,20 +102,24 @@ The main web application:
 - `viewer.html` -- 3D gallery viewer (Babylon.js), includes gallery map
 - `create/index.html` -- Browser-based gallery generator (self-contained ZIP)
 - `create/cdn.html` -- CDN-first gallery generator (lightweight ZIP)
-- `create/editor.html` -- Metadata editor for artwork titles and subtitles
-- `js/gallery-generator.js` -- Layout algorithm (ported from Python)
+- `create/customize.html`, `customize.js` -- Per-artwork editor (size + metadata) lazy-loaded from the generator
+- `create/editor.html` -- Standalone metadata editor for artwork titles and subtitles
+- `ready.html` -- Post-download "your gallery is ready" page (hosting links + share buttons)
+- `hosting.html` -- Coming-soon placeholder for the managed hosting service
+- `tools/catalog-manager.html` -- Visual editor for `cdn/templates/catalog.json` (drop a GLB to extract `Occupancy_*` strips)
+- `js/gallery-generator.js` -- Occupancy-driven layout: width-aware fit + density-balanced spread
+- `js/gallery-page.js` -- Shared drop-zone, preview, and ready-page helpers for both generator pages
 - `js/gallery-settings.js` -- Gallery-wide settings (plaques, etc.)
-- `room_builder_aux.js` -- Room building, item placement, plaque rendering
+- `js/style-picker.js` -- Style selection UI (reads `catalog.json`)
+- `room_builder_aux.js` -- Room building, item placement (cm → babylon scene unit conversion), plaque rendering
 - `openvgal-lighting.js` -- Lighting system: ambient lights, RectAreaLights from template fixtures
-- `js/style-picker.js` -- Style selection UI for the generator
 - `declarations.js` -- Asset path configuration
 - `overlay.js`, `overlay.html`, `overlay.css` -- Viewer UI (artwork info, navigation help, automatic tour, plaques toggle)
 
 ### cdn/
 
 Static assets served with CORS headers. CI builds `core/` at deploy time from `site/` files (viewer scripts, overlay, icons, Babylon.js).
-- `templates/` -- GLB room templates in three styles: Classic (T_root, T_pannels, T_nopannels, T_small), Minimalist (_minimalist variants), Dark (_dark variants)
-- `styles/` -- Style definitions (styles.json) and thumbnails
+- `templates/` -- GLB room templates in three styles (Classic, Minimalist, Dark variants), style thumbnails, and `catalog.json` (shapes + selectionOrder + styles)
 - `materials/` -- Babylon.js node material JSONs, PBR textures, logo, shadow
 - `core/` -- (built by CI, not in repo) Viewer scripts, overlay, icons, Babylon.js
 - `_headers` -- CORS configuration
@@ -135,6 +151,14 @@ Note: the `file://` protocol will not work in Chrome due to cross-origin iframe 
 ---
 
 ## Changelog
+
+**v3.4 (May 2026)**
+- Occupancy-driven layout: wall and panel placement read from `Occupancy_*` planes in template GLBs; width-aware density-balanced packing replaces the old hardcoded rectangle algorithm
+- Single `catalog.json` (shapes + selectionOrder + styles) replaces `styles.json`; visual [Catalog Manager](https://openvgal.com/tools/catalog-manager.html) for editing it
+- Real-world artwork sizes in centimetres in `building_v2.json` (was normalized 0–1)
+- Customize editor in the generator: per-artwork size (S / M / L buckets or free cm/inch slider) and metadata
+- "Ready" page after ZIP download with free-hosting walkthrough and share buttons
+- Frame yaw uses `atan2(N.x, N.z)` so artworks face correctly on walls at any angle, not just N/S/E/W
 
 **v3.3 (March 2026)**
 - Gallery styles: Classic, Minimalist, and Dark — each with coordinated templates, materials, and lighting
@@ -210,8 +234,10 @@ It depends on which mode you used. The standard generator produces a fully self-
 - [ ] Support for VR devices
 - [ ] Support for lightmaps ([early experiments](https://www.youtube.com/watch?v=mZzMPlagnQk))
 - [ ] Alternative hall templates beyond rectangular halls
-- [ ] Code to detect overlapping artwork or erroneous configurations
+- [x] Code to detect overlapping artwork or erroneous configurations (v3.4)
 - [ ] Logo upload in the generator (currently: replace `materials/logo.png` manually)
+- [x] Occupancy-driven layout via `Occupancy_*` planes + `catalog.json` (v3.4)
+- [x] Real-world cm artwork sizes + per-artwork customize editor (v3.4)
 - [x] CDN-first deployment mode (v3.1)
 - [x] Metadata editor (v3.1)
 - [x] Gallery map (v3.1)

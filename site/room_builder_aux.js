@@ -193,8 +193,9 @@ var item_builder= function(name, item_position, item_size, vector, material,scen
 
 	// Set the position, rotation and scale of the box/frame
 	item2.position = new BABYLON.Vector3(item_position.x, item_position.y, item_position.z).add(vector.scale(item_separation/2-0.001));
-	item2.rotate(BABYLON.Axis.Y,  Math.acos(BABYLON.Vector3.Dot(vector, north_vector)), BABYLON.Space.LOCAL);
-	item2.scaling = new BABYLON.Vector3(item_size.width+margin, item_size.height+margin, item_separation); 
+	// Full-circle yaw so frames orient correctly on walls at any angle, not only N/S/E/W.
+	item2.rotate(BABYLON.Axis.Y, Math.atan2(vector.x, vector.z), BABYLON.Space.LOCAL);
+	item2.scaling = new BABYLON.Vector3(item_size.width+margin, item_size.height+margin, item_separation);
 	
 	
 	//check if the mesh that merges all the frames is already created
@@ -217,7 +218,9 @@ function populate_template(config_file, room_name,scene){
 
     var _pt = document.getElementById('plaquesToggle');
     var showPlaques = _pt ? _pt.checked : (config_file["Technical"]["show_plaques"] === true);
-    let item_size=config_file["Technical"]["scaleFactor"];		 //parameter controlling the scale of the items
+    // width/height in the JSON are real cm. Babylon scene units don't read 1:1 to
+    // real-world — a longest-edge of 2.5 babylon m reads as ~120 cm to the viewer.
+    const SCENE_M_PER_CM = 2.5 / 120;
 	
 	const vector_n=new BABYLON.Vector3(0, 0, 1);
 	const vector_s=new BABYLON.Vector3(0, 0, -1);
@@ -258,9 +261,9 @@ function populate_template(config_file, room_name,scene){
 		let orientation=JSON.parse(gallery[item]["vector"])
 		orientation=new BABYLON.Vector3(orientation[0], 0, orientation[1])
 
-		//get sizse
-		scaled_width=item_size*gallery[item]["width"];
-		scaled_height=item_size*gallery[item]["height"];
+		//width/height are real cm; convert to babylon scene meters
+		scaled_width = Number(gallery[item]["width"]) * SCENE_M_PER_CM;
+		scaled_height = Number(gallery[item]["height"]) * SCENE_M_PER_CM;
 
 		//notice that y and z are flippped
 		item_builder(item + "_" + i ,{x:location[0], y:location[2], z:location[1]}, {width:scaled_width, height:scaled_height}, orientation, items_material, scene, item_shadow_material);

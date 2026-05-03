@@ -1,0 +1,453 @@
+<!--
+  OpenVGAL Customize Editor — fragment loaded into index.html on demand.
+  Mounted by customize.js (mountCustomize). Styles are scoped under .cz-root.
+-->
+<style>
+  .cz-root {
+    color: #d4d4d8;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  }
+  .cz-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+  .cz-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #fafafa;
+    letter-spacing: -0.01em;
+  }
+  .cz-top-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+  .cz-top-actions .btn {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.76rem;
+  }
+  .cz-top-actions .btn svg { width: 12px; height: 12px; }
+  .cz-hint {
+    font-size: 0.78rem;
+    color: #71717a;
+    margin-bottom: 1.25rem;
+    line-height: 1.6;
+  }
+
+  /* Accordion */
+  .cz-accordion { display: flex; flex-direction: column; gap: 0.5rem; }
+  .cz-room {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .cz-room-toggle {
+    width: 100%;
+    background: none;
+    border: none;
+    color: #e4e4e7;
+    font-family: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-align: left;
+    padding: 0.85rem 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: background 0.15s;
+  }
+  .cz-room-toggle:hover { background: rgba(255,255,255,0.03); }
+  .cz-room-toggle .cz-room-count {
+    font-size: 0.75rem;
+    color: #71717a;
+    font-weight: 400;
+  }
+  .cz-room-shape {
+    font-size: 0.7rem;
+    color: #818cf8;
+    font-weight: 500;
+    background: rgba(99,102,241,0.08);
+    padding: 0.1rem 0.45rem;
+    border-radius: 4px;
+    margin-left: 0.5rem;
+    display: none;
+  }
+  .cz-room.cz-shape-changed .cz-room-shape { display: inline-block; }
+  .cz-chev {
+    width: 14px; height: 14px;
+    transition: transform 0.2s;
+    color: #71717a;
+    margin-left: 0.5rem;
+    flex-shrink: 0;
+  }
+  .cz-room.cz-open .cz-chev { transform: rotate(180deg); }
+  .cz-room-body {
+    display: none;
+    padding: 0.5rem 1rem 1rem;
+    border-top: 1px solid rgba(255,255,255,0.04);
+  }
+  .cz-room.cz-open .cz-room-body { display: block; }
+
+  /* Batch header */
+  .cz-batch {
+    background: rgba(255,255,255,0.035);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 8px;
+    padding: 0.75rem;
+    margin: 0.75rem 0 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+  .cz-batch-label {
+    font-size: 0.7rem;
+    color: #a1a1aa;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 500;
+  }
+  .cz-batch-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+  .cz-batch-section {
+    background: rgba(0,0,0,0.16);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 7px;
+    padding: 0.55rem;
+    display: grid;
+    gap: 0.45rem;
+    min-width: 0;
+  }
+  .cz-batch-title-section {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+  }
+  .cz-batch-action-section {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .cz-batch-size-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .cz-batch input[type="text"] {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: #e4e4e7;
+    padding: 0.45rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .cz-batch input[type="text"]:focus {
+    border-color: rgba(99, 102, 241, 0.4);
+  }
+  .cz-batch-buttons {
+    display: flex;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+  }
+  .cz-mini-btn {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: #a1a1aa;
+    padding: 0.3rem 0.55rem;
+    border-radius: 5px;
+    font-family: inherit;
+    font-size: 0.72rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .cz-mini-btn:hover {
+    background: rgba(255,255,255,0.08);
+    color: #e4e4e7;
+  }
+
+  /* Per-row */
+  .cz-row {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    gap: 0.75rem;
+    padding: 0.75rem 0;
+    border-top: 1px solid rgba(255,255,255,0.04);
+  }
+  .cz-row:first-of-type { border-top: none; }
+  .cz-thumb {
+    width: 56px;
+    height: 56px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.04);
+    object-fit: cover;
+    display: block;
+  }
+  .cz-row-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    min-width: 0;
+  }
+  .cz-filename {
+    font-size: 0.72rem;
+    color: #71717a;
+    font-weight: 400;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .cz-row input[type="text"] {
+    width: 100%;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.06);
+    color: #e4e4e7;
+    padding: 0.4rem 0.55rem;
+    border-radius: 5px;
+    font-size: 0.8rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .cz-row input[type="text"]:focus {
+    border-color: rgba(99, 102, 241, 0.4);
+  }
+  .cz-row input.cz-subtitle {
+    font-size: 0.74rem;
+    color: #a1a1aa;
+  }
+
+  .cz-size-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.15rem;
+    flex-wrap: wrap;
+  }
+  .cz-size-readout {
+    font-size: 0.7rem;
+    color: #a1a1aa;
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    min-width: 105px;
+  }
+  .cz-bucket-group {
+    display: inline-flex;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  .cz-bucket {
+    background: none;
+    border: none;
+    color: #a1a1aa;
+    font-family: inherit;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.3rem 0.5rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    border-right: 1px solid rgba(255,255,255,0.06);
+  }
+  .cz-bucket:last-child { border-right: none; }
+  .cz-bucket:hover { color: #e4e4e7; background: rgba(255,255,255,0.03); }
+  .cz-bucket.cz-active {
+    background: rgba(99, 102, 241, 0.18);
+    color: #a5b4fc;
+  }
+
+  .cz-slider {
+    flex: 1;
+    min-width: 100px;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  .cz-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #a5b4fc;
+    cursor: pointer;
+    border: 2px solid #1a1a1c;
+    box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.3);
+  }
+  .cz-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #a5b4fc;
+    cursor: pointer;
+    border: 2px solid #1a1a1c;
+  }
+
+  .cz-unit-toggle {
+    display: inline-flex;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 5px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .cz-unit {
+    background: none;
+    border: none;
+    color: #71717a;
+    font-family: inherit;
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 0.3rem 0.5rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .cz-unit.cz-active {
+    background: rgba(255,255,255,0.08);
+    color: #e4e4e7;
+  }
+
+  /* Footer */
+  .cz-footer {
+    display: flex;
+    gap: 0.6rem;
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .cz-status {
+    flex: 1;
+    min-width: 200px;
+    font-size: 0.74rem;
+    color: #71717a;
+    line-height: 1.5;
+  }
+  .cz-status.cz-status-error { color: #fca5a5; }
+  .cz-status.cz-status-ok    { color: #6ee7b7; }
+  .cz-status.cz-status-busy  { color: #a5b4fc; }
+
+  @media (max-width: 600px) {
+    .cz-batch-title-section { grid-template-columns: 1fr; }
+    .cz-batch-action-section { align-items: flex-start; }
+    .cz-row { grid-template-columns: 48px 1fr; gap: 0.6rem; }
+    .cz-thumb { width: 48px; height: 48px; }
+    .cz-size-readout { min-width: 0; flex-basis: 100%; }
+    .cz-footer { flex-direction: column; }
+    .cz-footer .btn { width: 100%; justify-content: center; }
+  }
+</style>
+
+<div class="cz-root">
+  <div class="cz-header">
+    <span class="cz-title">Customize artworks</span>
+    <div class="cz-top-actions">
+      <button class="btn btn-accent" data-cz-apply>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+        Apply
+      </button>
+      <button class="btn btn-subtle" data-cz-cancel>Cancel</button>
+    </div>
+  </div>
+  <div class="cz-hint">
+    Add titles and subtitles, set print sizes per artwork. Edits stay local until you save.
+  </div>
+
+  <div class="cz-accordion" data-cz-accordion></div>
+
+  <div class="cz-footer">
+    <button class="btn btn-accent" data-cz-apply>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+      Apply
+    </button>
+    <button class="btn btn-subtle" data-cz-cancel>Cancel</button>
+    <div class="cz-status" data-cz-status></div>
+  </div>
+</div>
+
+<template data-cz-room-template>
+  <div class="cz-room">
+    <button class="cz-room-toggle" type="button">
+      <span style="display:flex;align-items:center;min-width:0;">
+        <span class="cz-room-name"></span>
+        <span class="cz-room-shape"></span>
+      </span>
+      <span style="display:flex;align-items:center;">
+        <span class="cz-room-count"></span>
+        <svg class="cz-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </span>
+    </button>
+    <div class="cz-room-body">
+      <div class="cz-batch">
+        <div class="cz-batch-label">Apply to all in this room</div>
+        <div class="cz-batch-groups">
+          <div class="cz-batch-section cz-batch-title-section">
+        <input type="text" class="cz-batch-title" placeholder="Title prefix (e.g. Series A —)">
+              <input type="text" class="cz-batch-subtitle" placeholder="Subtitle for all">
+          </div>
+          <div class="cz-batch-section cz-batch-action-section">
+            <div class="cz-batch-buttons">
+              <button class="cz-mini-btn" data-batch-apply-prefix type="button">Apply prefix</button>
+              <button class="cz-mini-btn" data-batch-apply-subtitle type="button">Apply subtitle</button>
+            </div>
+            <div class="cz-batch-size-controls">
+            <span class="cz-bucket-group">
+              <button class="cz-bucket" data-batch-size="S" type="button">S</button>
+              <button class="cz-bucket cz-active" data-batch-size="M" type="button">M</button>
+              <button class="cz-bucket" data-batch-size="L" type="button">L</button>
+            </span>
+            <span class="cz-unit-toggle">
+              <button class="cz-unit cz-active" data-batch-unit="cm" type="button">cm</button>
+              <button class="cz-unit" data-batch-unit="in" type="button">in</button>
+            </span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="cz-rows"></div>
+    </div>
+  </div>
+</template>
+
+<template data-cz-row-template>
+  <div class="cz-row">
+    <img class="cz-thumb" alt="">
+    <div class="cz-row-fields">
+      <div class="cz-filename"></div>
+      <input type="text" class="cz-title" placeholder="Title">
+      <input type="text" class="cz-subtitle" placeholder="Subtitle (optional)">
+      <div class="cz-size-row">
+        <span class="cz-size-readout"></span>
+        <span class="cz-bucket-group">
+          <button class="cz-bucket" data-size="S" type="button">S</button>
+          <button class="cz-bucket" data-size="M" type="button">M</button>
+          <button class="cz-bucket" data-size="L" type="button">L</button>
+        </span>
+        <input type="range" class="cz-slider" min="10" max="200" step="1">
+        <span class="cz-unit-toggle">
+          <button class="cz-unit" data-unit="cm" type="button">cm</button>
+          <button class="cz-unit" data-unit="in" type="button">in</button>
+        </span>
+      </div>
+    </div>
+  </div>
+</template>

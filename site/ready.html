@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gallery ready - OpenVGAL</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      background: #000;
+      color: #a1a1aa;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      top: -200px; left: 50%;
+      transform: translateX(-50%);
+      width: 800px; height: 800px;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .page-wrapper {
+      position: relative;
+      z-index: 1;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 0 1.5rem 4rem;
+    }
+    nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.25rem 0;
+    }
+    .nav-logo {
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      color: #fff;
+      text-decoration: none;
+    }
+    .nav-back {
+      color: #52525b;
+      text-decoration: none;
+      font-size: 0.8rem;
+      font-weight: 400;
+      transition: color 0.15s;
+    }
+    .nav-back:hover { color: #a1a1aa; }
+
+    .hero {
+      text-align: center;
+      padding: 5rem 0 3rem;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      color: #a78bfa;
+      background: rgba(167, 139, 250, 0.08);
+      border: 1px solid rgba(167, 139, 250, 0.15);
+      padding: 0.35rem 0.9rem;
+      border-radius: 100px;
+      margin-bottom: 1.5rem;
+    }
+    .hero-badge-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: #a78bfa;
+    }
+    h1 {
+      font-size: clamp(2rem, 4.8vw, 3rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: #fafafa;
+      margin-bottom: 1rem;
+      line-height: 1.15;
+    }
+    .gradient-text {
+      background: linear-gradient(135deg, #a78bfa 0%, #6366f1 50%, #818cf8 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero-sub {
+      font-size: 1rem;
+      line-height: 1.7;
+      color: #71717a;
+      max-width: 460px;
+      margin: 0 auto;
+    }
+
+    .cta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin: 2rem 0 2.5rem;
+    }
+    .cta-card {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 14px;
+      padding: 1.25rem;
+      text-decoration: none;
+      transition: all 0.15s ease;
+    }
+    .cta-card:hover {
+      border-color: rgba(99, 102, 241, 0.25);
+      background: rgba(99, 102, 241, 0.04);
+      transform: translateY(-1px);
+    }
+    .cta-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: rgba(99, 102, 241, 0.1);
+      color: #a5b4fc;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .cta-icon svg { width: 16px; height: 16px; }
+    .cta-title {
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: #fafafa;
+    }
+    .cta-desc {
+      font-size: 0.78rem;
+      color: #71717a;
+      line-height: 1.55;
+    }
+
+    .share-section {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 14px;
+      padding: 1.5rem;
+      text-align: center;
+    }
+    .share-title {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #e4e4e7;
+      margin-bottom: 0.4rem;
+    }
+    .share-hint {
+      font-size: 0.78rem;
+      color: #71717a;
+      margin-bottom: 1.25rem;
+      line-height: 1.6;
+    }
+    .share-row {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .share-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.55rem 1rem;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+      color: #d4d4d8;
+      text-decoration: none;
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+    .share-btn:hover {
+      background: rgba(255,255,255,0.08);
+      border-color: rgba(255,255,255,0.14);
+      color: #fafafa;
+    }
+    .share-btn svg { width: 14px; height: 14px; }
+    .share-btn.share-primary {
+      background: rgba(99, 102, 241, 0.14);
+      border-color: rgba(99, 102, 241, 0.25);
+      color: #c7d2fe;
+    }
+    .share-btn.share-primary:hover {
+      background: rgba(99, 102, 241, 0.2);
+      color: #e0e7ff;
+    }
+    .copy-status {
+      display: inline-block;
+      margin-left: 0.5rem;
+      font-size: 0.72rem;
+      color: #4ade80;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .copy-status.visible { opacity: 1; }
+
+    .footer-note {
+      text-align: center;
+      margin-top: 2.5rem;
+      font-size: 0.78rem;
+      color: #52525b;
+    }
+    .footer-note a {
+      color: #71717a;
+      text-decoration: none;
+    }
+    .footer-note a:hover { color: #a1a1aa; }
+
+    @media (max-width: 600px) {
+      .cta-grid { grid-template-columns: 1fr; }
+      .hero { padding: 3rem 0 2rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrapper">
+    <nav>
+      <a href="/" class="nav-logo">OPENVGAL</a>
+      <a href="/" class="nav-back">openvgal.com</a>
+    </nav>
+
+    <div class="hero">
+      <div class="hero-badge">
+        <span class="hero-badge-dot"></span>
+        <span>Saved successfully</span>
+      </div>
+      <h1>Your <span class="gradient-text" id="galleryName">gallery</span> is ready</h1>
+      <p class="hero-sub">
+        Drop the ZIP on any web host and you're live. Or let us host it for you.
+      </p>
+    </div>
+
+    <div class="cta-grid">
+      <a class="cta-card" id="howtoBtn" target="_blank" rel="noopener">
+        <span class="cta-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        </span>
+        <span class="cta-title">How to host it — free &amp; easy</span>
+        <span class="cta-desc">3-min walkthrough on free hosting (GitHub Pages, Netlify, Cloudflare).</span>
+      </a>
+      <a class="cta-card" href="hosting.html">
+        <span class="cta-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        </span>
+        <span class="cta-title">Host it for me</span>
+        <span class="cta-desc">Coming soon — let us handle hosting so you can focus on your art.</span>
+      </a>
+    </div>
+
+    <div class="share-section">
+      <div class="share-title">Tell the world you built it</div>
+      <div class="share-hint">A quick share helps OpenVGAL stay free and open.</div>
+      <div class="share-row" id="shareRow"></div>
+      <span class="copy-status" id="copyStatus">Caption copied</span>
+    </div>
+
+    <div class="footer-note">
+      Made something cool? <a href="mailto:lbartworks@protonmail.com">Send us a link</a> — we'd love to see it.
+    </div>
+  </div>
+
+  <script>
+    // === Configurable constants — edit these before deploy ===
+    // YouTube hosting tutorial. TODO: replace with the recorded walkthrough URL.
+    const YOUTUBE_HOWTO_URL = 'https://www.youtube.com/@openvgal';
+
+    // Share message used by Web Share API and X intent.
+    // TODO before commit: verify @lb_artworks and @openvgal handles exist on each platform.
+    const SHARE_MESSAGE = "I just built my own 3D virtual gallery with OpenVGAL in minutes! Can't wait to host it → @lb_artworks @openvgal #OpenVGAL";
+    const SHARE_URL = 'https://openvgal.com';
+
+    // === End config ===
+
+    // Pull gallery name from query string for the hero.
+    const params = new URLSearchParams(window.location.search);
+    const rawName = params.get('name') || '';
+    const galleryNameEl = document.getElementById('galleryName');
+    if (rawName.trim()) {
+      galleryNameEl.textContent = rawName.trim();
+    }
+
+    document.getElementById('howtoBtn').href = YOUTUBE_HOWTO_URL;
+
+    // === Share row: Web Share API on mobile, intent fallbacks elsewhere ===
+    const shareRow = document.getElementById('shareRow');
+    const copyStatus = document.getElementById('copyStatus');
+
+    function flashCopied() {
+      copyStatus.classList.add('visible');
+      setTimeout(() => copyStatus.classList.remove('visible'), 1800);
+    }
+
+    function makeBtn(label, svg, opts) {
+      const a = document.createElement(opts.href ? 'a' : 'button');
+      a.className = 'share-btn' + (opts.primary ? ' share-primary' : '');
+      a.innerHTML = svg + ' <span>' + label + '</span>';
+      if (opts.href) {
+        a.href = opts.href;
+        a.target = '_blank';
+        a.rel = 'noopener';
+      }
+      if (opts.onClick) a.addEventListener('click', opts.onClick);
+      return a;
+    }
+
+    const SVG_SHARE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>';
+    const SVG_X = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>';
+    const SVG_FB = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073"/></svg>';
+    const SVG_IG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>';
+
+    if (navigator.share) {
+      // Mobile-friendly: single Share button.
+      shareRow.appendChild(makeBtn('Share', SVG_SHARE, {
+        primary: true,
+        onClick: async () => {
+          try {
+            await navigator.share({ text: SHARE_MESSAGE, url: SHARE_URL });
+          } catch (e) {
+            // User dismissed; ignore.
+          }
+        }
+      }));
+    } else {
+      // Desktop: per-platform intents.
+      const xIntent = 'https://x.com/intent/post?text=' + encodeURIComponent(SHARE_MESSAGE);
+      shareRow.appendChild(makeBtn('Post on X', SVG_X, { href: xIntent }));
+
+      // Facebook sharer accepts URL only — custom text is dropped.
+      const fbShare = 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(SHARE_URL);
+      shareRow.appendChild(makeBtn('Share on Facebook', SVG_FB, { href: fbShare }));
+
+      // Instagram has no web share intent — copy caption to clipboard for the user to paste.
+      shareRow.appendChild(makeBtn('Copy caption for Instagram', SVG_IG, {
+        onClick: async () => {
+          try {
+            await navigator.clipboard.writeText(SHARE_MESSAGE);
+            flashCopied();
+          } catch (e) {
+            // Fallback: select-all in a temp textarea.
+            const ta = document.createElement('textarea');
+            ta.value = SHARE_MESSAGE;
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); flashCopied(); } catch (err) {}
+            document.body.removeChild(ta);
+          }
+        }
+      }));
+    }
+  </script>
+</body>
+</html>

@@ -7,11 +7,14 @@ Technical reference for developers and contributors. For a general overview and 
 ## Table of Contents
 
 - [Gallery JSON Format](#gallery-json-format)
+- [Catalog](#catalog)
 - [Layout Algorithm](#layout-algorithm)
 - [Viewer Engine](#viewer-engine)
 - [Material System](#material-system)
 - [Generator and ZIP Flow](#generator-and-zip-flow)
+- [Customize Editor](#customize-editor)
 - [Preview Mode](#preview-mode)
+- [Local Development](#local-development)
 - [Path Resolution](#path-resolution)
 - [Gallery Styles](#gallery-styles)
 - [Templates](#templates)
@@ -75,8 +78,8 @@ Each item is either an artwork or a door:
 "item1": {
   "resource": "gallery1/photo.jpg",
   "resource_type": "image",
-  "width": 1.00,
-  "height": 0.74,
+  "width": 120.00,
+  "height": 88.80,
   "location": [15.0, -14.6, 2.0],
   "vector": [-1.0, 0.0],
   "metadata": "Beach bike"
@@ -87,7 +90,7 @@ Each item is either an artwork or a door:
 |-------|-------------|
 | `resource` | Path to the image file (relative to gallery root) or GLB name for doors |
 | `resource_type` | `"image"` or `"door"` |
-| `width`, `height` | Normalized dimensions (0 to 1). The longer side is 1. |
+| `width`, `height` | Real-world dimensions in cm. Default longest edge = 120 cm (M bucket). Customize editor presets: S=60, M=120, L=180; max 250. The viewer multiplies by a single global factor (`2.5/120`) to convert cm to babylon scene meters — a 120 cm artwork reads to a viewer like the old 2.5 m default. |
 | `location` | `[x, y, z]` position in 3D space. Z is up. |
 | `vector` | `[x, y]` normal vector indicating which direction the artwork faces. |
 | `metadata` | Text shown when hovering on the artwork. Title and subtitle are separated by `\n` (newline). The subtitle appears on a second line in the overlay and on artwork plaques. |
@@ -100,41 +103,66 @@ The JSON includes a `Technical` section at the bottom:
 "Technical": {
   "ambientLight": 0.5,
   "pointLight": 50,
-  "scaleFactor": 2.5,
   "verticalPosition": 0.4
 }
 ```
 
 ---
 
+## Catalog
+
+`cdn/templates/catalog.json` is the single source for everything the generator needs to lay out a gallery. It replaced the old `cdn/styles/styles.json`.
+
+```json
+{
+  "shapes": {
+    "small":     { "occupancies": [ ... ] },
+    "nopannels": { "occupancies": [ ... ] },
+    "pannels":   { "occupancies": [ ... ] }
+  },
+  "selectionOrder": ["small", "nopannels", "pannels"],
+  "minSpacing": 0.5,
+  "styles": {
+    "classic": {
+      "name": "Classic",
+      "description": "Mix of modern and classic materials",
+      "thumbnail": "classic_thumb.jpg",
+      "root": "T_root.glb",
+      "glbs": { "small": "T_small.glb", "nopannels": "T_nopannels.glb", "pannels": "T_pannels.glb" }
+    }
+  }
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `shapes.<id>.occupancies` | Pre-extracted strips for each wall/panel side. Each entry: `name`, `center` `[x, y, z]` (world space), `normal` `[x, y, z]` (world unit vector pointing into the room), `width` (along-wall extent in babylon m). |
+| `selectionOrder` | Smallest → largest sequence the packer walks when fitting items. The first shape that fits the entire batch wins; otherwise the largest in the list overflows into successive rooms. |
+| `minSpacing` | Default minimum gap between consecutive items on a strip, in babylon m. The room/page can override per-call. |
+| `styles.<id>` | Visual variant. `root` is the hub-hall GLB; `glbs` maps shape id → exhibition-hall GLB. `thumbnail` (under `cdn/templates/`) is shown by the style picker. |
+
+**Authoring shapes.** The browser tool at [openvgal.com/tools/catalog-manager.html](https://openvgal.com/tools/catalog-manager.html) (source: `site/tools/catalog-manager.html`) drops a GLB, finds every mesh whose name starts with `Occupancy_`, projects each onto its dominant axis using the first vertex normal, and writes the resulting `center` / `normal` / `width` into `shapes.<id>.occupancies`. The matrix UI ticks `(style × shape)` cells so you can ship a partial set; missing entries are silently dropped from `selectionOrder` at packing time.
+
+**Runtime fallback.** If `shapes.<id>.occupancies` is missing or empty, `gallery-generator.js` runs the same probe in a `BABYLON.NullEngine` against the live GLB. This means a freshly authored template works even before the catalog is regenerated — useful in dev — but it adds a one-off GLB load per shape.
+
+---
+
 ## Layout Algorithm
 
-The layout engine (`gallery-generator.js`, ported from `VR_gallery.py`) determines where to place artworks in a gallery template. The core class is `GalleryWithOptionalPanels`.
+`gallery-generator.js` (`packIntoRooms`) is the occupancy-driven packer. The old hardcoded 30×60 rectangle logic is gone; everything reads from `catalog.json` and the `Occupancy_*` strips.
 
-**Gallery geometry:**
-- Default dimensions: 30 wide x 60 long units
-- Panel length: 15 units (can be disabled)
-- Item height: 2 units
-- Free space from walls: 0.75 units
-- Max item size: 2.5 units
-- Min spacing between items: 3 units
-- Door width: 1 unit
+**Inputs per item:** `widthM` (real cm × `2.5/120`), original index, optional metadata.
 
-**Placement areas:** 14 total (6 walls + 8 panel sides)
+**Packing pass (per gallery):**
+1. For each shape in `selectionOrder` (smallest → largest), call `tryFitItems`. It walks items in order and assigns each to the lowest-density occupancy that can still hold it without exceeding `width` after adding the new item plus `minSpacing` between consecutive items. The first shape that places every item wins.
+2. If even the largest shape can't hold the whole batch, `maxPrefixFit` finds the longest in-order prefix that does fit, places it in the largest shape, and recurses on the remainder. Each chunk becomes its own room hung off the previous one.
+3. `placeItems` distributes the items along each occupancy with **equal margins and gaps** (`(width − ΣwidthM) / (n + 1)`). When that gap would dip below `minSpacing`, it locks the gap at the floor and centres the pack instead. Position is `center + alongAxis × t` where `alongAxis = normalize(N × Y)`; the world-space row is emitted as `[worldX, worldZ, worldY]` to match the JSON convention.
 
-**Placement strategy (3 fallback levels):**
-1. Fill empty wall segments first
-2. Fill walls by density saturation
-3. Open panels if needed (when panel_length > 0)
+**Outputs per room:** `{ shape, glbName, occupancies, positions, vectors, indices }`. The generator turns each room into a hall in `building_v2.json`, hangs the door pair, and stamps `width` / `height` in centimetres.
 
-Returns -1 if the items don't fit in the template.
+**Why width-aware matters.** Every artwork carries its own real-world width in cm. Mixed-size collections (a 250 cm landscape next to a clutch of 60 cm prints) pack correctly because capacity is `Σwidth + (n−1) × minSpacing ≤ occupancy.width`, not a count.
 
-**Key methods:**
-- `maxCapacity()` -- Maximum artworks the template can hold
-- `assignOccupancy(n)` -- Distribute n artworks across walls and panels
-- `solveGallery(n)` -- Return positions, vectors, and template choice
-
-For large collections (hundreds of images) the generator automatically breaks them into multiple halls.
+**Frame yaw.** `room_builder_aux.js` rotates each frame by `atan2(N.x, N.z)` so artworks face into the room at any wall angle, not only the four cardinal directions.
 
 ---
 
@@ -191,10 +219,11 @@ You can radically change the look of the galleries just by editing or replacing 
 
 The browser generator at `/create` builds a complete, self-contained deployment package:
 
-1. User drops image folders into the generator
-2. Generator runs the layout algorithm to produce `building_v2.json`
-3. Generator fetches templates and materials from `cdn.openvgal.com`
-4. Packages everything into a ZIP:
+1. User drops image folders into the generator (drop-zone wiring lives in `js/gallery-page.js`, shared with `/create/cdn`)
+2. Generator fetches `cdn/templates/catalog.json` and the selected style's GLBs
+3. Each image is sized at a default 120 cm longest edge (cm preserved in the JSON); the user can adjust per-artwork via the Customize editor before download
+4. Layout runs (`packIntoRooms`) using the catalog occupancies — overflow rooms are spawned automatically
+5. Packages everything into a ZIP:
 
 ```
 gallery.zip/
@@ -231,6 +260,20 @@ gallery.zip/
 
 The ZIP uses relative paths (`openvgal_location = '.'`). It works in any subfolder on any web server without configuration.
 
+After the user clicks **Download ZIP** (or the JSON-only download), the generator opens `/ready.html?name=<firstRoom>` in a new tab — a lightweight post-save page with a free-hosting walkthrough link, a coming-soon "host it for me" CTA (`/hosting.html`), and Web-Share / X / Facebook / Instagram-caption-copy buttons. The window is opened synchronously inside the click handler so mobile browsers don't drop it as a deferred popup.
+
+---
+
+## Customize Editor
+
+`site/create/customize.html` and `site/create/customize.js` are loaded on demand the first time the user clicks **Customize** in the generator. The editor mounts inside the result section, hides the rest of the page while open, and operates on a deep copy of the generated JSON so cancel-equivalent flows (close without re-laying-out) leave the underlying state untouched.
+
+Per-artwork it exposes:
+- Title and subtitle, written back into `metadata` as `"<title>\n<subtitle>"` (the existing `ID #N` prefix is preserved so plaque and overlay code keep working).
+- Size: S / M / L bucket buttons (60 / 120 / 180 cm longest edge) plus a free slider, capped at 250 cm. Display unit toggles between cm and inches; aspect ratio is preserved from the source image.
+
+Sizes are stored as cm strings in `width` / `height`. Re-laying-out after a size change calls `relayoutRoom` which feeds the same `packIntoRooms` packer and emits new `location` / `vector` strings.
+
 ---
 
 ## Preview Mode
@@ -242,6 +285,36 @@ The generator's Preview button opens an iframe to `../viewer.html?preview=iframe
 - `window.parent.openvgal_preview_mode` -- Signals preview mode
 
 This allows live preview without writing any files.
+
+---
+
+## Local Development
+
+Add `?dev=1` to the viewer URL to skip the ZIP / generator round-trip and load the checked-in fixture directly.
+
+1. From the repo root, run any static file server (e.g. `python -m http.server 8080`).
+2. Open `http://localhost:8080/site/viewer.html?dev=1`.
+
+The `?dev=1` switch sets:
+
+- `window.openvgal_location = '/examples'` -- viewer reads `/examples/building_v2.json` and image folders directly
+- `window.openvgal_cdn_base = '/cdn'` -- templates and materials come from the local `cdn/` folder (NOT the deployed CDN)
+
+`overlay.js` fetches `cdn_base + '/core/overlay.html'` first and falls back to local `overlay.html` if that 404s. `cdn/core/` is built by CI and is absent locally, so the fallback is what makes dev mode work end-to-end.
+
+Edit any file under `site/`, `cdn/`, or `examples/` and refresh the browser -- no ZIP, no second server, no generator UI. Same code paths as production; only the source URLs change.
+
+### Generator dev mode
+
+`create/index.html?dev=1` and `create/cdn.html?dev=1` apply the same trick to the generator: `CDN_BASE` is rewritten to `/cdn` so style picker, ZIP bundler, and `extractOccupanciesFromGLB` all read from the local `cdn/` folder. The preview iframe inherits `openvgal_cdn_base` from `window.parent`, so the rendered scene also uses your local templates.
+
+```
+http://localhost:8080/site/create/index.html?dev=1
+```
+
+Use this when iterating on `Occupancy_*` planes, fixture geometry, materials, or any other template-time asset that the generator consumes before the viewer ever runs. Workflow: edit `cdn/templates/*.glb` in Blender → save → drop image folders into the generator → Build → Preview. No upload to the deployed CDN.
+
+Caveat: a ZIP downloaded from `create/cdn.html?dev=1` bakes `CDN_BASE = '/cdn'` into the thin-client output and won't work outside dev. Use the production page (no `?dev=1`) when producing a real CDN ZIP.
 
 ---
 
@@ -260,7 +333,7 @@ When running from a ZIP, the CDN base is overridden to use local files. The view
 
 ## Gallery Styles
 
-OpenVGAL ships with three visual styles. Each style is a coordinated set of templates (root hub, panels room, no-panels room, small room) with matching materials and lighting settings baked into the GLB files. Styles are defined in `cdn/styles/styles.json`:
+OpenVGAL ships with three visual styles. Each style is a coordinated set of templates (root hub, panels room, no-panels room, small room) with matching materials and lighting settings baked into the GLB files. Styles live in `cdn/templates/catalog.json` under the top-level `styles` key (see [Catalog](#catalog) for the full schema):
 
 | Style | Description | Root Template |
 |-------|-------------|---------------|
@@ -268,25 +341,23 @@ OpenVGAL ships with three visual styles. Each style is a coordinated set of temp
 | **Minimalist** | Clean lines, white walls, even lighting | `T_root_minimalist.glb` |
 | **Dark** | Dark walls, backlight-style frames | `T_root_dark.glb` |
 
-Each style maps four template roles:
+Each style maps every shape id in `selectionOrder` to a GLB:
 
 ```json
-{
-  "dark": {
-    "name": "Dark",
-    "description": "Dark walls, backlight type of frames",
-    "thumbnail": "dark_thumb.jpg",
-    "root": "T_root_dark.glb",
-    "templates": {
-      "small": "T_small_dark.glb",
-      "nopannels": "T_nopannels_dark.glb",
-      "pannels": "T_pannels_dark.glb"
-    }
+"dark": {
+  "name": "Dark",
+  "description": "Dark walls, backlight type of frames",
+  "thumbnail": "dark_thumb.jpg",
+  "root": "T_root_dark.glb",
+  "glbs": {
+    "small": "T_small_dark.glb",
+    "nopannels": "T_nopannels_dark.glb",
+    "pannels": "T_pannels_dark.glb"
   }
 }
 ```
 
-The generator reads the selected style and passes the correct template filenames to the layout algorithm. The viewer doesn't know about styles — it just loads whichever template filename is in `building_v2.json`.
+The generator reads the selected style and passes the correct template filename for each chosen shape into the layout algorithm. The viewer doesn't know about styles — it just loads whichever template filename is in `building_v2.json`.
 
 ---
 
@@ -301,7 +372,11 @@ Each style includes four room templates:
 | No-panels room | `T_nopannels.glb` | `T_nopannels_minimalist.glb` | `T_nopannels_dark.glb` |
 | Small room | `T_small.glb` | `T_small_minimalist.glb` | `T_small_dark.glb` |
 
-All templates are Babylon.js-compatible GLB files with named meshes for doors (`d_0`, `d_1`, etc.) and can embed lighting configuration (see [Lighting System](#lighting-system)).
+All templates are Babylon.js-compatible GLB files with:
+
+- Door meshes named `d_0`, `d_1`, etc.
+- One or more `Occupancy_*` planes per wall/panel side that artworks can hang on (see [Catalog](#catalog) for how their `center` / `normal` / `width` are extracted). Without these, the layout algorithm has nowhere to place items.
+- Optional embedded lighting configuration (see [Lighting System](#lighting-system)).
 
 ---
 
@@ -403,9 +478,8 @@ If the template has more than 10 doors, modify the `doors_root` variable in the 
 
 Requirements:
 - Same door, material, and lighting requirements as hub halls
-- A corresponding layout class (equivalent to `GalleryWithOptionalPanels`) that implements:
-  - `maxCapacity()` -- Returns the max number of artworks the template can hold
-  - `solveGallery(n)` -- Returns `{ positions, vectors, template }` for n artworks
+- One or more `Occupancy_*` planes that mark hangable strips. Each plane's first vertex normal must point into the room; its longest extent in local axes is taken as the strip width. Add the new template to `cdn/templates/catalog.json` (or use the [catalog manager](https://openvgal.com/tools/catalog-manager.html)) so the packer picks it up.
+- An entry under `selectionOrder` if you want it considered automatically. Order matters: smallest → largest.
 
 ### Full Gallery GLBs
 

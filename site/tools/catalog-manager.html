@@ -14,30 +14,30 @@
       min-height: 100vh; padding: 2rem 1.5rem 4rem;
       -webkit-font-smoothing: antialiased;
     }
-    .wrap { max-width: 980px; margin: 0 auto; }
+    .wrap { max-width: 1200px; margin: 0 auto; }
     h1 { color: #fafafa; font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.4rem; }
     .sub { color: #71717a; font-size: 0.85rem; margin-bottom: 2rem; }
     .sub code { background: rgba(99,102,241,0.1); color: #a5b4fc; padding: 0.1rem 0.35rem; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.8em; }
 
     .section { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 1rem; }
-    .section h2 { color: #e4e4e7; font-size: 0.95rem; font-weight: 600; margin-bottom: 0.6rem; display: flex; align-items: center; gap: 0.5rem; }
-    .section h2 .step { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 6px; background: rgba(99,102,241,0.12); color: #818cf8; font-size: 0.7rem; font-weight: 700; }
+    .section h2 { color: #e4e4e7; font-size: 0.95rem; font-weight: 600; margin-bottom: 0.6rem; }
     .section .hint { color: #71717a; font-size: 0.78rem; line-height: 1.6; margin-bottom: 0.85rem; }
+    .section .hint code { background: rgba(99,102,241,0.1); color: #a5b4fc; padding: 0.05rem 0.3rem; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.85em; }
 
     .drop {
       border: 1.5px dashed rgba(255,255,255,0.18); border-radius: 10px;
-      padding: 1.5rem; text-align: center; cursor: pointer;
+      padding: 1.1rem; text-align: center; cursor: pointer;
       transition: all 0.2s; background: rgba(255,255,255,0.015);
     }
     .drop:hover { border-color: rgba(99,102,241,0.3); background: rgba(99,102,241,0.04); }
     .drop.over { border-color: #6366f1; border-style: solid; background: rgba(99,102,241,0.08); }
-    .drop .lbl { color: #a1a1aa; font-size: 0.85rem; font-weight: 500; }
-    .drop .sublbl { color: #52525b; font-size: 0.72rem; margin-top: 0.25rem; }
+    .drop .lbl { color: #a1a1aa; font-size: 0.82rem; font-weight: 500; }
+    .drop .sublbl { color: #52525b; font-size: 0.7rem; margin-top: 0.2rem; }
     input[type="file"] { display: none; }
 
     .btn {
-      display: inline-flex; align-items: center; gap: 0.4rem; border: none;
-      padding: 0.55rem 1rem; border-radius: 7px; font-size: 0.8rem; font-weight: 500;
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; border: none;
+      padding: 0.5rem 0.9rem; border-radius: 7px; font-size: 0.78rem; font-weight: 500;
       cursor: pointer; font-family: inherit; transition: all 0.15s;
     }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -49,115 +49,140 @@
     .btn-subtle:hover:not(:disabled) { background: rgba(255,255,255,0.04); color: #a1a1aa; }
     .btn-danger { background: rgba(239,68,68,0.08); color: #fca5a5; border: 1px solid rgba(239,68,68,0.18); }
     .btn-danger:hover:not(:disabled) { background: rgba(239,68,68,0.14); }
+    .btn-icon { width: 22px; height: 22px; padding: 0; font-size: 0.95rem; line-height: 1; border-radius: 5px; }
 
-    .row { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+    .row { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    @media (max-width: 760px) { .grid-2 { grid-template-columns: 1fr; } }
+
     label.inline { font-size: 0.78rem; color: #a1a1aa; display: flex; align-items: center; gap: 0.4rem; }
-    input[type="text"], textarea, select {
+    input[type="text"] {
       background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.08);
-      color: #e4e4e7; padding: 0.45rem 0.6rem; border-radius: 6px;
+      color: #e4e4e7; padding: 0.4rem 0.55rem; border-radius: 6px;
       font-size: 0.78rem; font-family: inherit; outline: none; transition: border-color 0.15s;
+      width: 100%;
     }
-    textarea { font-family: 'JetBrains Mono', 'Consolas', monospace; font-size: 0.72rem; line-height: 1.5; }
-    input[type="text"]:focus, textarea:focus, select:focus { border-color: rgba(99,102,241,0.4); }
+    input[type="text"]:focus { border-color: rgba(99,102,241,0.4); }
+    input[type="text"]:disabled { opacity: 0.35; }
 
-    .shape-list { display: flex; flex-direction: column; gap: 0.4rem; }
-    .shape-item {
-      display: grid; grid-template-columns: 110px 1fr auto; gap: 0.6rem; align-items: center;
-      background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.05);
-      border-radius: 8px; padding: 0.5rem 0.7rem;
+    /* Matrix */
+    .matrix-wrap { overflow-x: auto; margin: 0 -0.25rem; padding: 0 0.25rem 0.25rem; }
+    table.matrix { border-collapse: separate; border-spacing: 0; min-width: 100%; }
+    table.matrix th, table.matrix td {
+      padding: 0.6rem 0.65rem; vertical-align: top;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
     }
-    .shape-item .name { color: #fafafa; font-weight: 600; font-size: 0.82rem; font-family: 'JetBrains Mono', monospace; }
-    .shape-item .meta { color: #71717a; font-size: 0.74rem; }
-    .shape-item .meta strong { color: #a5b4fc; font-weight: 500; }
-    .shape-item .actions { display: flex; gap: 0.3rem; }
-    .empty { color: #52525b; font-size: 0.78rem; text-align: center; padding: 1rem; font-style: italic; }
+    table.matrix th {
+      background: rgba(255,255,255,0.02); text-align: left;
+      color: #d4d4d8; font-weight: 500;
+    }
+    .corner { font-size: 0.68rem; color: #52525b; font-weight: 400; min-width: 240px; }
+    .shape-head { min-width: 180px; }
+    .shape-head-row { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; }
+    .shape-name { font-family: 'JetBrains Mono', monospace; color: #fafafa; font-weight: 600; font-size: 0.82rem; }
+    .shape-meta { color: #71717a; font-size: 0.68rem; margin-top: 0.2rem; }
+    .add-head { min-width: 110px; vertical-align: middle; text-align: left; }
+
+    .style-head {
+      min-width: 240px; max-width: 260px;
+      background: rgba(255,255,255,0.02);
+    }
+    .style-id-row { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; margin-bottom: 0.5rem; }
+    .style-id { font-family: 'JetBrains Mono', monospace; color: #fafafa; font-weight: 600; font-size: 0.82rem; }
+    .style-field { display: flex; flex-direction: column; gap: 0.15rem; margin-bottom: 0.3rem; }
+    .style-field-label { font-size: 0.6rem; color: #52525b; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500; }
+    .style-field input { font-size: 0.72rem; padding: 0.32rem 0.5rem; }
+
+    .glb-cell { min-width: 200px; }
+    .glb-cell-row { display: flex; align-items: center; gap: 0.45rem; }
+    .glb-cell input[type="checkbox"] {
+      width: 14px; height: 14px; cursor: pointer; flex-shrink: 0;
+      accent-color: #6366f1;
+    }
+    .glb-cell input[type="text"] { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; }
+
+    .add-style-row td { background: transparent; padding: 0.7rem 0.5rem; }
+    .matrix-empty { color: #52525b; font-size: 0.78rem; padding: 1rem; text-align: center; font-style: italic; }
 
     .preview {
       background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.05);
       border-radius: 8px; padding: 0.85rem 1rem;
       font-family: 'JetBrains Mono', 'Consolas', monospace; font-size: 0.7rem; line-height: 1.55;
       color: #a1a1aa; max-height: 380px; overflow: auto; white-space: pre;
+      margin-top: 0.85rem;
     }
     .log {
       font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: #71717a;
       background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.04); border-radius: 6px;
-      padding: 0.6rem 0.8rem; max-height: 160px; overflow: auto; line-height: 1.5;
-      white-space: pre-wrap; word-break: break-word;
+      padding: 0.55rem 0.8rem; max-height: 140px; overflow: auto; line-height: 1.5;
+      white-space: pre-wrap; word-break: break-word; margin-top: 0.85rem;
     }
     .log .ok { color: #6ee7b7; } .log .warn { color: #fcd34d; } .log .err { color: #fca5a5; }
 
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; }
-    @media (max-width: 760px) { .grid-2 { grid-template-columns: 1fr; } }
-
-    .field { display: flex; flex-direction: column; gap: 0.3rem; }
-    .field-label { color: #a1a1aa; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500; }
-
-    textarea.large { min-height: 220px; resize: vertical; width: 100%; }
+    .settings-row { display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end; }
+    .settings-row .field { display: flex; flex-direction: column; gap: 0.3rem; }
+    .field-label { color: #a1a1aa; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500; }
+    .settings-row .field input { min-width: 320px; }
+    .settings-row .field.short input { min-width: 100px; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <h1>Catalog Manager</h1>
     <p class="sub">
-      Build / edit <code>cdn/templates/catalog.json</code>. Drop a GLB to extract its <code>Occupancy_*</code> meshes and assign them to a shape. Serve repo root via local HTTP server (e.g. <code>python -m http.server 8080</code>) and open this page from there.
+      Build / edit <code>cdn/templates/catalog.json</code>. Tick the cells you want to ship; drop a GLB to extract its <code>Occupancy_*</code> meshes for a shape. Serve repo root via local HTTP server (e.g. <code>python -m http.server 8080</code>) and open this page from there.
     </p>
 
     <div class="section">
-      <h2><span class="step">1</span> Load existing catalog (optional)</h2>
-      <div class="hint">Drop your existing <code>catalog.json</code> here to keep editing it. Skip to start fresh.</div>
-      <div class="drop" id="catalogDrop">
-        <div class="lbl">Drop catalog.json or click to browse</div>
-        <div class="sublbl">JSON file</div>
-        <input type="file" id="catalogInput" accept="application/json,.json">
-      </div>
-    </div>
-
-    <div class="section">
-      <h2><span class="step">2</span> Drop a template GLB</h2>
-      <div class="hint">The <code>Occupancy_*</code> meshes (planes named like <code>Occupancy_1</code>, <code>Occupancy_2</code> &hellip;) are extracted into a shape entry. Give the shape an id (e.g. <code>small</code>, <code>nopannels</code>, <code>pannels</code>). Existing shape ids are overwritten.</div>
-      <div class="drop" id="glbDrop">
-        <div class="lbl">Drop a .glb file or click to browse</div>
-        <div class="sublbl">Repeats per shape variant</div>
-        <input type="file" id="glbInput" accept=".glb,model/gltf-binary">
-      </div>
-      <div class="log" id="probeLog" style="margin-top:0.85rem;display:none;"></div>
-    </div>
-
-    <div class="section">
-      <h2><span class="step">3</span> Shapes in the catalog</h2>
-      <div class="shape-list" id="shapeList"></div>
-    </div>
-
-    <div class="section">
-      <h2><span class="step">4</span> Selection order &amp; styles</h2>
-      <div class="hint">Selection order is the smallest &rarr; largest sequence the gallery walks when fitting items. Styles is JSON describing each visual variant: <code>name</code>, <code>description</code>, <code>thumbnail</code>, <code>root</code>, <code>glbs</code>.</div>
+      <h2>Import</h2>
       <div class="grid-2">
+        <div class="drop" id="catalogDrop">
+          <div class="lbl">Drop catalog.json</div>
+          <div class="sublbl">Optional — load to keep editing</div>
+          <input type="file" id="catalogInput" accept="application/json,.json">
+        </div>
+        <div class="drop" id="glbDrop">
+          <div class="lbl">Drop a .glb file</div>
+          <div class="sublbl">Probes Occupancy_* meshes for a shape</div>
+          <input type="file" id="glbInput" accept=".glb,model/gltf-binary">
+        </div>
+      </div>
+      <div class="log" id="probeLog" style="display:none;"></div>
+    </div>
+
+    <div class="section">
+      <h2>Styles &times; Shapes</h2>
+      <div class="hint">Rows are styles, columns are shapes. Tick a cell to include the GLB; the placeholder is the conventional name &mdash; edit if your file is named differently.</div>
+      <div class="matrix-wrap">
+        <table class="matrix" id="matrix"></table>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Settings</h2>
+      <div class="settings-row">
         <div class="field">
           <span class="field-label">Selection order</span>
           <input type="text" id="selectionOrderInput" placeholder="small, nopannels, pannels">
         </div>
-        <div class="field">
-          <span class="field-label">Default min spacing (babylon m)</span>
-          <input type="text" id="minSpacingInput" placeholder="0.5" style="max-width:140px;">
+        <div class="field short">
+          <span class="field-label">Min spacing (m)</span>
+          <input type="text" id="minSpacingInput" placeholder="0.5">
         </div>
-      </div>
-      <div class="field" style="margin-top:0.85rem;">
-        <span class="field-label">Styles JSON</span>
-        <textarea id="stylesInput" class="large" spellcheck="false"></textarea>
       </div>
     </div>
 
     <div class="section">
-      <h2><span class="step">5</span> Preview &amp; download</h2>
-      <div class="row" style="margin-bottom:0.85rem;">
+      <div class="row">
         <button class="btn btn-primary" id="downloadBtn">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
           Download catalog.json
         </button>
         <button class="btn btn-default" id="copyBtn">Copy JSON</button>
-        <button class="btn btn-subtle" id="resetBtn">Reset</button>
+        <button class="btn btn-subtle" id="toggleJsonBtn">Show JSON</button>
+        <button class="btn btn-subtle" id="resetBtn" style="margin-left:auto;">Reset</button>
       </div>
-      <div class="preview" id="preview"></div>
+      <div class="preview" id="preview" style="display:none;"></div>
     </div>
   </div>
 
@@ -167,32 +192,31 @@
   (function() {
     'use strict';
 
-    // Working catalog state. Persists across drops within this page session.
     var catalog = {
       shapes: {},
       selectionOrder: ['small', 'nopannels', 'pannels'],
       minSpacing: 0.5,
       styles: {
-        classic:    { name: 'Classic',    description: 'Mix of modern and classic materials', thumbnail: 'classic_thumb.jpg',    root: 'T_root.glb',            glbs: { small: 'T_small.glb',            nopannels: 'T_nopannels.glb',            pannels: 'T_pannels.glb' } },
+        classic:    { name: 'Classic',    description: 'Mix of modern and classic materials',     thumbnail: 'classic_thumb.jpg',    root: 'T_root.glb',            glbs: { small: 'T_small.glb',            nopannels: 'T_nopannels.glb',            pannels: 'T_pannels.glb' } },
         minimalist: { name: 'Minimalist', description: 'Clean lines, white walls, even lighting', thumbnail: 'minimalist_thumb.jpg', root: 'T_root_minimalist.glb', glbs: { small: 'T_small_minimalist.glb', nopannels: 'T_nopannels_minimalist.glb', pannels: 'T_pannels_minimalist.glb' } },
-        dark:       { name: 'Dark',       description: 'Dark walls, backlight type of frames', thumbnail: 'dark_thumb.jpg',       root: 'T_root_dark.glb',       glbs: { small: 'T_small_dark.glb',       nopannels: 'T_nopannels_dark.glb',       pannels: 'T_pannels_dark.glb' } }
+        dark:       { name: 'Dark',       description: 'Dark walls, backlight type of frames',    thumbnail: 'dark_thumb.jpg',       root: 'T_root_dark.glb',       glbs: { small: 'T_small_dark.glb',       nopannels: 'T_nopannels_dark.glb',       pannels: 'T_pannels_dark.glb' } }
       }
     };
 
     var dom = {
-      catalogDrop:  document.getElementById('catalogDrop'),
-      catalogInput: document.getElementById('catalogInput'),
-      glbDrop:      document.getElementById('glbDrop'),
-      glbInput:     document.getElementById('glbInput'),
-      probeLog:     document.getElementById('probeLog'),
-      shapeList:    document.getElementById('shapeList'),
-      selOrder:     document.getElementById('selectionOrderInput'),
-      minSpacing:   document.getElementById('minSpacingInput'),
-      stylesInput:  document.getElementById('stylesInput'),
-      preview:      document.getElementById('preview'),
-      downloadBtn:  document.getElementById('downloadBtn'),
-      copyBtn:      document.getElementById('copyBtn'),
-      resetBtn:     document.getElementById('resetBtn')
+      catalogDrop:   document.getElementById('catalogDrop'),
+      catalogInput:  document.getElementById('catalogInput'),
+      glbDrop:       document.getElementById('glbDrop'),
+      glbInput:      document.getElementById('glbInput'),
+      probeLog:      document.getElementById('probeLog'),
+      matrix:        document.getElementById('matrix'),
+      selOrder:      document.getElementById('selectionOrderInput'),
+      minSpacing:    document.getElementById('minSpacingInput'),
+      preview:       document.getElementById('preview'),
+      downloadBtn:   document.getElementById('downloadBtn'),
+      copyBtn:       document.getElementById('copyBtn'),
+      toggleJsonBtn: document.getElementById('toggleJsonBtn'),
+      resetBtn:      document.getElementById('resetBtn')
     };
 
     function log(msg, kind) {
@@ -303,74 +327,262 @@
 
         catalog.shapes[shapeId] = { occupancies: occupancies };
         log('Saved shape "' + shapeId + '" (' + occupancies.length + ' occupancies)', 'ok');
-        renderShapes();
-        renderPreview();
+        renderAll();
       } catch (e) {
         log('Error: ' + e.message, 'err');
         console.error(e);
       }
     }
 
-    // === DOM rendering ===
-    function renderShapes() {
-      dom.shapeList.innerHTML = '';
-      var ids = Object.keys(catalog.shapes);
-      if (ids.length === 0) {
-        var empty = document.createElement('div');
-        empty.className = 'empty';
-        empty.textContent = 'No shapes yet — drop a GLB above.';
-        dom.shapeList.appendChild(empty);
-        return;
-      }
-      ids.forEach(function(id) {
-        var s = catalog.shapes[id];
-        var node = document.createElement('div');
-        node.className = 'shape-item';
+    // Default conventional GLB filename for a (shape, style) cell.
+    function defaultGlbName(shapeId, styleId) {
+      return 'T_' + shapeId + '_' + styleId + '.glb';
+    }
 
-        var n = document.createElement('div'); n.className = 'name'; n.textContent = id;
-        var m = document.createElement('div'); m.className = 'meta';
-        var widths = (s.occupancies || []).map(function(o) { return o.width.toFixed(2); }).join(', ');
-        m.innerHTML = '<strong>' + (s.occupancies || []).length + '</strong> occupancies — widths: ' + (widths || '<em>none</em>');
-
-        var actions = document.createElement('div'); actions.className = 'actions';
-        var del = document.createElement('button'); del.className = 'btn btn-danger'; del.textContent = 'Remove';
-        del.addEventListener('click', function() {
-          if (confirm('Remove shape "' + id + '"?')) {
-            delete catalog.shapes[id];
-            renderShapes(); renderPreview();
-          }
-        });
-        actions.appendChild(del);
-
-        node.appendChild(n); node.appendChild(m); node.appendChild(actions);
-        dom.shapeList.appendChild(node);
+    // Ensure every shape referenced anywhere has an entry in catalog.shapes.
+    function normalizeCatalog() {
+      var referenced = {};
+      (catalog.selectionOrder || []).forEach(function(s) { referenced[s] = true; });
+      Object.keys(catalog.styles || {}).forEach(function(sid) {
+        var glbs = (catalog.styles[sid] && catalog.styles[sid].glbs) || {};
+        Object.keys(glbs).forEach(function(k) { referenced[k] = true; });
+      });
+      Object.keys(referenced).forEach(function(shapeId) {
+        if (!catalog.shapes[shapeId]) catalog.shapes[shapeId] = { occupancies: [] };
       });
     }
 
-    function renderControls() {
+    // === Matrix rendering ===
+    function renderMatrix() {
+      dom.matrix.innerHTML = '';
+      var shapeIds = Object.keys(catalog.shapes);
+      var styleIds = Object.keys(catalog.styles);
+
+      // Header row
+      var thead = document.createElement('thead');
+      var headRow = document.createElement('tr');
+      var corner = document.createElement('th');
+      corner.className = 'corner';
+      corner.textContent = 'style ↓  /  shape →';
+      headRow.appendChild(corner);
+
+      shapeIds.forEach(function(shapeId) {
+        var th = document.createElement('th');
+        th.className = 'shape-head';
+
+        var topRow = document.createElement('div');
+        topRow.className = 'shape-head-row';
+        var name = document.createElement('span');
+        name.className = 'shape-name';
+        name.textContent = shapeId;
+        var rm = document.createElement('button');
+        rm.className = 'btn btn-danger btn-icon';
+        rm.textContent = '×';
+        rm.title = 'Remove shape';
+        rm.addEventListener('click', function() {
+          if (!confirm('Remove shape "' + shapeId + '"? It will also be removed from all styles.')) return;
+          delete catalog.shapes[shapeId];
+          Object.keys(catalog.styles).forEach(function(sid) {
+            if (catalog.styles[sid].glbs) delete catalog.styles[sid].glbs[shapeId];
+          });
+          catalog.selectionOrder = (catalog.selectionOrder || []).filter(function(s) { return s !== shapeId; });
+          renderAll();
+        });
+        topRow.appendChild(name);
+        topRow.appendChild(rm);
+        th.appendChild(topRow);
+
+        var meta = document.createElement('div');
+        meta.className = 'shape-meta';
+        var occCount = ((catalog.shapes[shapeId] || {}).occupancies || []).length;
+        meta.textContent = occCount > 0 ? occCount + ' occupancies' : 'no occupancies probed';
+        th.appendChild(meta);
+
+        headRow.appendChild(th);
+      });
+
+      // + Shape header cell
+      var addShapeTh = document.createElement('th');
+      addShapeTh.className = 'add-head';
+      var addShapeBtn = document.createElement('button');
+      addShapeBtn.className = 'btn btn-default';
+      addShapeBtn.textContent = '+ Shape';
+      addShapeBtn.addEventListener('click', function() {
+        var id = prompt('New shape id (e.g. small, nopannels):');
+        if (!id) return;
+        id = id.trim();
+        if (!id) return;
+        if (catalog.shapes[id]) { alert('Shape "' + id + '" already exists.'); return; }
+        catalog.shapes[id] = { occupancies: [] };
+        renderAll();
+      });
+      addShapeTh.appendChild(addShapeBtn);
+      headRow.appendChild(addShapeTh);
+
+      thead.appendChild(headRow);
+      dom.matrix.appendChild(thead);
+
+      // Body
+      var tbody = document.createElement('tbody');
+
+      if (styleIds.length === 0 && shapeIds.length === 0) {
+        var empty = document.createElement('tr');
+        var emptyTd = document.createElement('td');
+        emptyTd.colSpan = 2;
+        emptyTd.className = 'matrix-empty';
+        emptyTd.textContent = 'No styles or shapes yet. Drop a catalog.json or a GLB above, or add one below.';
+        empty.appendChild(emptyTd);
+        tbody.appendChild(empty);
+      }
+
+      styleIds.forEach(function(styleId) {
+        var style = catalog.styles[styleId];
+        style.glbs = style.glbs || {};
+
+        var tr = document.createElement('tr');
+
+        // Style header column
+        var headTd = document.createElement('td');
+        headTd.className = 'style-head';
+
+        var idRow = document.createElement('div');
+        idRow.className = 'style-id-row';
+        var idLabel = document.createElement('span');
+        idLabel.className = 'style-id';
+        idLabel.textContent = styleId;
+        var rmStyle = document.createElement('button');
+        rmStyle.className = 'btn btn-danger btn-icon';
+        rmStyle.textContent = '×';
+        rmStyle.title = 'Remove style';
+        rmStyle.addEventListener('click', function() {
+          if (!confirm('Remove style "' + styleId + '"?')) return;
+          delete catalog.styles[styleId];
+          renderAll();
+        });
+        idRow.appendChild(idLabel);
+        idRow.appendChild(rmStyle);
+        headTd.appendChild(idRow);
+
+        [
+          { key: 'name',      label: 'name',  placeholder: 'Display name' },
+          { key: 'thumbnail', label: 'thumb', placeholder: styleId + '_thumb.jpg' },
+          { key: 'root',      label: 'root',  placeholder: 'T_root_' + styleId + '.glb' }
+        ].forEach(function(field) {
+          var wrap = document.createElement('div');
+          wrap.className = 'style-field';
+          var lbl = document.createElement('span');
+          lbl.className = 'style-field-label';
+          lbl.textContent = field.label;
+          var input = document.createElement('input');
+          input.type = 'text';
+          input.placeholder = field.placeholder;
+          input.value = style[field.key] || '';
+          input.addEventListener('input', function() {
+            style[field.key] = input.value;
+            updatePreview();
+          });
+          wrap.appendChild(lbl);
+          wrap.appendChild(input);
+          headTd.appendChild(wrap);
+        });
+
+        tr.appendChild(headTd);
+
+        // GLB cells
+        shapeIds.forEach(function(shapeId) {
+          var td = document.createElement('td');
+          td.className = 'glb-cell';
+          var rowDiv = document.createElement('div');
+          rowDiv.className = 'glb-cell-row';
+
+          var current = style.glbs[shapeId] || '';
+          var checked = !!current;
+
+          var checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.checked = checked;
+
+          var input = document.createElement('input');
+          input.type = 'text';
+          input.placeholder = defaultGlbName(shapeId, styleId);
+          input.value = current;
+          input.disabled = !checked;
+
+          checkbox.addEventListener('change', function() {
+            if (checkbox.checked) {
+              if (!input.value) input.value = defaultGlbName(shapeId, styleId);
+              style.glbs[shapeId] = input.value;
+              input.disabled = false;
+            } else {
+              delete style.glbs[shapeId];
+              input.disabled = true;
+            }
+            updatePreview();
+          });
+
+          input.addEventListener('input', function() {
+            if (input.value) {
+              style.glbs[shapeId] = input.value;
+              if (!checkbox.checked) checkbox.checked = true;
+            } else {
+              delete style.glbs[shapeId];
+            }
+            updatePreview();
+          });
+
+          rowDiv.appendChild(checkbox);
+          rowDiv.appendChild(input);
+          td.appendChild(rowDiv);
+          tr.appendChild(td);
+        });
+
+        // Empty cell under "+ Shape" header
+        tr.appendChild(document.createElement('td'));
+        tbody.appendChild(tr);
+      });
+
+      // + Style row
+      var addRow = document.createElement('tr');
+      addRow.className = 'add-style-row';
+      var addTd = document.createElement('td');
+      addTd.colSpan = shapeIds.length + 2;
+      var addStyleBtn = document.createElement('button');
+      addStyleBtn.className = 'btn btn-default';
+      addStyleBtn.textContent = '+ Style';
+      addStyleBtn.addEventListener('click', function() {
+        var id = prompt('New style id (e.g. dark, vintage):');
+        if (!id) return;
+        id = id.trim();
+        if (!id) return;
+        if (catalog.styles[id]) { alert('Style "' + id + '" already exists.'); return; }
+        catalog.styles[id] = {
+          name: id.charAt(0).toUpperCase() + id.slice(1),
+          description: '',
+          thumbnail: id + '_thumb.jpg',
+          root: 'T_root_' + id + '.glb',
+          glbs: {}
+        };
+        renderAll();
+      });
+      addTd.appendChild(addStyleBtn);
+      addRow.appendChild(addTd);
+      tbody.appendChild(addRow);
+
+      dom.matrix.appendChild(tbody);
+    }
+
+    function syncControlsFromCatalog() {
       dom.selOrder.value = (catalog.selectionOrder || []).join(', ');
       dom.minSpacing.value = catalog.minSpacing != null ? String(catalog.minSpacing) : '0.5';
-      dom.stylesInput.value = JSON.stringify(catalog.styles || {}, null, 2);
     }
 
     function syncControlsToCatalog() {
       catalog.selectionOrder = dom.selOrder.value.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
       var ms = parseFloat(dom.minSpacing.value);
       catalog.minSpacing = isFinite(ms) && ms > 0 ? ms : 0.5;
-      try {
-        catalog.styles = JSON.parse(dom.stylesInput.value);
-      } catch (e) {
-        // ignore parse errors during typing; preview will show last good value
-      }
-    }
-
-    function renderPreview() {
-      syncControlsToCatalog();
-      dom.preview.textContent = JSON.stringify(buildOutput(), null, 2);
     }
 
     function buildOutput() {
-      // Output ordering: shapes, selectionOrder, minSpacing, styles.
       return {
         shapes: catalog.shapes,
         selectionOrder: catalog.selectionOrder,
@@ -379,8 +591,22 @@
       };
     }
 
+    function updatePreview() {
+      syncControlsToCatalog();
+      if (dom.preview.style.display !== 'none') {
+        dom.preview.textContent = JSON.stringify(buildOutput(), null, 2);
+      }
+    }
+
+    function renderAll() {
+      normalizeCatalog();
+      renderMatrix();
+      syncControlsFromCatalog();
+      updatePreview();
+    }
+
     // === File handling helpers ===
-    function bindDrop(zone, input, accept, onFile) {
+    function bindDrop(zone, input, onFile) {
       zone.addEventListener('click', function() { input.click(); });
       zone.addEventListener('dragover', function(e) { e.preventDefault(); zone.classList.add('over'); });
       zone.addEventListener('dragleave', function() { zone.classList.remove('over'); });
@@ -396,9 +622,9 @@
       });
     }
 
-    bindDrop(dom.glbDrop, dom.glbInput, '.glb', handleGLB);
+    bindDrop(dom.glbDrop, dom.glbInput, handleGLB);
 
-    bindDrop(dom.catalogDrop, dom.catalogInput, '.json', function(file) {
+    bindDrop(dom.catalogDrop, dom.catalogInput, function(file) {
       var reader = new FileReader();
       reader.onload = function(ev) {
         try {
@@ -408,7 +634,7 @@
           if (parsed.minSpacing != null) catalog.minSpacing = parsed.minSpacing;
           if (parsed.styles) catalog.styles = parsed.styles;
           log('Loaded catalog.json (' + Object.keys(catalog.shapes).length + ' shapes, ' + Object.keys(catalog.styles).length + ' styles)', 'ok');
-          renderShapes(); renderControls(); renderPreview();
+          renderAll();
         } catch (e) {
           log('Failed to parse catalog: ' + e.message, 'err');
         }
@@ -416,8 +642,8 @@
       reader.readAsText(file);
     });
 
-    [dom.selOrder, dom.minSpacing, dom.stylesInput].forEach(function(el) {
-      el.addEventListener('input', renderPreview);
+    [dom.selOrder, dom.minSpacing].forEach(function(el) {
+      el.addEventListener('input', updatePreview);
     });
 
     dom.downloadBtn.addEventListener('click', function() {
@@ -439,17 +665,28 @@
       });
     });
 
+    dom.toggleJsonBtn.addEventListener('click', function() {
+      var visible = dom.preview.style.display !== 'none';
+      if (visible) {
+        dom.preview.style.display = 'none';
+        dom.toggleJsonBtn.textContent = 'Show JSON';
+      } else {
+        dom.preview.style.display = '';
+        dom.toggleJsonBtn.textContent = 'Hide JSON';
+        updatePreview();
+      }
+    });
+
     dom.resetBtn.addEventListener('click', function() {
       if (!confirm('Reset everything?')) return;
       catalog.shapes = {};
       catalog.selectionOrder = ['small', 'nopannels', 'pannels'];
       catalog.minSpacing = 0.5;
       // Keep styles intact — they're user-edited.
-      renderShapes(); renderControls(); renderPreview();
+      renderAll();
     });
 
-    // Initial paint
-    renderShapes(); renderControls(); renderPreview();
+    renderAll();
   })();
   </script>
 </body>

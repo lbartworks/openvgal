@@ -114,7 +114,7 @@ function changeLanguage(lang) {
     document.querySelector(`.help-text.${lang}`).classList.add('active');
 }
 
-// Load overlay content (always from CDN)
+// Load overlay content: CDN first, fall back to local
 function loadOverlay() {
     const initOverlay = (html) => {
         document.body.insertAdjacentHTML('beforeend', html);
@@ -123,17 +123,18 @@ function loadOverlay() {
         hideInfoBox();
     };
 
-    const overlayUrl = (typeof cdn_base !== 'undefined' && cdn_base)
-        ? cdn_base + '/core/overlay.html'
-        : 'overlay.html';
+    const fetchText = (url) => fetch(url).then(r => {
+        if (!r.ok) throw new Error('not found');
+        return r.text();
+    });
 
-    fetch(overlayUrl)
-        .then(response => {
-            if (!response.ok) throw new Error('not found');
-            return response.text();
-        })
-        .then(initOverlay)
-        .catch(e => console.warn('Failed to load overlay:', e));
+    const cdnUrl = (typeof cdn_base !== 'undefined' && cdn_base) ? cdn_base + '/core/overlay.html' : null;
+
+    const promise = cdnUrl
+        ? fetchText(cdnUrl).catch(() => fetchText('overlay.html'))
+        : fetchText('overlay.html');
+
+    promise.then(initOverlay).catch(e => console.warn('Failed to load overlay:', e));
 }
 
 // If loaded dynamically (e.g. CDN ZIP), DOMContentLoaded has already fired — run immediately

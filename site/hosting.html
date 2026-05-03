@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hosting service — coming soon | OpenVGAL</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      background: #000;
+      color: #a1a1aa;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      top: -200px; left: 50%;
+      transform: translateX(-50%);
+      width: 800px; height: 800px;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.1) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .page-wrapper {
+      position: relative;
+      z-index: 1;
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 0 1.5rem 4rem;
+    }
+    nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.25rem 0;
+    }
+    .nav-logo {
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      color: #fff;
+      text-decoration: none;
+    }
+    .nav-back {
+      color: #52525b;
+      text-decoration: none;
+      font-size: 0.8rem;
+      transition: color 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .nav-back:hover { color: #a1a1aa; }
+    .nav-back svg { width: 14px; height: 14px; }
+
+    .hero {
+      text-align: center;
+      padding: 4rem 0 2rem;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      color: #a78bfa;
+      background: rgba(167, 139, 250, 0.08);
+      border: 1px solid rgba(167, 139, 250, 0.15);
+      padding: 0.35rem 0.9rem;
+      border-radius: 100px;
+      margin-bottom: 1.5rem;
+    }
+    .hero-badge-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: #a78bfa;
+    }
+    h1 {
+      font-size: clamp(2rem, 4.6vw, 2.8rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: #fafafa;
+      margin-bottom: 1rem;
+      line-height: 1.15;
+    }
+    .gradient-text {
+      background: linear-gradient(135deg, #a78bfa 0%, #6366f1 50%, #818cf8 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero-sub {
+      font-size: 1rem;
+      line-height: 1.7;
+      color: #71717a;
+      max-width: 460px;
+      margin: 0 auto;
+    }
+
+    .form-section {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 14px;
+      padding: 1.5rem;
+      margin-top: 2rem;
+    }
+    .form-title {
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: #e4e4e7;
+      margin-bottom: 0.5rem;
+    }
+    .form-hint {
+      font-size: 0.78rem;
+      color: #71717a;
+      margin-bottom: 1.25rem;
+      line-height: 1.6;
+    }
+    .form-embed {
+      width: 100%;
+      min-height: 480px;
+      border: none;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.02);
+    }
+    .privacy-note {
+      font-size: 0.72rem;
+      color: #52525b;
+      margin-top: 0.85rem;
+      text-align: center;
+    }
+
+    .placeholder-card {
+      text-align: center;
+      padding: 2.5rem 1.5rem;
+      color: #71717a;
+      border: 1px dashed rgba(255,255,255,0.1);
+      border-radius: 10px;
+    }
+    .placeholder-card code {
+      background: rgba(99, 102, 241, 0.1);
+      color: #a5b4fc;
+      padding: 0.1rem 0.4rem;
+      border-radius: 3px;
+      font-size: 0.78rem;
+    }
+
+    .footer-note {
+      text-align: center;
+      margin-top: 2rem;
+      font-size: 0.78rem;
+      color: #52525b;
+    }
+    .footer-note a {
+      color: #71717a;
+      text-decoration: none;
+    }
+    .footer-note a:hover { color: #a1a1aa; }
+
+    @media (max-width: 600px) {
+      .hero { padding: 2.5rem 0 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrapper">
+    <nav>
+      <a href="/" class="nav-logo">OPENVGAL</a>
+      <a href="/" class="nav-back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        Back to OpenVGAL
+      </a>
+    </nav>
+
+    <div class="hero">
+      <div class="hero-badge">
+        <span class="hero-badge-dot"></span>
+        <span>Coming soon</span>
+      </div>
+      <h1>Hosting <span class="gradient-text">service</span></h1>
+      <p class="hero-sub">
+        Want us to host your gallery for you? Drop your email and we'll let you know when it's ready.
+      </p>
+    </div>
+
+    <div class="form-section">
+      <div class="form-title">Get notified at launch</div>
+      <div class="form-hint">
+        We're gauging interest before we build this. The more people sign up, the faster it happens.
+      </div>
+      <div id="formContainer"></div>
+      <div class="privacy-note">We'll only email you about this launch. No spam, ever.</div>
+    </div>
+
+    <div class="footer-note">
+      Questions? <a href="mailto:lbartworks@protonmail.com">lbartworks@protonmail.com</a>
+    </div>
+  </div>
+
+  <script>
+    // === Configurable constants — edit these before deploy ===
+    // Google Form embed URL. Create a form at https://forms.google.com,
+    // click Send → embed (<>) → copy the iframe src here.
+    // Until set, the page shows a "not configured" placeholder.
+    const HOSTING_FORM_URL = '';
+
+    // Optional analytics endpoint. Leave empty to skip; or set to a URL that
+    // accepts a POST with a small JSON body (e.g. a Cloudflare Worker, Plausible
+    // custom event endpoint, or a Google Apps Script doPost handler).
+    const ANALYTICS_ENDPOINT = '';
+
+    // === End config ===
+
+    // Render the form (or a clear placeholder so the page is still useful pre-config).
+    const formContainer = document.getElementById('formContainer');
+    if (HOSTING_FORM_URL) {
+      const iframe = document.createElement('iframe');
+      iframe.className = 'form-embed';
+      iframe.src = HOSTING_FORM_URL;
+      iframe.title = 'Hosting service interest form';
+      iframe.loading = 'lazy';
+      formContainer.appendChild(iframe);
+    } else {
+      formContainer.innerHTML =
+        '<div class="placeholder-card">' +
+        'Form not yet configured.<br>' +
+        'Email <a href="mailto:lbartworks@protonmail.com" style="color:#a5b4fc;">lbartworks@protonmail.com</a> ' +
+        'and we\'ll add you to the list.' +
+        '</div>';
+    }
+
+    // Page-view beacon. Captures interest from people who view but don't submit.
+    (function() {
+      const payload = {
+        event: 'hosting_page_view',
+        ts: Date.now(),
+        ref: document.referrer || null
+      };
+      if (ANALYTICS_ENDPOINT && navigator.sendBeacon) {
+        try {
+          const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+          navigator.sendBeacon(ANALYTICS_ENDPOINT, blob);
+        } catch (e) {
+          // Beacon failures are non-critical; never break the page.
+        }
+      }
+      // Always log in console for local debugging.
+      if (window.console) console.log('[openvgal] hosting page view:', payload);
+    })();
+  </script>
+</body>
+</html>

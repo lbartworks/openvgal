@@ -687,9 +687,15 @@
   <script src="../js/gallery-settings.js"></script>
   <script src="../js/style-picker.js"></script>
   <script src="../js/gallery-generator.js"></script>
+  <script src="../js/gallery-page.js"></script>
   <script>
-    // CDN Configuration
-    const CDN_BASE = 'https://cdn.openvgal.com';
+    // CDN Configuration. Dev mode (?dev=1) swaps the CDN for local /cdn so
+    // template / Occupancy_* tweaks can be tested without uploading.
+    // Heads up: the generated thin-client ZIP bakes CDN_BASE in, so don't ship
+    // a ZIP produced in dev mode.
+    const CDN_BASE = new URLSearchParams(window.location.search).get('dev') === '1'
+      ? '/cdn'
+      : 'https://cdn.openvgal.com';
     window.openvgal_cdn_base = CDN_BASE;
 
     // Mount gallery settings panel
@@ -728,118 +734,12 @@
     const zipProgressFill = document.getElementById('zipProgressFill');
     const zipProgressText = document.getElementById('zipProgressText');
 
-    // --- Drag-and-drop (same as standard generator) ---
-    async function readAllFiles(dirEntry, basePath) {
-      const results = [];
-      const reader = dirEntry.createReader();
-      const readBatch = function() {
-        return new Promise(function(resolve, reject) {
-          reader.readEntries(resolve, reject);
-        });
-      };
-      var entries;
-      do {
-        entries = await readBatch();
-        for (var i = 0; i < entries.length; i++) {
-          var entry = entries[i];
-          if (entry.isFile) {
-            var file = await new Promise(function(resolve, reject) { entry.file(resolve, reject); });
-            results.push({ file: file, folderPath: basePath, folderName: basePath.split('/').pop() });
-          } else if (entry.isDirectory) {
-            var subResults = await readAllFiles(entry, basePath + '/' + entry.name);
-            results.push.apply(results, subResults);
-          }
-        }
-      } while (entries.length > 0);
-      return results;
-    }
-
-    async function addDroppedFolder(dirEntry) {
-      var allFiles = await readAllFiles(dirEntry, dirEntry.name);
-      var groups = {};
-      for (var i = 0; i < allFiles.length; i++) {
-        var item = allFiles[i];
-        if (!groups[item.folderPath]) {
-          groups[item.folderPath] = { name: item.folderName, path: item.folderPath, files: [] };
-        }
-        groups[item.folderPath].files.push(item.file);
-      }
-      var keys = Object.keys(groups);
-      for (var k = 0; k < keys.length; k++) {
-        var group = groups[keys[k]];
-        var imageFiles = filterImageFiles(group.files);
-        if (imageFiles.length > 0) {
-          var exists = galleries.some(function(g) { return g.path === group.path; });
-          if (!exists) {
-            galleries.push({
-              name: group.name,
-              folderName: group.name,
-              path: group.path,
-              files: imageFiles
-            });
-          }
-        }
-      }
-    }
-
-    var dropZone = document.getElementById('dropZone');
-
-    dropZone.addEventListener('dragover', function(e) {
-      e.preventDefault();
-      dropZone.classList.add('drag-over');
-    });
-
-    dropZone.addEventListener('dragleave', function() {
-      dropZone.classList.remove('drag-over');
-    });
-
-    dropZone.addEventListener('drop', async function(e) {
-      e.preventDefault();
-      dropZone.classList.remove('drag-over');
-      var items = Array.from(e.dataTransfer.items);
-      var entries = [];
-      for (var i = 0; i < items.length; i++) {
-        var entry = items[i].webkitGetAsEntry();
-        if (entry && entry.isDirectory) {
-          entries.push(entry);
-        }
-      }
-      for (var i = 0; i < entries.length; i++) {
-        await addDroppedFolder(entries[i]);
-      }
-      updateGalleryList();
-    });
-
-    dropZone.addEventListener('click', function() {
-      folderInput.click();
-    });
-
-    // Event Listeners
-    addFolderBtn.addEventListener('click', function() { folderInput.click(); });
-
-    folderInput.addEventListener('change', function(e) {
-      var files = Array.from(e.target.files);
-      if (files.length === 0) return;
-
-      var grouped = groupFilesByFolder(files);
-
-      grouped.forEach(function(group) {
-        var imageFiles = filterImageFiles(group.files);
-        if (imageFiles.length > 0) {
-          var exists = galleries.some(function(g) { return g.path === group.path; });
-          if (!exists) {
-            galleries.push({
-              name: group.name,
-              folderName: group.name,
-              path: group.path,
-              files: imageFiles
-            });
-          }
-        }
-      });
-
-      updateGalleryList();
-      folderInput.value = '';
+    GalleryPage.setupDropZone({
+      dropZone: document.getElementById('dropZone'),
+      folderInput: folderInput,
+      addFolderBtn: addFolderBtn,
+      galleries: galleries,
+      onChange: function() { updateGalleryList(); }
     });
 
     // --- Import existing JSON ---
@@ -884,6 +784,7 @@
       importedJSON = null;
       importInfo.style.display = 'none';
       importBtn.style.display = '';
+      markResultStaleIfGenerated();
       updateGalleryList();
     });
 
@@ -923,12 +824,15 @@
     downloadBtn.addEventListener('click', function() {
       if (generatedJSON) {
         downloadJSON(generatedJSON);
+        GalleryPage.openReadyPage(generatedJSON);
       }
     });
 
     // --- CDN-first ZIP download ---
     downloadZipBtn.addEventListener('click', async function() {
       if (!generatedJSON) return;
+
+      GalleryPage.openReadyPage(generatedJSON);
 
       downloadZipBtn.disabled = true;
       zipProgressContainer.style.display = 'block';
@@ -998,125 +902,60 @@
       var leafRooms = allRooms.filter(function(r) { return !parentSet[r]; });
       var lastRoom = leafRooms.length > 0 ? leafRooms[leafRooms.length - 1] : 'root';
 
-      // Gallery capacity
-      var templates = styleConfig ? styleConfig.templates : null;
-      var galleryDist = new GalleryWithOptionalPanels();
-      var maxItems = galleryDist.maxCapacity();
+      // Build a synthetic galleries array from the new uploads, run the v2 builder
+      // on it, then graft the resulting rooms onto the existing building.
+      var newBuilding = await buildGalleryJSON(newGalleries, onProgress, styleConfig);
 
-      var totalImages = newGalleries.reduce(function(sum, g) { return sum + g.files.length; }, 0);
-      var processedImages = 0;
-
-      for (var gi = 0; gi < newGalleries.length; gi++) {
-        var gallery = newGalleries[gi];
-        var imageFiles = filterImageFiles(gallery.files);
-        if (imageFiles.length === 0) continue;
-
-        var galleryDisplayName = gallery.name;
-        var folderName = gallery.folderName || gallery.name;
-
-        if (onProgress) {
-          onProgress(processedImages, totalImages, 'Processing ' + galleryDisplayName + '...');
+      // Append each non-root room from the new build, chaining off `lastRoom`.
+      var newRoomKeys = Object.keys(newBuilding).filter(function(k) {
+        return k !== 'Technical' && k !== 'root';
+      });
+      // Remap room names if they collide with existing ones, and rewrite parent links accordingly.
+      var nameMap = {};
+      var takenNames = {};
+      Object.keys(building).forEach(function(k) { takenNames[k] = true; });
+      newRoomKeys.forEach(function(name) {
+        var unique = name;
+        var suffix = 1;
+        while (takenNames[unique]) {
+          unique = name + '_' + suffix;
+          suffix++;
         }
+        nameMap[name] = unique;
+        takenNames[unique] = true;
+      });
 
-        // Get dimensions
-        var imageDimensions = [];
-        for (var fi = 0; fi < imageFiles.length; fi++) {
-          try {
-            var dims = await getImageDimensions(imageFiles[fi]);
-            dims.file = imageFiles[fi];
-            imageDimensions.push(dims);
-            processedImages++;
-            if (onProgress) {
-              onProgress(processedImages, totalImages, 'Loading ' + imageFiles[fi].name + '...');
-            }
-          } catch (e) {
-            console.warn('Skipping ' + imageFiles[fi].name + ': ' + e.message);
-            processedImages++;
-          }
-        }
+      // Walk in dependency order (parent must already exist) — buildGalleryJSON emits parents
+      // before children, so iterating in key order is sufficient.
+      newRoomKeys.forEach(function(name) {
+        var srcRoom = newBuilding[name];
+        var newName = nameMap[name];
+        var parentName = srcRoom.parent === 'root' ? lastRoom : nameMap[srcRoom.parent];
 
-        if (imageDimensions.length === 0) continue;
-
-        // Handle overflow into sub-galleries
-        var itemsLeft = imageDimensions.length;
-        var itemIndex = 0;
-        var subGalleryIndex = 0;
-
-        while (itemsLeft > 0) {
-          var itemsForThis = Math.min(itemsLeft, maxItems);
-          var galleryManager = createGalleryManager(itemsForThis, 25, templates);
-          var layout = galleryManager.solveGallery(itemsForThis);
-
-          var galleryName = subGalleryIndex === 0
-            ? galleryDisplayName
-            : galleryDisplayName + '#' + subGalleryIndex;
-
-          // Ensure unique name
-          var baseName = galleryName;
-          var suffix = 1;
-          while (building[galleryName]) {
-            galleryName = baseName + '_' + suffix;
-            suffix++;
-          }
-
-          building[galleryName] = {
-            parent: lastRoom,
-            resource: galleryName + '.glb',
-            template: layout.template
-          };
-
-          // Add door entries in both parent and new room
-          building[lastRoom][galleryName] = {
-            resource: galleryName + '.glb',
-            resource_type: 'door'
-          };
-          building[galleryName][lastRoom] = {
-            resource: lastRoom + '.glb',
-            resource_type: 'door'
-          };
-
-          // Add image entries
-          for (var k = 0; k < itemsForThis; k++) {
-            var imgData = imageDimensions[itemIndex + k];
-            var width = imgData.width;
-            var height = imgData.height;
-            var name = imgData.name;
-
-            var normWidth, normHeight;
-            var aspectRatio = height / width;
-            if (aspectRatio <= 1) {
-              normWidth = 1;
-              normHeight = aspectRatio;
-            } else {
-              normWidth = 1 / aspectRatio;
-              normHeight = 1;
-            }
-
-            var imgBaseName = name.replace(/\.[^/.]+$/, '');
-            var resourcePath = '/' + folderName + '/' + name;
-
-            building[galleryName][imgBaseName] = {
-              resource: resourcePath,
-              resource_type: 'image',
-              width: normWidth.toFixed(2),
-              height: normHeight.toFixed(2),
-              location: '[' + layout.positions[k][0].toFixed(3) + ',' + layout.positions[k][1].toFixed(3) + ',' + layout.positions[k][2].toFixed(3) + ']',
-              vector: '[' + layout.vectors[k][0].toFixed(1) + ',' + layout.vectors[k][1].toFixed(1) + ']',
-              metadata: 'ID #' + uniqueId + ' ' + imgBaseName
-            };
+        var dstRoom = {
+          parent: parentName,
+          resource: newName + '.glb',
+          template: srcRoom.template
+        };
+        // Copy image entries (renumber unique IDs for stability).
+        Object.keys(srcRoom).forEach(function(k) {
+          var entry = srcRoom[k];
+          if (!entry || typeof entry !== 'object') return;
+          if (entry.resource_type === 'image') {
+            var copied = Object.assign({}, entry);
+            // Replace ID prefix while preserving the rest of metadata (title/subtitle).
+            var rest = String(entry.metadata || '').replace(/^ID\s*#\d+\s*/, '');
+            copied.metadata = 'ID #' + uniqueId + (rest ? ' ' + rest : '');
             uniqueId++;
+            dstRoom[k] = copied;
           }
+        });
 
-          lastRoom = galleryName;
-          itemIndex += itemsForThis;
-          itemsLeft -= itemsForThis;
-          subGalleryIndex++;
-        }
-      }
-
-      if (onProgress) {
-        onProgress(totalImages, totalImages, 'Done!');
-      }
+        building[newName] = dstRoom;
+        // Add door entries in parent and child.
+        building[parentName][newName] = { resource: newName + '.glb', resource_type: 'door' };
+        building[newName][parentName] = { resource: parentName + '.glb', resource_type: 'door' };
+      });
 
       return building;
     }
@@ -1249,52 +1088,21 @@
       onProgress(100, 'Download complete!');
     }
 
-    // Preview
-    previewBtn.addEventListener('click', function() {
-      if (generatedJSON && window.openvgal_fileMap) {
-        window.openvgal_blobUrls = {};
-        var entries = Object.entries(window.openvgal_fileMap);
-        for (var i = 0; i < entries.length; i++) {
-          window.openvgal_blobUrls[entries[i][0]] = URL.createObjectURL(entries[i][1]);
-        }
-
-        window.openvgal_config = generatedJSON;
-        showPreviewIframe();
-      }
+    GalleryPage.setupPreview({
+      previewBtn: previewBtn,
+      getJSON: function() { return generatedJSON; },
+      getFileMap: function() { return window.openvgal_fileMap; }
     });
 
-    function showPreviewIframe() {
-      var overlay = document.createElement('div');
-      overlay.id = 'previewOverlay';
-      overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:9999;';
-
-      var closeBtn = document.createElement('button');
-      closeBtn.textContent = 'Close Preview';
-      closeBtn.style.cssText = 'position:absolute;top:12px;right:12px;z-index:10000;padding:8px 20px;background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:6px;cursor:pointer;font-size:14px;font-family:Inter,sans-serif;transition:background 0.2s;';
-      closeBtn.onmouseover = function() { closeBtn.style.background = 'rgba(255,255,255,0.2)'; };
-      closeBtn.onmouseout = function() { closeBtn.style.background = 'rgba(255,255,255,0.1)'; };
-      closeBtn.onclick = function() {
-        overlay.remove();
-        if (window.openvgal_blobUrls) {
-          Object.values(window.openvgal_blobUrls).forEach(function(url) { URL.revokeObjectURL(url); });
-        }
-      };
-
-      var iframe = document.createElement('iframe');
-      iframe.style.cssText = 'width:100%;height:100%;border:none;';
-      iframe.src = '../viewer.html?preview=iframe';
-
-      overlay.appendChild(closeBtn);
-      overlay.appendChild(iframe);
-      document.body.appendChild(overlay);
+    function markResultStaleIfGenerated() {
+      if (!generatedJSON) return;
+      generatedJSON = null;
+      GalleryPage.clearStaleResultUI(resultSection);
     }
 
-    // SVG icons
-    var folderSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>';
-    var lockSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>';
-    var removeSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>';
-
     function updateGalleryList() {
+      markResultStaleIfGenerated();
+
       var items = galleryList.querySelectorAll('.gallery-item, .import-divider');
       items.forEach(function(item) { item.remove(); });
 
@@ -1309,7 +1117,8 @@
       emptyState.style.display = 'none';
       generateBtn.disabled = false;
 
-      // Render imported rooms (read-only)
+      // Imported rooms are read-only (lock icon, no rename/remove) — kept page-local
+      // because the editable shared renderer doesn't model that state.
       if (importedJSON) {
         var importedRooms = Object.keys(importedJSON).filter(function(k) { return k !== 'Technical' && k !== 'root'; });
         importedRooms.forEach(function(roomName) {
@@ -1319,7 +1128,7 @@
 
           var iconDiv = document.createElement('div');
           iconDiv.className = 'gallery-icon';
-          iconDiv.innerHTML = lockSvg;
+          iconDiv.innerHTML = GalleryPage.SVG_ICONS.lock;
 
           var nameSpan = document.createElement('span');
           nameSpan.style.cssText = 'color: #a1a1aa; font-size: 0.82rem; font-weight: 500;';
@@ -1329,7 +1138,6 @@
           detailsDiv.className = 'gallery-details';
           detailsDiv.appendChild(nameSpan);
 
-          // Count images in this room
           var imgCount = 0;
           for (var key in room) {
             if (room[key] && room[key].resource_type === 'image') imgCount++;
@@ -1345,7 +1153,6 @@
           galleryList.appendChild(item);
         });
 
-        // Separator between imported and new rooms
         if (galleries.length > 0) {
           var divider = document.createElement('div');
           divider.className = 'import-divider';
@@ -1353,84 +1160,17 @@
         }
       }
 
-      // Render new rooms (editable)
-      galleries.forEach(function(gallery, index) {
-        var item = document.createElement('div');
-        item.className = 'gallery-item';
-
-        var iconDiv = document.createElement('div');
-        iconDiv.className = 'gallery-icon';
-        iconDiv.innerHTML = folderSvg;
-
-        var nameInput = document.createElement('input');
-        nameInput.type = 'text';
-        nameInput.className = 'gallery-name-input';
-        nameInput.value = gallery.name;
-        nameInput.dataset.index = index;
-        nameInput.placeholder = 'Room name';
-
-        var folderDiv = document.createElement('div');
-        folderDiv.className = 'gallery-folder';
-        folderDiv.textContent = gallery.folderName;
-
-        var detailsDiv = document.createElement('div');
-        detailsDiv.className = 'gallery-details';
-        detailsDiv.appendChild(nameInput);
-        detailsDiv.appendChild(folderDiv);
-
-        var countSpan = document.createElement('span');
-        countSpan.className = 'gallery-count';
-        countSpan.textContent = gallery.files.length + ' images';
-
-        var removeBtn = document.createElement('button');
-        removeBtn.className = 'gallery-remove';
-        removeBtn.dataset.index = index;
-        removeBtn.title = 'Remove';
-        removeBtn.innerHTML = removeSvg;
-
-        item.appendChild(iconDiv);
-        item.appendChild(detailsDiv);
-        item.appendChild(countSpan);
-        item.appendChild(removeBtn);
-        galleryList.appendChild(item);
-      });
-
-      galleryList.querySelectorAll('.gallery-name-input').forEach(function(input) {
-        input.addEventListener('change', function(e) {
-          var index = parseInt(e.target.dataset.index);
-          galleries[index].name = e.target.value.trim() || galleries[index].folderName;
-        });
-      });
-
-      galleryList.querySelectorAll('.gallery-remove').forEach(function(btn) {
-        btn.addEventListener('click', function(e) {
-          var target = e.target.closest('.gallery-remove');
-          var index = parseInt(target.dataset.index);
-          galleries.splice(index, 1);
-          updateGalleryList();
-        });
+      GalleryPage.renderGalleryItems(galleryList, galleries, {
+        onChange: function() { updateGalleryList(); }
       });
     }
 
     function showResults() {
       resultSection.style.display = 'block';
 
-      var galleryCount = Object.keys(generatedJSON).filter(function(k) {
-        return k !== 'Technical' && k !== 'root';
-      }).length;
-
-      var imageCount = 0;
-      for (var key in generatedJSON) {
-        if (key === 'Technical') continue;
-        for (var item in generatedJSON[key]) {
-          if (generatedJSON[key][item].resource_type === 'image') {
-            imageCount++;
-          }
-        }
-      }
-
-      statGalleries.textContent = galleryCount;
-      statImages.textContent = imageCount;
+      var stats = GalleryPage.computeStats(generatedJSON);
+      statGalleries.textContent = stats.galleryCount;
+      statImages.textContent = stats.imageCount;
 
       // Update info box for import/update mode
       var infoBox = resultSection.querySelector('.info-box');
