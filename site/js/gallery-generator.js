@@ -1,516 +1,580 @@
 /**
  * OpenVGAL Gallery Generator
- * Ported from Python VR_gallery.py to vanilla JavaScript
- * No dependencies required
+ * Builds building_v2.json from a folder of images using catalog.json:
+ *   - shapes:        per-shape Occupancy strips (precomputed via site/tools/catalog-manager.html;
+ *                    falls back to runtime GLB probe if missing)
+ *   - selectionOrder: smallest → largest fitting order
+ *   - styles:        visual variants (each provides a glb per shape)
  */
 
-// Supported image types
 const IMAGE_TYPES = ['jpg', 'jpeg', 'png', 'tif', 'tiff', 'webp'];
 
-// Direction vectors for wall orientations
-const VECTORS = {
-  N: [0, 1],
-  S: [0, -1],
-  W: [-1, 0],
-  E: [1, 0]
+// Viewer convention: 1 babylon m = 120/2.5 cm. Mirror of room_builder_aux.js SCENE_M_PER_CM.
+const SCENE_M_PER_CM = 2.5 / 120;
+// Default longest edge for new artworks; produces 2.5 babylon m at scale.
+const DEFAULT_LONGEST_CM = 120;
+
+const DEFAULTS = {
+  minSpacing: 0.5, // babylon m, gap between consecutive items on a wall
+  itemHeight: 2    // babylon m, eye-level Y for item centers
 };
 
+// === Catalog loader (cached per cdn base) ===
+let _catalogPromise = null;
+let _catalogPromiseBase = null;
+
+async function loadCatalog(cdnBase = '') {
+  if (_catalogPromise && _catalogPromiseBase === cdnBase) return _catalogPromise;
+  _catalogPromiseBase = cdnBase;
+  _catalogPromise = fetch(cdnBase + '/templates/catalog.json').then(function(r) {
+    if (!r.ok) throw new Error('Failed to fetch catalog.json (' + r.status + ')');
+    return r.json();
+  });
+  return _catalogPromise;
+}
+
+// Resolve occupancies for a (shape, style). Prefers precomputed catalog.shapes data;
+// falls back to runtime GLB probe so we work even before the manager has been run.
+async function getOccupanciesForShape(catalog, shape, styleKey, cdnBase = '', scriptBase = '../') {
+  const cached = catalog.shapes && catalog.shapes[shape] && catalog.shapes[shape].occupancies;
+  if (cached && cached.length > 0) return cached;
+  const style = catalog.styles && catalog.styles[styleKey];
+  const glbName = style && style.glbs && style.glbs[shape];
+  if (!glbName) return [];
+  const url = cdnBase + '/templates/' + glbName;
+  return await extractOccupanciesFromGLB(url, scriptBase);
+}
+
+// === Width-aware fit assignment ===
+// items: [{ widthM, ... }]; occupancies: [{ center, normal, width }]
+// Density-balanced spread, capacity = sum(widths) + (n-1)*minSpacing ≤ wall.width.
+function tryFitItems(occupancies, items, minSpacing) {
+  const used = occupancies.map(function() { return []; });
+  const assignments = new Array(items.length);
+
+  for (let i = 0; i < items.length; i++) {
+    const w = items[i].widthM;
+    let bestIdx = -1, bestDensity = Infinity;
+    for (let j = 0; j < occupancies.length; j++) {
+      const widths = used[j];
+      const newCount = widths.length + 1;
+      let sumW = w;
+      for (let k = 0; k < widths.length; k++) sumW += widths[k];
+      const totalSpan = sumW + (newCount - 1) * minSpacing;
+      if (totalSpan > occupancies[j].width) continue;
+      const density = widths.length / occupancies[j].width;
+      if (density < bestDensity) { bestDensity = density; bestIdx = j; }
+    }
+    if (bestIdx === -1) return null;
+    used[bestIdx].push(w);
+    assignments[i] = bestIdx;
+  }
+  return { assignments };
+}
+
+// Largest in-order prefix of items that fits the given shape; used for overflow split.
+function maxPrefixFit(occupancies, items, minSpacing) {
+  const used = occupancies.map(function() { return []; });
+  for (let i = 0; i < items.length; i++) {
+    const w = items[i].widthM;
+    let bestIdx = -1, bestDensity = Infinity;
+    for (let j = 0; j < occupancies.length; j++) {
+      const widths = used[j];
+      const newCount = widths.length + 1;
+      let sumW = w;
+      for (let k = 0; k < widths.length; k++) sumW += widths[k];
+      const totalSpan = sumW + (newCount - 1) * minSpacing;
+      if (totalSpan > occupancies[j].width) continue;
+      const density = widths.length / occupancies[j].width;
+      if (density < bestDensity) { bestDensity = density; bestIdx = j; }
+    }
+    if (bestIdx === -1) return i;
+    used[bestIdx].push(w);
+  }
+  return items.length;
+}
+
+// Distribute items along each occupancy with equal gaps (edges + interior).
+// Falls back to a centered tight pack at minSpacing when even-spread would dip below the floor.
+// Returns positions (JSON convention: [worldX, worldZ, worldY]) and vectors ([Nx, Nz]).
+function placeItems(occupancies, items, assignments, minSpacing, itemHeight) {
+  const positions = new Array(items.length).fill(null);
+  const vectors = new Array(items.length).fill(null);
+  const UP_Y = [0, 1, 0];
+
+  for (let occIdx = 0; occIdx < occupancies.length; occIdx++) {
+    const occ = occupancies[occIdx];
+    const itemList = [];
+    for (let i = 0; i < assignments.length; i++) if (assignments[i] === occIdx) itemList.push(i);
+    if (itemList.length === 0) continue;
+
+    const widths = itemList.map(function(i) { return items[i].widthM; });
+    const n = widths.length;
+    let sumW = 0;
+    for (let k = 0; k < n; k++) sumW += widths[k];
+
+    // Equal margins and interior gaps: n+1 equal spaces share the free room.
+    // If that gap would fall below minSpacing, lock at minSpacing and center the pack.
+    let gap = (occ.width - sumW) / (n + 1);
+    let edgeMargin = gap;
+    if (gap < minSpacing) {
+      gap = minSpacing;
+      const compactSpan = sumW + (n - 1) * minSpacing;
+      edgeMargin = (occ.width - compactSpan) / 2;
+    }
+
+    // along-wall axis = normalize(cross(N, up_y))
+    const N = occ.normal;
+    const ax = N[1] * UP_Y[2] - N[2] * UP_Y[1];
+    const ay = N[2] * UP_Y[0] - N[0] * UP_Y[2];
+    const az = N[0] * UP_Y[1] - N[1] * UP_Y[0];
+    const aLen = Math.hypot(ax, ay, az) || 1;
+    const a = [ax / aLen, ay / aLen, az / aLen];
+
+    let cursor = -occ.width / 2 + edgeMargin;
+    for (let k = 0; k < n; k++) {
+      const itemIdx = itemList[k];
+      const w = widths[k];
+      const t = cursor + w / 2;
+      const wx = occ.center[0] + a[0] * t;
+      const wz = occ.center[2] + a[2] * t;
+      positions[itemIdx] = [wx, wz, itemHeight];
+      vectors[itemIdx] = [N[0], N[2]];
+      cursor += w + gap;
+    }
+  }
+  return { positions, vectors };
+}
+
 /**
- * Gallery placement algorithm
- * Distributes artwork across walls and optional center panels
+ * Pack items into one or more rooms using selectionOrder.
+ * @param {Array}  items     – [{ widthM, ... }] in display order. Original ordering is preserved.
+ * @param {Object} catalog
+ * @param {string} styleKey
+ * @param {Object} settings  – { minSpacing, itemHeight }
+ * @param {string} cdnBase
+ * @param {string} scriptBase – babylon.js script base for fallback probe
+ * @returns {Promise<Array<{ shape, glbName, occupancies, positions, vectors, indices }>>}
+ *   indices are positions back into the input `items` array.
  */
-class GalleryWithOptionalPanels {
-  constructor(W = 30, L = 60, panelLength = 15) {
-    this.geometry = {
-      W: W,
-      L: L,
-      panelPositionX: W / 5,
-      panelPositionY: L / 4,
-      panelLength: panelLength,
-      panelThickness: 0.5,
-      itemHeight: 2,
-      freeSpace: 0.75,
-      itemMaxSize: 2.5,
-      minSpacing: 3,
-      door: 1
-    };
+async function packIntoRooms(items, catalog, styleKey, settings, cdnBase, scriptBase) {
+  const minSpacing = (settings && settings.minSpacing) || catalog.minSpacing || DEFAULTS.minSpacing;
+  const itemHeight = (settings && settings.itemHeight) || DEFAULTS.itemHeight;
+  const style = catalog.styles && catalog.styles[styleKey];
+  if (!style) throw new Error('Unknown style: ' + styleKey);
 
-    this.densitySaturation = 1 / this.geometry.minSpacing;
+  const order = (catalog.selectionOrder || []).filter(function(s) {
+    return style.glbs && style.glbs[s];
+  });
+  if (order.length === 0) throw new Error('Style "' + styleKey + '" has no glbs matching selectionOrder');
 
-    // Calculate available lengths for each wall segment
-    const longWall = L - this.geometry.freeSpace * 2;
-    const shortWall = W / 2 - this.geometry.door / 2 - this.geometry.freeSpace * 2;
-    const panel = Math.max(0.1, panelLength - this.geometry.freeSpace * 2);
+  // Pre-resolve occupancies for each shape (parallel).
+  const shapeOccs = {};
+  await Promise.all(order.map(async function(shape) {
+    shapeOccs[shape] = await getOccupanciesForShape(catalog, shape, styleKey, cdnBase, scriptBase);
+  }));
+  // Drop shapes without occupancies (e.g., no Occupancy_* meshes in the GLB).
+  const usableOrder = order.filter(function(s) { return shapeOccs[s] && shapeOccs[s].length > 0; });
+  if (usableOrder.length === 0) throw new Error('No usable occupancies for style ' + styleKey);
 
-    // 14 placement areas: 6 walls + 8 panel sides
-    this.lengths = [
-      longWall, shortWall, shortWall,  // walls 1-3
-      longWall, shortWall, shortWall,  // walls 4-6
-      panel, panel, panel, panel,       // panels 7-10
-      panel, panel, panel, panel        // panels 11-14
-    ];
+  const rooms = [];
+  // Tag with original indices so we can report them back even after slicing.
+  let remaining = items.map(function(it, idx) { return Object.assign({}, it, { _origIdx: idx }); });
 
-    this.occupancy = null;
-    this.assignments = null;
-    this.panelsOff = true;
+  while (remaining.length > 0) {
+    let placed = false;
+    for (let s = 0; s < usableOrder.length; s++) {
+      const shape = usableOrder[s];
+      const occs = shapeOccs[shape];
+      const fit = tryFitItems(occs, remaining, minSpacing);
+      if (fit) {
+        const { positions, vectors } = placeItems(occs, remaining, fit.assignments, minSpacing, itemHeight);
+        rooms.push({
+          shape: shape,
+          glbName: style.glbs[shape],
+          occupancies: occs,
+          positions: positions,
+          vectors: vectors,
+          indices: remaining.map(function(r) { return r._origIdx; })
+        });
+        remaining = [];
+        placed = true;
+        break;
+      }
+    }
+    if (placed) continue;
+
+    // Even the largest didn't fit — split off the largest prefix that does.
+    const largest = usableOrder[usableOrder.length - 1];
+    const occs = shapeOccs[largest];
+    const cut = maxPrefixFit(occs, remaining, minSpacing);
+    if (cut === 0) {
+      throw new Error('A single item exceeds capacity in shape "' + largest + '" (item width too large)');
+    }
+    const prefix = remaining.slice(0, cut);
+    const fit = tryFitItems(occs, prefix, minSpacing);
+    if (!fit) throw new Error('Internal: maxPrefixFit reported ' + cut + ' but tryFitItems failed');
+    const { positions, vectors } = placeItems(occs, prefix, fit.assignments, minSpacing, itemHeight);
+    rooms.push({
+      shape: largest,
+      glbName: style.glbs[largest],
+      occupancies: occs,
+      positions: positions,
+      vectors: vectors,
+      indices: prefix.map(function(r) { return r._origIdx; })
+    });
+    remaining = remaining.slice(cut);
   }
 
-  /**
-   * Distribute N items across available wall segments
-   * Returns 1 on success, -1 if items don't fit
-   */
-  assignOccupancy(n, silent = true) {
-    const occupancyMax = this.lengths.map(len =>
-      Math.floor((len - this.geometry.itemMaxSize) / this.geometry.minSpacing + 1)
-    );
+  return rooms;
+}
 
-    this.occupancy = new Array(this.lengths.length).fill(0);
-    this.panelsOff = true;
+// === GLB probe (fallback path; results cached by URL) ===
 
-    // Initialize panels as "full" (we'll open them if needed)
-    for (let i = 6; i < this.occupancy.length; i++) {
-      this.occupancy[i] = occupancyMax[i];
+const _occupancyCache = {};
+let _babylonLoadPromise = null;
+
+function _loadScript(src) {
+  return new Promise(function(resolve, reject) {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = function() { resolve(); };
+    s.onerror = function() { reject(new Error('Failed to load ' + src)); };
+    document.head.appendChild(s);
+  });
+}
+
+async function _ensureBabylonLoaded(scriptBase) {
+  scriptBase = scriptBase || '../';
+  if (typeof BABYLON !== 'undefined' && typeof BABYLON.GLTFFileLoader !== 'undefined') return;
+  if (_babylonLoadPromise) return _babylonLoadPromise;
+  _babylonLoadPromise = (async function() {
+    if (typeof BABYLON === 'undefined') {
+      await _loadScript(scriptBase + 'babylon.js');
     }
-
-    this.density = this.occupancy.map((occ, i) =>
-      occupancyMax[i] === 0 ? 999 : occ / this.lengths[i]
-    );
-
-    this.assignments = new Array(n).fill(0);
-
-    for (let i = 0; i < n; i++) {
-      // Case 1: Find first empty segment
-      const emptyIdx = this.density.findIndex(d => d === 0);
-      if (emptyIdx !== -1) {
-        this.assignments[i] = emptyIdx;
-        this.occupancy[emptyIdx] = 1;
-        this.density[emptyIdx] = this.occupancy[emptyIdx] / this.lengths[emptyIdx];
-        continue;
-      }
-
-      // Case 2: Find segment with most remaining capacity
-      const remaining = occupancyMax.map((max, idx) => max - this.occupancy[idx]);
-      const maxRemaining = Math.max(...remaining);
-
-      if (maxRemaining > 0) {
-        const chosen = remaining.indexOf(maxRemaining);
-        this.assignments[i] = chosen;
-        this.occupancy[chosen]++;
-        this.density[chosen] = this.occupancy[chosen] / this.lengths[chosen];
-        continue;
-      }
-
-      // Case 3: Open the panels if they're still closed
-      if (this.panelsOff && this.geometry.panelLength !== 0) {
-        this.panelsOff = false;
-        for (let j = 6; j < this.occupancy.length; j++) {
-          this.occupancy[j] = 0;
-        }
-        this.density = this.occupancy.map((occ, idx) => occ / this.lengths[idx]);
-
-        const newRemaining = occupancyMax.map((max, idx) => max - this.occupancy[idx]);
-        const chosen = newRemaining.indexOf(Math.max(...newRemaining));
-        this.assignments[i] = chosen;
-        this.occupancy[chosen] = 1;
-        this.density[chosen] = this.occupancy[chosen] / this.lengths[chosen];
-        continue;
-      }
-
-      // Failed to place item
-      if (!silent) {
-        console.error(`Item ${i} could not be assigned with the constraints given`);
-      }
-      return -1;
+    if (typeof BABYLON.GLTFFileLoader === 'undefined') {
+      await _loadScript(scriptBase + 'babylonjs.loaders.min.js');
     }
+  })();
+  return _babylonLoadPromise;
+}
 
-    return 1;
-  }
+async function extractOccupanciesFromGLB(templateUrl, scriptBase) {
+  if (_occupancyCache[templateUrl]) return _occupancyCache[templateUrl];
+  await _ensureBabylonLoaded(scriptBase);
 
-  /**
-   * Calculate maximum capacity of this gallery configuration
-   */
-  maxCapacity() {
-    let i = 1;
-    while (this.assignOccupancy(i) === 1) {
-      i++;
-    }
-    return i - 1;
-  }
+  const engine = new BABYLON.NullEngine();
+  const scene = new BABYLON.Scene(engine);
+  try {
+    const lastSlash = templateUrl.lastIndexOf('/');
+    const rootUrl = templateUrl.slice(0, lastSlash + 1);
+    const fileName = templateUrl.slice(lastSlash + 1);
+    await BABYLON.SceneLoader.AppendAsync(rootUrl, fileName, scene);
 
-  /**
-   * Solve gallery layout for N items
-   * Returns { positions: [[x,y,z],...], vectors: [[x,y],...], template: string }
-   */
-  solveGallery(n) {
-    const result = this.assignOccupancy(n, false);
-    if (result === -1) {
-      return { positions: [], vectors: [], template: null };
-    }
+    const meshes = scene.meshes.filter(function(m) { return /^Occupancy_\d+/i.test(m.name); });
+    meshes.sort(function(a, b) {
+      const na = parseInt(a.name.replace(/^Occupancy_/i, ''), 10) || 0;
+      const nb = parseInt(b.name.replace(/^Occupancy_/i, ''), 10) || 0;
+      return na - nb;
+    });
 
-    const positions = new Array(n).fill(null).map(() => [0, 0, 0]);
-    const vectors = new Array(n).fill(null).map(() => [0, 0]);
-    const g = this.geometry;
+    const result = [];
+    for (const mesh of meshes) {
+      mesh.computeWorldMatrix(true);
+      mesh.refreshBoundingInfo();
+      const worldMatrix = mesh.getWorldMatrix();
+      const bb = mesh.getBoundingInfo().boundingBox;
+      const center = bb.centerWorld;
 
-    // Wall segment configurations: [getPosition(initial, j, spacing), vector]
-    const wallConfigs = {
-      1: (init, j, sp) => [[g.W / 2, init + j * sp, g.itemHeight], VECTORS.W],
-      2: (init, j, sp) => [[init - j * sp, -g.L / 2, g.itemHeight], VECTORS.N],
-      3: (init, j, sp) => [[init + j * sp, -g.L / 2, g.itemHeight], VECTORS.N],
-      4: (init, j, sp) => [[-g.W / 2, init + j * sp, g.itemHeight], VECTORS.E],
-      5: (init, j, sp) => [[init - j * sp, g.L / 2, g.itemHeight], VECTORS.S],
-      6: (init, j, sp) => [[init + j * sp, g.L / 2, g.itemHeight], VECTORS.S],
-      7: (init, j, sp) => [[-g.panelPositionX + g.panelThickness / 2, init + j * sp, g.itemHeight], VECTORS.E],
-      8: (init, j, sp) => [[g.panelPositionX - g.panelThickness / 2, init + j * sp, g.itemHeight], VECTORS.W],
-      9: (init, j, sp) => [[-g.panelPositionX + g.panelThickness / 2, init + j * sp, g.itemHeight], VECTORS.E],
-      10: (init, j, sp) => [[g.panelPositionX - g.panelThickness / 2, init + j * sp, g.itemHeight], VECTORS.W],
-      11: (init, j, sp) => [[-g.panelPositionX - g.panelThickness / 2, init + j * sp, g.itemHeight], VECTORS.W],
-      12: (init, j, sp) => [[-g.panelPositionX - g.panelThickness / 2, init + j * sp, g.itemHeight], VECTORS.W],
-      13: (init, j, sp) => [[g.panelPositionX + g.panelThickness / 2, init + j * sp, g.itemHeight], VECTORS.E],
-      14: (init, j, sp) => [[g.panelPositionX + g.panelThickness / 2, init + j * sp, g.itemHeight], VECTORS.E]
-    };
+      const normalsData = mesh.getVerticesData(BABYLON.VertexBuffer.NormalKind);
+      if (!normalsData || normalsData.length < 3) continue;
+      const localN = new BABYLON.Vector3(normalsData[0], normalsData[1], normalsData[2]);
+      const worldN = BABYLON.Vector3.TransformNormal(localN, worldMatrix);
+      worldN.normalize();
 
-    // Initial position offsets for each wall segment
-    const getInitial = (wallNum, length, spacing) => {
-      switch (wallNum) {
-        case 1: return -length / 2 + spacing / 2;
-        case 2: return g.W / 2 - g.freeSpace - spacing / 2;
-        case 3: return -g.W / 2 + g.freeSpace + spacing / 2;
-        case 4: return -length / 2 + spacing / 2;
-        case 5: return g.W / 2 - g.freeSpace - spacing / 2;
-        case 6: return -g.W / 2 + g.freeSpace + spacing / 2;
-        case 7: return g.panelPositionY - length / 2 + spacing / 2;
-        case 8: return g.panelPositionY - length / 2 + spacing / 2;
-        case 9: return -g.panelPositionY - length / 2 + spacing / 2;
-        case 10: return -g.panelPositionY - length / 2 + spacing / 2;
-        case 11: return g.panelPositionY - length / 2 + spacing / 2;
-        case 12: return -g.panelPositionY - length / 2 + spacing / 2;
-        case 13: return -g.panelPositionY - length / 2 + spacing / 2;
-        case 14: return g.panelPositionY - length / 2 + spacing / 2;
-        default: return 0;
+      const alongAxis = BABYLON.Vector3.Cross(worldN, BABYLON.Axis.Y);
+      if (alongAxis.length() < 1e-6) continue;
+      alongAxis.normalize();
+
+      const positions = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind);
+      let minProj = Infinity, maxProj = -Infinity;
+      for (let i = 0; i < positions.length; i += 3) {
+        const v = BABYLON.Vector3.TransformCoordinates(
+          new BABYLON.Vector3(positions[i], positions[i + 1], positions[i + 2]),
+          worldMatrix
+        );
+        const p = BABYLON.Vector3.Dot(v, alongAxis);
+        if (p < minProj) minProj = p;
+        if (p > maxProj) maxProj = p;
       }
-    };
-
-    // Process each wall segment
-    for (let i = 0; i < this.lengths.length; i++) {
-      const wallNum = i + 1;
-      const length = this.lengths[i];
-      const wallAssigns = this.assignments
-        .map((a, idx) => a === i ? idx : -1)
-        .filter(idx => idx !== -1);
-
-      if (wallAssigns.length === 0) continue;
-
-      const spacing = length / (this.occupancy[i] + 0.0001);
-      const initial = getInitial(wallNum, length, spacing);
-
-      wallAssigns.forEach((assignIdx, j) => {
-        const [pos, vec] = wallConfigs[wallNum](initial, j, spacing);
-        positions[assignIdx] = pos;
-        vectors[assignIdx] = vec;
+      result.push({
+        name: mesh.name,
+        center: [center.x, center.y, center.z],
+        normal: [worldN.x, worldN.y, worldN.z],
+        width: maxProj - minProj
       });
     }
-
-    // Determine template based on configuration
-    let template;
-    if (this.geometry.panelLength === 0) {
-      template = this._templateSmall || 'T_small.glb';
-    } else if (this.panelsOff) {
-      template = this._templateNopannels || 'T_nopannels.glb';
-    } else {
-      template = this._templatePannels || 'T_pannels.glb';
-    }
-
-    return { positions, vectors, template };
+    _occupancyCache[templateUrl] = result;
+    return result;
+  } finally {
+    scene.dispose();
+    engine.dispose();
   }
 }
 
-/**
- * Factory function to create appropriate gallery based on item count
- */
-function createGalleryManager(itemCount, smallThreshold = 25, templates = null) {
-  const manager = itemCount > smallThreshold
-    ? new GalleryWithOptionalPanels(30, 60, 15)
-    : new GalleryWithOptionalPanels(30, 30, 0);
+// === Image helpers ===
 
-  // Override template names from style
-  if (templates) {
-    if (templates.small) manager._templateSmall = templates.small;
-    if (templates.nopannels) manager._templateNopannels = templates.nopannels;
-    if (templates.pannels) manager._templatePannels = templates.pannels;
-  }
-
-  return manager;
-}
-
-/**
- * Get image dimensions from a File object
- * Modern browsers auto-apply EXIF rotation
- */
 async function getImageDimensions(file) {
-  return new Promise((resolve, reject) => {
+  return new Promise(function(resolve, reject) {
     const img = new Image();
-    img.onload = () => {
-      resolve({
-        width: img.naturalWidth,
-        height: img.naturalHeight,
-        name: file.name
-      });
+    img.onload = function() {
+      resolve({ width: img.naturalWidth, height: img.naturalHeight, name: file.name });
       URL.revokeObjectURL(img.src);
     };
-    img.onerror = () => {
-      reject(new Error(`Failed to load image: ${file.name}`));
+    img.onerror = function() {
+      reject(new Error('Failed to load image: ' + file.name));
       URL.revokeObjectURL(img.src);
     };
     img.src = URL.createObjectURL(file);
   });
 }
 
-/**
- * Filter files to only include supported image types
- */
 function filterImageFiles(files) {
-  return Array.from(files).filter(file => {
+  return Array.from(files).filter(function(file) {
     const ext = file.name.split('.').pop().toLowerCase();
-    return IMAGE_TYPES.includes(ext);
+    return IMAGE_TYPES.indexOf(ext) !== -1;
   });
 }
 
-/**
- * Extract gallery name from folder path
- */
 function getGalleryName(file) {
-  // webkitRelativePath gives us "folderName/subfolder/file.jpg"
   const parts = file.webkitRelativePath.split('/');
   return parts.length > 1 ? parts[parts.length - 2] : 'gallery';
 }
 
-/**
- * Group files by their parent folder
- */
 function groupFilesByFolder(files) {
   const groups = {};
-
-  files.forEach(file => {
+  files.forEach(function(file) {
     const parts = file.webkitRelativePath.split('/');
-    // Get the immediate parent folder name
     const folderPath = parts.slice(0, -1).join('/');
     const folderName = parts.length > 1 ? parts[parts.length - 2] : 'root';
-
     if (!groups[folderPath]) {
-      groups[folderPath] = {
-        name: folderName,
-        path: folderPath,
-        files: []
-      };
+      groups[folderPath] = { name: folderName, path: folderPath, files: [] };
     }
     groups[folderPath].files.push(file);
   });
-
   return Object.values(groups);
 }
 
+// Compute default cm dimensions for a fresh image (longest edge = 120 cm).
+function defaultCmDims(natWidth, natHeight) {
+  const aspectRatio = natHeight / natWidth;
+  if (aspectRatio <= 1) {
+    return { wCm: DEFAULT_LONGEST_CM, hCm: DEFAULT_LONGEST_CM * aspectRatio };
+  }
+  return { wCm: DEFAULT_LONGEST_CM / aspectRatio, hCm: DEFAULT_LONGEST_CM };
+}
+
+function cmToBabylon(cm) { return parseFloat(cm) * SCENE_M_PER_CM; }
+
+// === Main builder ===
+
 /**
- * Build the complete gallery JSON structure
- * @param {Array} galleries - Array of {name, folderName, files} objects
- * @param {Function} onProgress - Progress callback (current, total, message)
- * @returns {Object} The building_v2.json structure
+ * @param {Array}    galleries    – [{ name, folderName, files }]
+ * @param {Function} onProgress   – (current, total, message) → void
+ * @param {Object}   styleConfig  – the catalog style entry { name, root, glbs, ... }
+ * @param {Object}   options      – { cdnBase, scriptBase }
  */
-async function buildGalleryJSON(galleries, onProgress = null, styleConfig = null) {
+async function buildGalleryJSON(galleries, onProgress, styleConfig, options) {
+  options = options || {};
+  const cdnBase = options.cdnBase != null ? options.cdnBase : (typeof window !== 'undefined' && window.openvgal_cdn_base) || '';
+  const scriptBase = options.scriptBase || '../';
+
+  const catalog = await loadCatalog(cdnBase);
+  const styleKey = _resolveStyleKey(catalog, styleConfig);
+
   const building = {};
   let uniqueId = 0;
 
-  // Create root gallery
-  const rootTemplate = styleConfig ? styleConfig.root : 'T_root.glb';
   building['root'] = {
     parent: 'none',
     resource: 'root.glb',
-    template: rootTemplate
+    template: catalog.styles[styleKey].root
   };
 
-  const templates = styleConfig ? styleConfig.templates : null;
-
-  const totalImages = galleries.reduce((sum, g) => sum + g.files.length, 0);
+  const totalImages = galleries.reduce(function(sum, g) { return sum + g.files.length; }, 0);
   let processedImages = 0;
-
-  // Get max capacity for overflow handling
-  const galleryDist = new GalleryWithOptionalPanels();
-  const maxItems = galleryDist.maxCapacity();
 
   for (const gallery of galleries) {
     const imageFiles = filterImageFiles(gallery.files);
     if (imageFiles.length === 0) continue;
 
-    // Use custom name for gallery, but folderName for image paths
     const galleryDisplayName = gallery.name;
     const folderName = gallery.folderName || gallery.name;
 
-    if (onProgress) {
-      onProgress(processedImages, totalImages, `Processing ${galleryDisplayName}...`);
-    }
+    if (onProgress) onProgress(processedImages, totalImages, 'Processing ' + galleryDisplayName + '...');
 
-    // Get dimensions for all images in this gallery
-    const imageDimensions = [];
+    const items = [];
     for (const file of imageFiles) {
       try {
         const dims = await getImageDimensions(file);
-        dims.file = file;
-        imageDimensions.push(dims);
+        const cm = defaultCmDims(dims.width, dims.height);
+        items.push({
+          file: file,
+          name: dims.name,
+          cmWidth: cm.wCm,
+          cmHeight: cm.hCm,
+          widthM: cmToBabylon(cm.wCm)
+        });
         processedImages++;
-        if (onProgress) {
-          onProgress(processedImages, totalImages, `Loading ${file.name}...`);
-        }
+        if (onProgress) onProgress(processedImages, totalImages, 'Loading ' + file.name + '...');
       } catch (e) {
-        console.warn(`Skipping ${file.name}: ${e.message}`);
+        console.warn('Skipping ' + file.name + ': ' + e.message);
         processedImages++;
       }
     }
+    if (items.length === 0) continue;
 
-    if (imageDimensions.length === 0) continue;
+    const rooms = await packIntoRooms(items, catalog, styleKey, null, cdnBase, scriptBase);
 
-    // Handle overflow into multiple sub-galleries
-    let itemsLeft = imageDimensions.length;
-    let itemIndex = 0;
-    let subGalleryIndex = 0;
     let lastParent = 'root';
-
-    while (itemsLeft > 0) {
-      const itemsForThisGallery = Math.min(itemsLeft, maxItems);
-      const galleryManager = createGalleryManager(itemsForThisGallery, 25, templates);
-      const { positions, vectors, template } = galleryManager.solveGallery(itemsForThisGallery);
-
-      // Gallery naming: "gallery" or "gallery#1", "gallery#2" for overflow
-      const galleryName = subGalleryIndex === 0
-        ? galleryDisplayName
-        : `${galleryDisplayName}#${subGalleryIndex}`;
-
+    rooms.forEach(function(room, subIdx) {
+      const galleryName = subIdx === 0 ? galleryDisplayName : galleryDisplayName + '#' + subIdx;
       building[galleryName] = {
         parent: lastParent,
-        resource: `${galleryName}.glb`,
-        template: template
+        resource: galleryName + '.glb',
+        template: room.glbName
       };
 
-      // Add images to this gallery
-      for (let k = 0; k < itemsForThisGallery; k++) {
-        const imgData = imageDimensions[itemIndex + k];
-        const { width, height, name, file } = imgData;
-
-        // Calculate aspect ratio (normalized to max dimension = 1)
-        let normWidth, normHeight;
-        const aspectRatio = height / width;
-        if (aspectRatio <= 1) {
-          normWidth = 1;
-          normHeight = aspectRatio;
-        } else {
-          normWidth = 1 / aspectRatio;
-          normHeight = 1;
-        }
-
-        // Get filename without extension for the key
-        const baseName = name.replace(/\.[^/.]+$/, '');
-
-        // Construct the resource path - use FOLDER name, not gallery display name
-        const resourcePath = `/${folderName}/${name}`;
-
+      room.indices.forEach(function(itemIdx, k) {
+        const item = items[itemIdx];
+        const baseName = item.name.replace(/\.[^/.]+$/, '');
+        const resourcePath = '/' + folderName + '/' + item.name;
+        const pos = room.positions[k];
+        const vec = room.vectors[k];
         building[galleryName][baseName] = {
           resource: resourcePath,
           resource_type: 'image',
-          width: normWidth.toFixed(2),
-          height: normHeight.toFixed(2),
-          location: `[${positions[k][0].toFixed(3)},${positions[k][1].toFixed(3)},${positions[k][2].toFixed(3)}]`,
-          vector: `[${vectors[k][0].toFixed(1)},${vectors[k][1].toFixed(1)}]`,
-          metadata: `ID #${uniqueId} ${baseName}`
+          width: item.cmWidth.toFixed(2),
+          height: item.cmHeight.toFixed(2),
+          location: '[' + pos[0].toFixed(3) + ',' + pos[1].toFixed(3) + ',' + pos[2].toFixed(3) + ']',
+          vector: '[' + vec[0].toFixed(1) + ',' + vec[1].toFixed(1) + ']',
+          metadata: 'ID #' + uniqueId + ' ' + baseName
         };
         uniqueId++;
-      }
+      });
 
       lastParent = galleryName;
-      itemIndex += itemsForThisGallery;
-      itemsLeft -= itemsForThisGallery;
-      subGalleryIndex++;
-    }
+    });
   }
 
-  // Add doors between galleries
+  // Doors between rooms (parent ↔ child)
   for (const galleryName of Object.keys(building)) {
     const parent = building[galleryName].parent;
     if (parent && parent !== 'none') {
-      // Door in parent pointing to this gallery
-      building[parent][galleryName] = {
-        resource: `${galleryName}.glb`,
-        resource_type: 'door'
-      };
-      // Door in this gallery pointing to parent
-      building[galleryName][parent] = {
-        resource: `${parent}.glb`,
-        resource_type: 'door'
-      };
+      building[parent][galleryName] = { resource: galleryName + '.glb', resource_type: 'door' };
+      building[galleryName][parent]  = { resource: parent + '.glb',      resource_type: 'door' };
     }
   }
 
-  // Add technical settings
-  building['Technical'] = {
-    ambientLight: 0.5,
-    pointLight: 50,
-    scaleFactor: galleryDist.geometry.itemMaxSize
-  };
-
-  // Merge gallery settings if available
+  building['Technical'] = { ambientLight: 0.5, pointLight: 50 };
   if (typeof GallerySettings !== 'undefined') {
     Object.assign(building['Technical'], GallerySettings.getValues());
   }
 
-  if (onProgress) {
-    onProgress(totalImages, totalImages, 'Done!');
-  }
-
+  if (onProgress) onProgress(totalImages, totalImages, 'Done!');
   return building;
 }
 
+function _resolveStyleKey(catalog, styleConfig) {
+  if (!styleConfig) return Object.keys(catalog.styles)[0];
+  // Caller passed a style entry directly — reverse-look the key.
+  const keys = Object.keys(catalog.styles);
+  for (const k of keys) {
+    if (catalog.styles[k] === styleConfig) return k;
+    if (styleConfig.root && catalog.styles[k].root === styleConfig.root) return k;
+  }
+  return keys[0];
+}
+
 /**
- * Build a map of resource path → File object for preview blob URLs.
- * @param {Array} galleries - Array of {name, folderName, files} objects
- * @returns {Object} Map of "/folderName/filename.jpg" → File
+ * Re-fit the items in an existing room. Returns one or more room descriptors.
+ *   roomEntries: array of { key, entry } pairs (entry has cm width/height + metadata)
+ *   styleConfig: the style entry from catalog.styles[*]
+ * Returns: [{ shape, glbName, items: [{ key, entry, location, vector }] }, ...]
  */
+async function relayoutRoom(roomEntries, styleConfig, settings, options) {
+  options = options || {};
+  const cdnBase = options.cdnBase != null ? options.cdnBase : (typeof window !== 'undefined' && window.openvgal_cdn_base) || '';
+  const scriptBase = options.scriptBase || '../';
+  const catalog = await loadCatalog(cdnBase);
+  const styleKey = _resolveStyleKey(catalog, styleConfig);
+
+  const items = roomEntries.map(function(re) {
+    return {
+      key: re.key,
+      entry: re.entry,
+      cmWidth: parseFloat(re.entry.width),
+      widthM: parseFloat(re.entry.width) * SCENE_M_PER_CM
+    };
+  });
+
+  const rooms = await packIntoRooms(items, catalog, styleKey, settings, cdnBase, scriptBase);
+  return rooms.map(function(room) {
+    return {
+      shape: room.shape,
+      glbName: room.glbName,
+      items: room.indices.map(function(origIdx, k) {
+        const it = items[origIdx];
+        const pos = room.positions[k];
+        const vec = room.vectors[k];
+        return {
+          key: it.key,
+          entry: it.entry,
+          location: '[' + pos[0].toFixed(3) + ',' + pos[1].toFixed(3) + ',' + pos[2].toFixed(3) + ']',
+          vector: '[' + vec[0].toFixed(1) + ',' + vec[1].toFixed(1) + ']'
+        };
+      })
+    };
+  });
+}
+
 function buildFileMap(galleries) {
   const fileMap = {};
   for (const gallery of galleries) {
     const folderName = gallery.folderName || gallery.name;
     const imageFiles = filterImageFiles(gallery.files);
     for (const file of imageFiles) {
-      fileMap[`/${folderName}/${file.name}`] = file;
+      fileMap['/' + folderName + '/' + file.name] = file;
     }
   }
   return fileMap;
 }
 
-/**
- * Download JSON as a file
- */
-function downloadJSON(data, filename = 'building_v2.json') {
+function downloadJSON(data, filename) {
+  filename = filename || 'building_v2.json';
   const json = JSON.stringify(data, null, 2);
   const blob = new Blob([json], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
-
   const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
 
-// Export for use in other modules
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    GalleryWithOptionalPanels,
-    createGalleryManager,
-    getImageDimensions,
+    buildGalleryJSON,
+    relayoutRoom,
+    loadCatalog,
+    packIntoRooms,
+    buildFileMap,
     filterImageFiles,
     groupFilesByFolder,
-    buildGalleryJSON,
-    buildFileMap,
+    getImageDimensions,
+    extractOccupanciesFromGLB,
     downloadJSON,
+    SCENE_M_PER_CM,
+    DEFAULT_LONGEST_CM,
     IMAGE_TYPES
   };
 }

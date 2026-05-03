@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>OpenVGAL Catalog Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      background: #000; color: #d4d4d8;
+      min-height: 100vh; padding: 2rem 1.5rem 4rem;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap { max-width: 980px; margin: 0 auto; }
+    h1 { color: #fafafa; font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.4rem; }
+    .sub { color: #71717a; font-size: 0.85rem; margin-bottom: 2rem; }
+    .sub code { background: rgba(99,102,241,0.1); color: #a5b4fc; padding: 0.1rem 0.35rem; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.8em; }
+
+    .section { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 1rem; }
+    .section h2 { color: #e4e4e7; font-size: 0.95rem; font-weight: 600; margin-bottom: 0.6rem; display: flex; align-items: center; gap: 0.5rem; }
+    .section h2 .step { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 6px; background: rgba(99,102,241,0.12); color: #818cf8; font-size: 0.7rem; font-weight: 700; }
+    .section .hint { color: #71717a; font-size: 0.78rem; line-height: 1.6; margin-bottom: 0.85rem; }
+
+    .drop {
+      border: 1.5px dashed rgba(255,255,255,0.18); border-radius: 10px;
+      padding: 1.5rem; text-align: center; cursor: pointer;
+      transition: all 0.2s; background: rgba(255,255,255,0.015);
+    }
+    .drop:hover { border-color: rgba(99,102,241,0.3); background: rgba(99,102,241,0.04); }
+    .drop.over { border-color: #6366f1; border-style: solid; background: rgba(99,102,241,0.08); }
+    .drop .lbl { color: #a1a1aa; font-size: 0.85rem; font-weight: 500; }
+    .drop .sublbl { color: #52525b; font-size: 0.72rem; margin-top: 0.25rem; }
+    input[type="file"] { display: none; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.4rem; border: none;
+      padding: 0.55rem 1rem; border-radius: 7px; font-size: 0.8rem; font-weight: 500;
+      cursor: pointer; font-family: inherit; transition: all 0.15s;
+    }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary { background: #fff; color: #09090b; }
+    .btn-primary:hover:not(:disabled) { opacity: 0.92; transform: translateY(-1px); }
+    .btn-default { background: rgba(255,255,255,0.06); color: #d4d4d8; border: 1px solid rgba(255,255,255,0.08); }
+    .btn-default:hover:not(:disabled) { background: rgba(255,255,255,0.1); }
+    .btn-subtle { background: transparent; color: #71717a; border: 1px solid rgba(255,255,255,0.08); }
+    .btn-subtle:hover:not(:disabled) { background: rgba(255,255,255,0.04); color: #a1a1aa; }
+    .btn-danger { background: rgba(239,68,68,0.08); color: #fca5a5; border: 1px solid rgba(239,68,68,0.18); }
+    .btn-danger:hover:not(:disabled) { background: rgba(239,68,68,0.14); }
+
+    .row { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+    label.inline { font-size: 0.78rem; color: #a1a1aa; display: flex; align-items: center; gap: 0.4rem; }
+    input[type="text"], textarea, select {
+      background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.08);
+      color: #e4e4e7; padding: 0.45rem 0.6rem; border-radius: 6px;
+      font-size: 0.78rem; font-family: inherit; outline: none; transition: border-color 0.15s;
+    }
+    textarea { font-family: 'JetBrains Mono', 'Consolas', monospace; font-size: 0.72rem; line-height: 1.5; }
+    input[type="text"]:focus, textarea:focus, select:focus { border-color: rgba(99,102,241,0.4); }
+
+    .shape-list { display: flex; flex-direction: column; gap: 0.4rem; }
+    .shape-item {
+      display: grid; grid-template-columns: 110px 1fr auto; gap: 0.6rem; align-items: center;
+      background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 8px; padding: 0.5rem 0.7rem;
+    }
+    .shape-item .name { color: #fafafa; font-weight: 600; font-size: 0.82rem; font-family: 'JetBrains Mono', monospace; }
+    .shape-item .meta { color: #71717a; font-size: 0.74rem; }
+    .shape-item .meta strong { color: #a5b4fc; font-weight: 500; }
+    .shape-item .actions { display: flex; gap: 0.3rem; }
+    .empty { color: #52525b; font-size: 0.78rem; text-align: center; padding: 1rem; font-style: italic; }
+
+    .preview {
+      background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 8px; padding: 0.85rem 1rem;
+      font-family: 'JetBrains Mono', 'Consolas', monospace; font-size: 0.7rem; line-height: 1.55;
+      color: #a1a1aa; max-height: 380px; overflow: auto; white-space: pre;
+    }
+    .log {
+      font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: #71717a;
+      background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.04); border-radius: 6px;
+      padding: 0.6rem 0.8rem; max-height: 160px; overflow: auto; line-height: 1.5;
+      white-space: pre-wrap; word-break: break-word;
+    }
+    .log .ok { color: #6ee7b7; } .log .warn { color: #fcd34d; } .log .err { color: #fca5a5; }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; }
+    @media (max-width: 760px) { .grid-2 { grid-template-columns: 1fr; } }
+
+    .field { display: flex; flex-direction: column; gap: 0.3rem; }
+    .field-label { color: #a1a1aa; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500; }
+
+    textarea.large { min-height: 220px; resize: vertical; width: 100%; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Catalog Manager</h1>
+    <p class="sub">
+      Build / edit <code>cdn/templates/catalog.json</code>. Drop a GLB to extract its <code>Occupancy_*</code> meshes and assign them to a shape. Serve repo root via local HTTP server (e.g. <code>python -m http.server 8080</code>) and open this page from there.
+    </p>
+
+    <div class="section">
+      <h2><span class="step">1</span> Load existing catalog (optional)</h2>
+      <div class="hint">Drop your existing <code>catalog.json</code> here to keep editing it. Skip to start fresh.</div>
+      <div class="drop" id="catalogDrop">
+        <div class="lbl">Drop catalog.json or click to browse</div>
+        <div class="sublbl">JSON file</div>
+        <input type="file" id="catalogInput" accept="application/json,.json">
+      </div>
+    </div>
+
+    <div class="section">
+      <h2><span class="step">2</span> Drop a template GLB</h2>
+      <div class="hint">The <code>Occupancy_*</code> meshes (planes named like <code>Occupancy_1</code>, <code>Occupancy_2</code> &hellip;) are extracted into a shape entry. Give the shape an id (e.g. <code>small</code>, <code>nopannels</code>, <code>pannels</code>). Existing shape ids are overwritten.</div>
+      <div class="drop" id="glbDrop">
+        <div class="lbl">Drop a .glb file or click to browse</div>
+        <div class="sublbl">Repeats per shape variant</div>
+        <input type="file" id="glbInput" accept=".glb,model/gltf-binary">
+      </div>
+      <div class="log" id="probeLog" style="margin-top:0.85rem;display:none;"></div>
+    </div>
+
+    <div class="section">
+      <h2><span class="step">3</span> Shapes in the catalog</h2>
+      <div class="shape-list" id="shapeList"></div>
+    </div>
+
+    <div class="section">
+      <h2><span class="step">4</span> Selection order &amp; styles</h2>
+      <div class="hint">Selection order is the smallest &rarr; largest sequence the gallery walks when fitting items. Styles is JSON describing each visual variant: <code>name</code>, <code>description</code>, <code>thumbnail</code>, <code>root</code>, <code>glbs</code>.</div>
+      <div class="grid-2">
+        <div class="field">
+          <span class="field-label">Selection order</span>
+          <input type="text" id="selectionOrderInput" placeholder="small, nopannels, pannels">
+        </div>
+        <div class="field">
+          <span class="field-label">Default min spacing (babylon m)</span>
+          <input type="text" id="minSpacingInput" placeholder="0.5" style="max-width:140px;">
+        </div>
+      </div>
+      <div class="field" style="margin-top:0.85rem;">
+        <span class="field-label">Styles JSON</span>
+        <textarea id="stylesInput" class="large" spellcheck="false"></textarea>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2><span class="step">5</span> Preview &amp; download</h2>
+      <div class="row" style="margin-bottom:0.85rem;">
+        <button class="btn btn-primary" id="downloadBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          Download catalog.json
+        </button>
+        <button class="btn btn-default" id="copyBtn">Copy JSON</button>
+        <button class="btn btn-subtle" id="resetBtn">Reset</button>
+      </div>
+      <div class="preview" id="preview"></div>
+    </div>
+  </div>
+
+  <script src="../babylon.js"></script>
+  <script src="../babylonjs.loaders.min.js"></script>
+  <script>
+  (function() {
+    'use strict';
+
+    // Working catalog state. Persists across drops within this page session.
+    var catalog = {
+      shapes: {},
+      selectionOrder: ['small', 'nopannels', 'pannels'],
+      minSpacing: 0.5,
+      styles: {
+        classic:    { name: 'Classic',    description: 'Mix of modern and classic materials', thumbnail: 'classic_thumb.jpg',    root: 'T_root.glb',            glbs: { small: 'T_small.glb',            nopannels: 'T_nopannels.glb',            pannels: 'T_pannels.glb' } },
+        minimalist: { name: 'Minimalist', description: 'Clean lines, white walls, even lighting', thumbnail: 'minimalist_thumb.jpg', root: 'T_root_minimalist.glb', glbs: { small: 'T_small_minimalist.glb', nopannels: 'T_nopannels_minimalist.glb', pannels: 'T_pannels_minimalist.glb' } },
+        dark:       { name: 'Dark',       description: 'Dark walls, backlight type of frames', thumbnail: 'dark_thumb.jpg',       root: 'T_root_dark.glb',       glbs: { small: 'T_small_dark.glb',       nopannels: 'T_nopannels_dark.glb',       pannels: 'T_pannels_dark.glb' } }
+      }
+    };
+
+    var dom = {
+      catalogDrop:  document.getElementById('catalogDrop'),
+      catalogInput: document.getElementById('catalogInput'),
+      glbDrop:      document.getElementById('glbDrop'),
+      glbInput:     document.getElementById('glbInput'),
+      probeLog:     document.getElementById('probeLog'),
+      shapeList:    document.getElementById('shapeList'),
+      selOrder:     document.getElementById('selectionOrderInput'),
+      minSpacing:   document.getElementById('minSpacingInput'),
+      stylesInput:  document.getElementById('stylesInput'),
+      preview:      document.getElementById('preview'),
+      downloadBtn:  document.getElementById('downloadBtn'),
+      copyBtn:      document.getElementById('copyBtn'),
+      resetBtn:     document.getElementById('resetBtn')
+    };
+
+    function log(msg, kind) {
+      dom.probeLog.style.display = '';
+      var line = document.createElement('div');
+      if (kind) line.className = kind;
+      line.textContent = msg;
+      dom.probeLog.appendChild(line);
+      dom.probeLog.scrollTop = dom.probeLog.scrollHeight;
+    }
+
+    // === GLB probe — mirrors site/js/gallery-generator.js extractOccupanciesFromGLB ===
+    async function probeGLB(file) {
+      if (typeof BABYLON === 'undefined' || typeof BABYLON.GLTFFileLoader === 'undefined') {
+        throw new Error('Babylon.js not loaded — serve this page via local HTTP server from repo root.');
+      }
+      var engine = new BABYLON.NullEngine();
+      var scene = new BABYLON.Scene(engine);
+      try {
+        var url = URL.createObjectURL(file);
+        await BABYLON.SceneLoader.AppendAsync('', url, scene, null, '.glb');
+        URL.revokeObjectURL(url);
+
+        var meshes = scene.meshes.filter(function(m) { return /^Occupancy_\d+/i.test(m.name); });
+        meshes.sort(function(a, b) {
+          var na = parseInt(a.name.replace(/^Occupancy_/i, ''), 10) || 0;
+          var nb = parseInt(b.name.replace(/^Occupancy_/i, ''), 10) || 0;
+          return na - nb;
+        });
+
+        var result = [];
+        for (var i = 0; i < meshes.length; i++) {
+          var mesh = meshes[i];
+          mesh.computeWorldMatrix(true);
+          mesh.refreshBoundingInfo();
+          var worldMatrix = mesh.getWorldMatrix();
+          var bb = mesh.getBoundingInfo().boundingBox;
+          var center = bb.centerWorld;
+
+          var normalsData = mesh.getVerticesData(BABYLON.VertexBuffer.NormalKind);
+          if (!normalsData || normalsData.length < 3) {
+            log('Skipping ' + mesh.name + ' (no normals)', 'warn');
+            continue;
+          }
+          var localN = new BABYLON.Vector3(normalsData[0], normalsData[1], normalsData[2]);
+          var worldN = BABYLON.Vector3.TransformNormal(localN, worldMatrix);
+          worldN.normalize();
+
+          var alongAxis = BABYLON.Vector3.Cross(worldN, BABYLON.Axis.Y);
+          if (alongAxis.length() < 1e-6) {
+            log('Skipping ' + mesh.name + ' (horizontal wall)', 'warn');
+            continue;
+          }
+          alongAxis.normalize();
+
+          var positions = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind);
+          var minProj = Infinity, maxProj = -Infinity;
+          for (var j = 0; j < positions.length; j += 3) {
+            var v = BABYLON.Vector3.TransformCoordinates(
+              new BABYLON.Vector3(positions[j], positions[j + 1], positions[j + 2]),
+              worldMatrix
+            );
+            var p = BABYLON.Vector3.Dot(v, alongAxis);
+            if (p < minProj) minProj = p;
+            if (p > maxProj) maxProj = p;
+          }
+          var width = maxProj - minProj;
+
+          result.push({
+            name: mesh.name,
+            center: [round(center.x), round(center.y), round(center.z)],
+            normal: [round(worldN.x), round(worldN.y), round(worldN.z)],
+            width: round(width)
+          });
+        }
+        return result;
+      } finally {
+        scene.dispose();
+        engine.dispose();
+      }
+    }
+
+    function round(n) { return Math.round(n * 1000) / 1000; }
+
+    function inferShapeIdFromFilename(name) {
+      var lower = name.toLowerCase();
+      if (lower.indexOf('small')     !== -1) return 'small';
+      if (lower.indexOf('nopannels') !== -1) return 'nopannels';
+      if (lower.indexOf('pannels')   !== -1) return 'pannels';
+      return null;
+    }
+
+    async function handleGLB(file) {
+      log('Probing ' + file.name + '...');
+      try {
+        var occupancies = await probeGLB(file);
+        if (occupancies.length === 0) {
+          log('No Occupancy_* meshes found in ' + file.name, 'warn');
+          return;
+        }
+        log('Found ' + occupancies.length + ' Occupancy meshes in ' + file.name, 'ok');
+
+        var suggested = inferShapeIdFromFilename(file.name) || 'shape';
+        var shapeId = prompt('Shape id for ' + file.name + ' (existing ids overwrite):', suggested);
+        if (!shapeId) return;
+        shapeId = shapeId.trim();
+        if (!shapeId) return;
+
+        catalog.shapes[shapeId] = { occupancies: occupancies };
+        log('Saved shape "' + shapeId + '" (' + occupancies.length + ' occupancies)', 'ok');
+        renderShapes();
+        renderPreview();
+      } catch (e) {
+        log('Error: ' + e.message, 'err');
+        console.error(e);
+      }
+    }
+
+    // === DOM rendering ===
+    function renderShapes() {
+      dom.shapeList.innerHTML = '';
+      var ids = Object.keys(catalog.shapes);
+      if (ids.length === 0) {
+        var empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = 'No shapes yet — drop a GLB above.';
+        dom.shapeList.appendChild(empty);
+        return;
+      }
+      ids.forEach(function(id) {
+        var s = catalog.shapes[id];
+        var node = document.createElement('div');
+        node.className = 'shape-item';
+
+        var n = document.createElement('div'); n.className = 'name'; n.textContent = id;
+        var m = document.createElement('div'); m.className = 'meta';
+        var widths = (s.occupancies || []).map(function(o) { return o.width.toFixed(2); }).join(', ');
+        m.innerHTML = '<strong>' + (s.occupancies || []).length + '</strong> occupancies — widths: ' + (widths || '<em>none</em>');
+
+        var actions = document.createElement('div'); actions.className = 'actions';
+        var del = document.createElement('button'); del.className = 'btn btn-danger'; del.textContent = 'Remove';
+        del.addEventListener('click', function() {
+          if (confirm('Remove shape "' + id + '"?')) {
+            delete catalog.shapes[id];
+            renderShapes(); renderPreview();
+          }
+        });
+        actions.appendChild(del);
+
+        node.appendChild(n); node.appendChild(m); node.appendChild(actions);
+        dom.shapeList.appendChild(node);
+      });
+    }
+
+    function renderControls() {
+      dom.selOrder.value = (catalog.selectionOrder || []).join(', ');
+      dom.minSpacing.value = catalog.minSpacing != null ? String(catalog.minSpacing) : '0.5';
+      dom.stylesInput.value = JSON.stringify(catalog.styles || {}, null, 2);
+    }
+
+    function syncControlsToCatalog() {
+      catalog.selectionOrder = dom.selOrder.value.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+      var ms = parseFloat(dom.minSpacing.value);
+      catalog.minSpacing = isFinite(ms) && ms > 0 ? ms : 0.5;
+      try {
+        catalog.styles = JSON.parse(dom.stylesInput.value);
+      } catch (e) {
+        // ignore parse errors during typing; preview will show last good value
+      }
+    }
+
+    function renderPreview() {
+      syncControlsToCatalog();
+      dom.preview.textContent = JSON.stringify(buildOutput(), null, 2);
+    }
+
+    function buildOutput() {
+      // Output ordering: shapes, selectionOrder, minSpacing, styles.
+      return {
+        shapes: catalog.shapes,
+        selectionOrder: catalog.selectionOrder,
+        minSpacing: catalog.minSpacing,
+        styles: catalog.styles
+      };
+    }
+
+    // === File handling helpers ===
+    function bindDrop(zone, input, accept, onFile) {
+      zone.addEventListener('click', function() { input.click(); });
+      zone.addEventListener('dragover', function(e) { e.preventDefault(); zone.classList.add('over'); });
+      zone.addEventListener('dragleave', function() { zone.classList.remove('over'); });
+      zone.addEventListener('drop', function(e) {
+        e.preventDefault(); zone.classList.remove('over');
+        var files = Array.from(e.dataTransfer.files);
+        for (var i = 0; i < files.length; i++) onFile(files[i]);
+      });
+      input.addEventListener('change', function(e) {
+        var files = Array.from(e.target.files);
+        for (var i = 0; i < files.length; i++) onFile(files[i]);
+        input.value = '';
+      });
+    }
+
+    bindDrop(dom.glbDrop, dom.glbInput, '.glb', handleGLB);
+
+    bindDrop(dom.catalogDrop, dom.catalogInput, '.json', function(file) {
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        try {
+          var parsed = JSON.parse(ev.target.result);
+          if (parsed.shapes) catalog.shapes = parsed.shapes;
+          if (Array.isArray(parsed.selectionOrder)) catalog.selectionOrder = parsed.selectionOrder;
+          if (parsed.minSpacing != null) catalog.minSpacing = parsed.minSpacing;
+          if (parsed.styles) catalog.styles = parsed.styles;
+          log('Loaded catalog.json (' + Object.keys(catalog.shapes).length + ' shapes, ' + Object.keys(catalog.styles).length + ' styles)', 'ok');
+          renderShapes(); renderControls(); renderPreview();
+        } catch (e) {
+          log('Failed to parse catalog: ' + e.message, 'err');
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    [dom.selOrder, dom.minSpacing, dom.stylesInput].forEach(function(el) {
+      el.addEventListener('input', renderPreview);
+    });
+
+    dom.downloadBtn.addEventListener('click', function() {
+      syncControlsToCatalog();
+      var json = JSON.stringify(buildOutput(), null, 2);
+      var blob = new Blob([json], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = 'catalog.json';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+
+    dom.copyBtn.addEventListener('click', function() {
+      syncControlsToCatalog();
+      navigator.clipboard.writeText(JSON.stringify(buildOutput(), null, 2)).then(function() {
+        dom.copyBtn.textContent = 'Copied';
+        setTimeout(function() { dom.copyBtn.textContent = 'Copy JSON'; }, 1200);
+      });
+    });
+
+    dom.resetBtn.addEventListener('click', function() {
+      if (!confirm('Reset everything?')) return;
+      catalog.shapes = {};
+      catalog.selectionOrder = ['small', 'nopannels', 'pannels'];
+      catalog.minSpacing = 0.5;
+      // Keep styles intact — they're user-edited.
+      renderShapes(); renderControls(); renderPreview();
+    });
+
+    // Initial paint
+    renderShapes(); renderControls(); renderPreview();
+  })();
+  </script>
+</body>
+</html>
