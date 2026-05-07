@@ -9,3 +9,10 @@ node_modules/
 .mcp.json
 .claude
 
+# Local-only docs / scratch (do not publish to public repo)
+AGENTS.md
+CLAUDE.md
+instructions.md
+future_ideas/
+reference/
+

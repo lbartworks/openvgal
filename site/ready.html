@@ -19,17 +19,17 @@
     body::before {
       content: '';
       position: fixed;
-      top: -200px; left: 50%;
+      top: -300px; left: 50%;
       transform: translateX(-50%);
-      width: 800px; height: 800px;
-      background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, transparent 70%);
+      width: 900px; height: 900px;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.14) 0%, transparent 65%);
       pointer-events: none;
       z-index: 0;
     }
     .page-wrapper {
       position: relative;
       z-index: 1;
-      max-width: 720px;
+      max-width: 680px;
       margin: 0 auto;
       padding: 0 1.5rem 4rem;
     }
@@ -57,26 +57,39 @@
 
     .hero {
       text-align: center;
-      padding: 5rem 0 3rem;
+      padding: 4.5rem 0 2.5rem;
     }
-    .hero-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-size: 0.72rem;
-      font-weight: 500;
-      letter-spacing: 0.04em;
-      color: #a78bfa;
-      background: rgba(167, 139, 250, 0.08);
-      border: 1px solid rgba(167, 139, 250, 0.15);
-      padding: 0.35rem 0.9rem;
-      border-radius: 100px;
-      margin-bottom: 1.5rem;
-    }
-    .hero-badge-dot {
-      width: 5px; height: 5px;
+    .success-orb {
+      position: relative;
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 1.5rem;
       border-radius: 50%;
-      background: #a78bfa;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 30% 30%, rgba(165,180,252,0.32), rgba(99,102,241,0.08) 70%);
+      border: 1px solid rgba(129,140,248,0.4);
+      color: #c7d2fe;
+      box-shadow: 0 0 24px rgba(99,102,241,0.18);
+    }
+    .success-orb::after {
+      content: '';
+      position: absolute;
+      inset: -6px;
+      border-radius: 50%;
+      border: 1px solid rgba(129,140,248,0.25);
+      animation: orb-pulse 2.6s ease-out infinite;
+      pointer-events: none;
+    }
+    @keyframes orb-pulse {
+      0%   { transform: scale(0.94); opacity: 0.6; }
+      100% { transform: scale(1.28); opacity: 0; }
+    }
+    .success-orb svg {
+      width: 24px; height: 24px;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
     h1 {
       font-size: clamp(2rem, 4.8vw, 3rem);
@@ -101,108 +114,167 @@
     }
 
     .cta-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.75rem;
-      margin: 2rem 0 2.5rem;
-    }
-    .cta-card {
       display: flex;
       flex-direction: column;
-      gap: 0.5rem;
-      background: rgba(255,255,255,0.02);
-      border: 1px solid rgba(255,255,255,0.06);
-      border-radius: 14px;
-      padding: 1.25rem;
-      text-decoration: none;
-      transition: all 0.15s ease;
+      gap: 0.65rem;
+      margin: 2rem 0 3rem;
     }
-    .cta-card:hover {
-      border-color: rgba(99, 102, 241, 0.25);
-      background: rgba(99, 102, 241, 0.04);
+    .cta-card {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      border-radius: 14px;
+      padding: 1.15rem 1.35rem;
+      text-decoration: none;
+      transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+    }
+    .cta-card.cta-primary {
+      background: rgba(99,102,241,0.06);
+      border: 1px solid rgba(129,140,248,0.22);
+    }
+    .cta-card.cta-primary:hover {
+      background: rgba(99,102,241,0.11);
+      border-color: rgba(165,180,252,0.42);
+      transform: translateY(-1px);
+    }
+    .cta-card.cta-secondary {
+      background: rgba(255,255,255,0.025);
+      border: 1px solid rgba(255,255,255,0.07);
+    }
+    .cta-card.cta-secondary:hover {
+      background: rgba(255,255,255,0.045);
+      border-color: rgba(255,255,255,0.13);
       transform: translateY(-1px);
     }
     .cta-icon {
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      background: rgba(99, 102, 241, 0.1);
-      color: #a5b4fc;
+      flex-shrink: 0;
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
     }
-    .cta-icon svg { width: 16px; height: 16px; }
+    .cta-primary .cta-icon {
+      background: rgba(129,140,248,0.18);
+      color: #c7d2fe;
+    }
+    .cta-secondary .cta-icon {
+      background: rgba(255,255,255,0.05);
+      color: #a1a1aa;
+    }
+    .cta-icon svg { width: 18px; height: 18px; }
+    .cta-body { flex: 1; min-width: 0; }
+    .cta-title-row {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      margin-bottom: 0.25rem;
+      flex-wrap: wrap;
+    }
     .cta-title {
-      font-size: 0.92rem;
+      font-size: 0.98rem;
       font-weight: 600;
       color: #fafafa;
+      line-height: 1.3;
+    }
+    .cta-pill {
+      font-size: 0.6rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #a78bfa;
+      background: rgba(167,139,250,0.10);
+      border: 1px solid rgba(167,139,250,0.22);
+      padding: 0.15rem 0.5rem;
+      border-radius: 100px;
+      line-height: 1.4;
+    }
+    .cta-pill.cta-pill-soft {
+      color: #a1a1aa;
+      background: rgba(255,255,255,0.05);
+      border-color: rgba(255,255,255,0.1);
     }
     .cta-desc {
-      font-size: 0.78rem;
+      font-size: 0.82rem;
       color: #71717a;
-      line-height: 1.55;
+      line-height: 1.5;
     }
+    .cta-primary .cta-desc { color: #a1a1aa; }
+    .cta-arrow {
+      flex-shrink: 0;
+      display: inline-flex;
+      color: #52525b;
+      transition: transform 0.18s ease, color 0.18s ease;
+    }
+    .cta-primary .cta-arrow { color: #818cf8; }
+    .cta-card:hover .cta-arrow {
+      transform: translateX(3px);
+      color: #c7d2fe;
+    }
+    .cta-secondary:hover .cta-arrow { color: #d4d4d8; }
+    .cta-arrow svg { width: 16px; height: 16px; }
 
     .share-section {
-      background: rgba(255,255,255,0.02);
-      border: 1px solid rgba(255,255,255,0.05);
-      border-radius: 14px;
-      padding: 1.5rem;
       text-align: center;
+      padding: 1.75rem 0 0.5rem;
+      border-top: 1px solid rgba(255,255,255,0.06);
     }
     .share-title {
-      font-size: 0.88rem;
+      font-size: 0.85rem;
       font-weight: 600;
-      color: #e4e4e7;
-      margin-bottom: 0.4rem;
+      color: #d4d4d8;
+      margin-bottom: 0.35rem;
     }
     .share-hint {
       font-size: 0.78rem;
       color: #71717a;
-      margin-bottom: 1.25rem;
+      margin-bottom: 1.1rem;
       line-height: 1.6;
     }
     .share-row {
-      display: flex;
-      gap: 0.5rem;
-      justify-content: center;
+      display: inline-flex;
+      gap: 0.45rem;
       flex-wrap: wrap;
+      justify-content: center;
     }
     .share-btn {
       display: inline-flex;
       align-items: center;
       gap: 0.4rem;
-      padding: 0.55rem 1rem;
+      padding: 0.5rem 0.9rem;
       border-radius: 8px;
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       font-weight: 500;
       cursor: pointer;
       border: 1px solid rgba(255,255,255,0.08);
-      background: rgba(255,255,255,0.04);
+      background: rgba(255,255,255,0.03);
       color: #d4d4d8;
       text-decoration: none;
       font-family: inherit;
-      transition: all 0.15s;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
     }
     .share-btn:hover {
-      background: rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.07);
       border-color: rgba(255,255,255,0.14);
       color: #fafafa;
     }
-    .share-btn svg { width: 14px; height: 14px; }
+    .share-btn svg { width: 13px; height: 13px; }
     .share-btn.share-primary {
       background: rgba(99, 102, 241, 0.14);
-      border-color: rgba(99, 102, 241, 0.25);
+      border-color: rgba(99, 102, 241, 0.28);
       color: #c7d2fe;
     }
     .share-btn.share-primary:hover {
-      background: rgba(99, 102, 241, 0.2);
+      background: rgba(99, 102, 241, 0.22);
+      border-color: rgba(129, 140, 248, 0.45);
       color: #e0e7ff;
     }
     .copy-status {
-      display: inline-block;
-      margin-left: 0.5rem;
+      display: block;
+      margin-top: 0.7rem;
+      min-height: 1em;
       font-size: 0.72rem;
       color: #4ade80;
       opacity: 0;
@@ -217,14 +289,23 @@
       color: #52525b;
     }
     .footer-note a {
-      color: #71717a;
+      color: #a1a1aa;
       text-decoration: none;
+      border-bottom: 1px dotted rgba(113,113,122,0.4);
+      transition: color 0.15s, border-color 0.15s;
     }
-    .footer-note a:hover { color: #a1a1aa; }
+    .footer-note a:hover {
+      color: #a5b4fc;
+      border-bottom-color: rgba(165,180,252,0.55);
+    }
 
     @media (max-width: 600px) {
-      .cta-grid { grid-template-columns: 1fr; }
       .hero { padding: 3rem 0 2rem; }
+      .success-orb { width: 48px; height: 48px; margin-bottom: 1.25rem; }
+      .success-orb svg { width: 20px; height: 20px; }
+      .cta-card { padding: 1rem 1.1rem; gap: 0.85rem; }
+      .cta-title { font-size: 0.92rem; }
+      .cta-icon { width: 34px; height: 34px; }
     }
   </style>
 </head>
@@ -236,9 +317,8 @@
     </nav>
 
     <div class="hero">
-      <div class="hero-badge">
-        <span class="hero-badge-dot"></span>
-        <span>Saved successfully</span>
+      <div class="success-orb" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
       </div>
       <h1>Your <span class="gradient-text" id="galleryName">gallery</span> is ready</h1>
       <p class="hero-sub">
@@ -247,19 +327,30 @@
     </div>
 
     <div class="cta-grid">
-      <a class="cta-card" id="howtoBtn" target="_blank" rel="noopener">
+      <a class="cta-card cta-primary" id="howtoBtn" target="_blank" rel="noopener">
         <span class="cta-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
         </span>
-        <span class="cta-title">How to host it — free &amp; easy</span>
-        <span class="cta-desc">3-min walkthrough on free hosting (GitHub Pages, Netlify, Cloudflare).</span>
+        <span class="cta-body">
+          <span class="cta-title-row">
+            <span class="cta-title">How to host it — free &amp; easy</span>
+            <span class="cta-pill">Watch tutorial</span>
+          </span>
+          <span class="cta-desc">3-min walkthrough: go live on GitHub Pages, Netlify, or Cloudflare for free.</span>
+        </span>
+        <span class="cta-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
-      <a class="cta-card" href="hosting.html">
+      <a class="cta-card cta-secondary" href="hosting.html">
         <span class="cta-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
         </span>
-        <span class="cta-title">Host it for me</span>
-        <span class="cta-desc">Coming soon — let us handle hosting so you can focus on your art.</span>
+        <span class="cta-body">
+          <span class="cta-title-row">
+            <span class="cta-title">Host it for me</span>
+          </span>
+          <span class="cta-desc">Let us handle hosting so you can focus on your art.</span>
+        </span>
+        <span class="cta-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
     </div>
 
@@ -271,14 +362,14 @@
     </div>
 
     <div class="footer-note">
-      Made something cool? <a href="mailto:lbartworks@protonmail.com">Send us a link</a> — we'd love to see it.
+      Made something cool? <a href="https://nostromophoto.com/newslettter/" target="_blank" rel="noopener">Subscribe to the newsletter</a> for updates.
     </div>
   </div>
 
   <script>
     // === Configurable constants — edit these before deploy ===
     // YouTube hosting tutorial. TODO: replace with the recorded walkthrough URL.
-    const YOUTUBE_HOWTO_URL = 'https://www.youtube.com/@openvgal';
+    const YOUTUBE_HOWTO_URL = 'https://www.youtube.com/watch?v=ceygVJ0qnnA';
 
     // Share message used by Web Share API and X intent.
     // TODO before commit: verify @lb_artworks and @openvgal handles exist on each platform.
