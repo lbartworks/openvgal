@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>OpenVGAL — Migrate pre-3.4 JSON</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      background: #000; color: #d4d4d8;
+      min-height: 100vh; padding: 2rem 1.5rem 4rem;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap { max-width: 760px; margin: 0 auto; }
+    h1 { color: #fafafa; font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.4rem; }
+    .sub { color: #71717a; font-size: 0.85rem; margin-bottom: 2rem; line-height: 1.55; }
+    .sub code { background: rgba(99,102,241,0.1); color: #a5b4fc; padding: 0.1rem 0.35rem; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.8em; }
+
+    .section { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 1rem; }
+    .section h2 { color: #e4e4e7; font-size: 0.95rem; font-weight: 600; margin-bottom: 0.6rem; }
+    .section .hint { color: #71717a; font-size: 0.78rem; line-height: 1.6; margin-bottom: 0.85rem; }
+
+    .drop {
+      border: 1.5px dashed rgba(255,255,255,0.18); border-radius: 10px;
+      padding: 1.4rem; text-align: center; cursor: pointer;
+      transition: all 0.2s; background: rgba(255,255,255,0.015);
+    }
+    .drop:hover { border-color: rgba(99,102,241,0.3); background: rgba(99,102,241,0.04); }
+    .drop.over { border-color: #6366f1; border-style: solid; background: rgba(99,102,241,0.08); }
+    .drop .lbl { color: #a1a1aa; font-size: 0.85rem; font-weight: 500; }
+    .drop .sublbl { color: #52525b; font-size: 0.72rem; margin-top: 0.25rem; }
+    input[type="file"] { display: none; }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; border: none;
+      padding: 0.55rem 1rem; border-radius: 7px; font-size: 0.82rem; font-weight: 500;
+      cursor: pointer; font-family: inherit; transition: all 0.15s;
+    }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary { background: #fff; color: #09090b; }
+    .btn-primary:hover:not(:disabled) { opacity: 0.92; transform: translateY(-1px); }
+    .btn-default { background: rgba(255,255,255,0.06); color: #d4d4d8; border: 1px solid rgba(255,255,255,0.08); }
+    .btn-default:hover:not(:disabled) { background: rgba(255,255,255,0.1); }
+
+    .row { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; }
+
+    .field { display: flex; flex-direction: column; gap: 0.3rem; }
+    .field-label { color: #a1a1aa; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500; }
+    input[type="text"] {
+      background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.08);
+      color: #e4e4e7; padding: 0.45rem 0.6rem; border-radius: 6px;
+      font-size: 0.82rem; font-family: 'JetBrains Mono', monospace; outline: none;
+      transition: border-color 0.15s; width: 120px;
+    }
+    input[type="text"]:focus { border-color: rgba(99,102,241,0.4); }
+
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.6rem; margin-top: 0.5rem; }
+    .stat { background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; padding: 0.6rem 0.75rem; }
+    .stat .k { color: #71717a; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.06em; }
+    .stat .v { color: #e4e4e7; font-size: 0.95rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-top: 0.2rem; }
+
+    .log { background: rgba(0,0,0,0.3); border-radius: 6px; padding: 0.7rem 0.85rem; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; line-height: 1.55; max-height: 220px; overflow-y: auto; }
+    .log div { color: #a1a1aa; }
+    .log .ok { color: #6ee7b7; } .log .warn { color: #fcd34d; } .log .err { color: #fca5a5; }
+
+    .back { color: #71717a; font-size: 0.75rem; text-decoration: none; display: inline-block; margin-bottom: 1.5rem; }
+    .back:hover { color: #a1a1aa; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a class="back" href="../index.html">&larr; openvgal.com</a>
+    <h1>Migrate pre-3.4 JSON</h1>
+    <p class="sub">
+      v3.4 switched artwork <code>width</code>/<code>height</code> from normalised units
+      (longest edge = <code>1.00</code>) to real centimetres (default longest edge =
+      <code>120</code>). This tool rescales an older <code>building_v2.json</code> in place
+      so it renders correctly in the 3.4 viewer. Everything runs locally in your browser.
+    </p>
+
+    <div class="section">
+      <h2>1. Drop the old JSON</h2>
+      <div class="drop" id="jsonDrop">
+        <div class="lbl">Drop building_v2.json</div>
+        <div class="sublbl">or click to choose a file</div>
+        <input type="file" id="jsonInput" accept="application/json,.json">
+      </div>
+      <div class="log" id="info" style="display:none; margin-top: 0.85rem;"></div>
+    </div>
+
+    <div class="section">
+      <h2>2. Pick a scale factor</h2>
+      <div class="hint">
+        Default is <strong>120</strong> &mdash; old files used a longest edge of <code>1.00</code>,
+        new files default to <code>120 cm</code>. If your old file used a different
+        longest edge (e.g. you authored at <code>2.0</code> for a larger feel), divide
+        your intended cm by that and use the result.
+      </div>
+      <div class="row">
+        <div class="field">
+          <span class="field-label">Multiplier</span>
+          <input type="text" id="multiplier" value="120">
+        </div>
+        <button class="btn btn-primary" id="downloadBtn" disabled>Migrate &amp; download</button>
+        <button class="btn btn-default" id="resetBtn" disabled>Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function() {
+    'use strict';
+
+    var state = { source: null, fileName: 'building_v2.json' };
+
+    var dom = {
+      jsonDrop:     document.getElementById('jsonDrop'),
+      jsonInput:    document.getElementById('jsonInput'),
+      info:         document.getElementById('info'),
+      multiplier:   document.getElementById('multiplier'),
+      downloadBtn:  document.getElementById('downloadBtn'),
+      resetBtn:     document.getElementById('resetBtn')
+    };
+
+    function logLine(html, cls) {
+      dom.info.style.display = '';
+      var d = document.createElement('div');
+      if (cls) d.className = cls;
+      d.innerHTML = html;
+      dom.info.appendChild(d);
+      dom.info.scrollTop = dom.info.scrollHeight;
+    }
+
+    function clearLog() { dom.info.innerHTML = ''; dom.info.style.display = 'none'; }
+
+    function eachImage(building, fn) {
+      Object.keys(building).forEach(function(roomKey) {
+        if (roomKey === 'Technical') return;
+        var room = building[roomKey];
+        if (!room || typeof room !== 'object') return;
+        Object.keys(room).forEach(function(itemKey) {
+          var item = room[itemKey];
+          if (item && typeof item === 'object' && item.resource_type === 'image') {
+            fn(item, roomKey, itemKey);
+          }
+        });
+      });
+    }
+
+    function analyse(building) {
+      var rooms = 0, images = 0;
+      var minDim = Infinity, maxDim = -Infinity;
+      Object.keys(building).forEach(function(k) {
+        if (k !== 'Technical' && building[k] && typeof building[k] === 'object') rooms++;
+      });
+      eachImage(building, function(item) {
+        images++;
+        var w = Number(item.width), h = Number(item.height);
+        if (isFinite(w)) { if (w < minDim) minDim = w; if (w > maxDim) maxDim = w; }
+        if (isFinite(h)) { if (h < minDim) minDim = h; if (h > maxDim) maxDim = h; }
+      });
+      return { rooms: rooms, images: images, minDim: minDim, maxDim: maxDim };
+    }
+
+    function formatDim(v) {
+      if (!isFinite(v)) return '—';
+      return v.toFixed(2);
+    }
+
+    function handleFile(file) {
+      clearLog();
+      state.fileName = file.name || 'building_v2.json';
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        try {
+          var parsed = JSON.parse(ev.target.result);
+          state.source = parsed;
+          var s = analyse(parsed);
+          logLine('Loaded <strong>' + state.fileName + '</strong> &middot; '
+            + s.rooms + ' room(s), ' + s.images + ' image(s)', 'ok');
+          logLine('Dimensions found: min = <strong>' + formatDim(s.minDim)
+            + '</strong>, max = <strong>' + formatDim(s.maxDim) + '</strong>');
+          if (s.images === 0) {
+            logLine('No image entries found &mdash; nothing to migrate.', 'warn');
+            dom.downloadBtn.disabled = true;
+          } else if (s.maxDim > 10) {
+            logLine('Max dimension is &gt; 10 &mdash; this file looks like it&rsquo;s already in '
+              + 'centimetres (v3.4+). Migrating again will make artworks huge.', 'warn');
+            dom.downloadBtn.disabled = false;
+          } else {
+            logLine('Looks like a pre-3.4 file. Ready to multiply by '
+              + '<strong>' + (dom.multiplier.value || '120') + '</strong>.', 'ok');
+            dom.downloadBtn.disabled = false;
+          }
+          dom.resetBtn.disabled = false;
+        } catch (e) {
+          logLine('Failed to parse JSON: ' + e.message, 'err');
+          state.source = null;
+          dom.downloadBtn.disabled = true;
+        }
+      };
+      reader.onerror = function() {
+        logLine('Failed to read file.', 'err');
+      };
+      reader.readAsText(file);
+    }
+
+    function bindDrop(zone, input, onFile) {
+      zone.addEventListener('click', function() { input.click(); });
+      zone.addEventListener('dragover', function(e) { e.preventDefault(); zone.classList.add('over'); });
+      zone.addEventListener('dragleave', function() { zone.classList.remove('over'); });
+      zone.addEventListener('drop', function(e) {
+        e.preventDefault(); zone.classList.remove('over');
+        var files = Array.from(e.dataTransfer.files);
+        if (files.length) onFile(files[0]);
+      });
+      input.addEventListener('change', function(e) {
+        var files = Array.from(e.target.files);
+        if (files.length) onFile(files[0]);
+        input.value = '';
+      });
+    }
+
+    bindDrop(dom.jsonDrop, dom.jsonInput, handleFile);
+
+    function deepClone(obj) {
+      return JSON.parse(JSON.stringify(obj));
+    }
+
+    dom.downloadBtn.addEventListener('click', function() {
+      if (!state.source) return;
+      var mult = Number(dom.multiplier.value);
+      if (!isFinite(mult) || mult <= 0) {
+        logLine('Multiplier must be a positive number.', 'err');
+        return;
+      }
+      var out = deepClone(state.source);
+      var changed = 0, skipped = 0;
+      eachImage(out, function(item) {
+        var w = Number(item.width), h = Number(item.height);
+        if (isFinite(w) && isFinite(h)) {
+          item.width = (w * mult).toFixed(2);
+          item.height = (h * mult).toFixed(2);
+          changed++;
+        } else {
+          skipped++;
+        }
+      });
+      logLine('Migrated <strong>' + changed + '</strong> image(s)'
+        + (skipped ? ', skipped ' + skipped + ' with invalid sizes' : '')
+        + ' (&times;' + mult + ').', 'ok');
+
+      var json = JSON.stringify(out, null, 2);
+      var blob = new Blob([json], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var name = state.fileName.replace(/\.json$/i, '') + '_v34.json';
+      var a = document.createElement('a');
+      a.href = url; a.download = name;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      logLine('Downloaded <strong>' + name + '</strong>.', 'ok');
+    });
+
+    dom.resetBtn.addEventListener('click', function() {
+      state.source = null;
+      clearLog();
+      dom.downloadBtn.disabled = true;
+      dom.resetBtn.disabled = true;
+      dom.multiplier.value = '120';
+    });
+  })();
+  </script>
+</body>
+</html>

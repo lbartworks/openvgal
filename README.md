@@ -1,12 +1,15 @@
 https://github.com/lbartworks/openvgal/assets/121262093/517b6b67-7a87-4f2c-8166-b5c9314ff9e9
 
-# OpenVGAL v3.4
+# OpenVGAL v3.4.2
 
 Open-source 3D virtual gallery platform built on [Babylon.js](https://www.babylonjs.com/). Create interactive WebGL art galleries from your images, download a ZIP, host it anywhere.
 
 **Website:** [openvgal.com](https://openvgal.com) &nbsp;|&nbsp; **Create a gallery:** [openvgal.com/create](https://openvgal.com/create) &nbsp;|&nbsp; **Live demo:** [nostromophoto.com/virtual](https://nostromophoto.com/virtual/virtual.html)
 
 ![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)
+
+> [!WARNING]
+> **Migrating from a pre-3.4 gallery?** v3.4 switched artwork `width` / `height` in `building_v2.json` from normalised units (longest edge = `1.00`) to real centimetres (default `120` cm). Older files render at ~2.5 cm in the 3.4 viewer. Drop your JSON into the **[pre-3.4 migration tool](https://openvgal.com/tools/migrate-pre34.html)** to get a rescaled copy back — runs locally in your browser, no upload.
 
 ---
 
@@ -151,6 +154,12 @@ Note: the `file://` protocol will not work in Chrome due to cross-origin iframe 
 ---
 
 ## Changelog
+
+**v3.4.2 (May 2026)**
+- Pre-3.4 → 3.4 [migration tool](https://openvgal.com/tools/migrate-pre34.html): rescales normalised `width`/`height` in older `building_v2.json` files to real centimetres so they render correctly in the 3.4 viewer
+
+**v3.4.1 (May 2026)**
+- Bundle `openvgal-lighting.js` in the standard (self-contained) ZIP
 
 **v3.4 (May 2026)**
 - Occupancy-driven layout: wall and panel placement read from `Occupancy_*` planes in template GLBs; width-aware density-balanced packing replaces the old hardcoded rectangle algorithm

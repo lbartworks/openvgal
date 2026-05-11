@@ -355,6 +355,38 @@
             line-height: 1.5;
         }
 
+        /* --- MIGRATION BANNER --- */
+        .migrate-banner {
+            background: linear-gradient(90deg, rgba(252, 211, 77, 0.08), rgba(252, 211, 77, 0.12) 50%, rgba(252, 211, 77, 0.08));
+            border-bottom: 1px solid rgba(252, 211, 77, 0.2);
+            position: relative;
+            z-index: 2;
+        }
+        .migrate-banner a {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0.7rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+            font-size: 0.82rem;
+            font-weight: 500;
+            color: #fde68a;
+            text-decoration: none;
+            transition: color 0.15s;
+            text-align: center;
+            flex-wrap: wrap;
+        }
+        .migrate-banner a:hover { color: #fff; }
+        .migrate-banner a strong { color: #fcd34d; font-weight: 600; }
+        .migrate-banner svg.warn { width: 16px; height: 16px; color: #fcd34d; flex-shrink: 0; }
+        .migrate-banner svg.arrow { width: 12px; height: 12px; color: #fde68a; flex-shrink: 0; opacity: 0.9; }
+        @media (max-width: 600px) {
+            .migrate-banner a { padding: 0.65rem 1.25rem; font-size: 0.76rem; gap: 0.45rem; }
+            .migrate-banner .hide-sm { display: none; }
+        }
+
         /* --- FOOTER --- */
         footer {
             max-width: 1100px;
@@ -394,6 +426,13 @@
         <div class="glow-2"></div>
     </div>
     <div class="content">
+        <div class="migrate-banner">
+            <a href="/tools/migrate-pre34.html">
+                <svg class="warn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <span><strong>Pre-3.4 gallery JSON?</strong><span class="hide-sm"> v3.4 switched artwork sizes from normalised units to centimetres.</span> Convert your file &rarr;</span>
+                <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </a>
+        </div>
         <nav>
             <a href="/" class="nav-logo">OPENVGAL</a>
             <div class="nav-links">
@@ -405,7 +444,7 @@
         <section class="hero">
             <div class="hero-badge">
                 <span class="hero-badge-dot"></span>
-                v3.4.1 &middot; Open source &middot; Free forever
+                v3.4.2 &middot; Open source &middot; Free forever
             </div>
             <h1>
                 Own your <span class="gradient-text">art</span>
