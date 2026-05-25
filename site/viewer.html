@@ -346,6 +346,23 @@
 			window.openvgal_cdn_base = window.parent.openvgal_cdn_base || window.location.origin;
 			console.log('Preview mode: CDN base =', window.openvgal_cdn_base);
 		}
+		// Multi-tenant mode: ?openvgal_location=<absolute https URL> points the viewer
+		// at a remote gallery (e.g. a published gallery on assets.openvgal.com).
+		// Only https:// URLs are accepted, to avoid loading arbitrary third-party content.
+		const locParam = urlParams.get('openvgal_location');
+		if (locParam) {
+			try {
+				const u = new URL(locParam);
+				if (u.protocol === 'https:') {
+					window.openvgal_location = locParam;
+					console.log('Remote location:', locParam);
+				} else {
+					console.warn('Ignoring openvgal_location: not https');
+				}
+			} catch (e) {
+				console.warn('Ignoring openvgal_location: invalid URL');
+			}
+		}
 		// Dev mode: serve repo root via static server, point viewer at examples/ + cdn/
 		// Usage: from repo root run `python -m http.server 8080`, open
 		//   http://localhost:8080/site/viewer.html?dev=1
