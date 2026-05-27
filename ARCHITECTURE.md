@@ -219,7 +219,7 @@ You can radically change the look of the galleries just by editing or replacing 
 
 The browser generator at `/create` builds a complete, self-contained deployment package:
 
-1. User drops image folders into the generator (drop-zone wiring lives in `js/gallery-page.js`, shared with `/create/cdn`)
+1. User drops image folders into the generator (drop-zone wiring lives in `js/gallery-page.js`)
 2. Generator fetches `cdn/templates/catalog.json` and the selected style's GLBs
 3. Each image is sized at a default 120 cm longest edge (cm preserved in the JSON); the user can adjust per-artwork via the Customize editor before download
 4. Layout runs (`packIntoRooms`) using the catalog occupancies — overflow rooms are spawned automatically
@@ -306,7 +306,7 @@ Edit any file under `site/`, `cdn/`, or `examples/` and refresh the browser -- n
 
 ### Generator dev mode
 
-`create/index.html?dev=1` and `create/cdn.html?dev=1` apply the same trick to the generator: `CDN_BASE` is rewritten to `/cdn` so style picker, ZIP bundler, and `extractOccupanciesFromGLB` all read from the local `cdn/` folder. The preview iframe inherits `openvgal_cdn_base` from `window.parent`, so the rendered scene also uses your local templates.
+`create/index.html?dev=1` applies the same trick to the generator: `CDN_BASE` is rewritten to `/cdn` so style picker, ZIP bundler, and `extractOccupanciesFromGLB` all read from the local `cdn/` folder. The preview iframe inherits `openvgal_cdn_base` from `window.parent`, so the rendered scene also uses your local templates.
 
 ```
 http://localhost:8080/site/create/index.html?dev=1
@@ -314,7 +314,7 @@ http://localhost:8080/site/create/index.html?dev=1
 
 Use this when iterating on `Occupancy_*` planes, fixture geometry, materials, or any other template-time asset that the generator consumes before the viewer ever runs. Workflow: edit `cdn/templates/*.glb` in Blender → save → drop image folders into the generator → Build → Preview. No upload to the deployed CDN.
 
-Caveat: a ZIP downloaded from `create/cdn.html?dev=1` bakes `CDN_BASE = '/cdn'` into the thin-client output and won't work outside dev. Use the production page (no `?dev=1`) when producing a real CDN ZIP.
+Caveat: a ZIP downloaded with `?cdn=1&dev=1` (CDN-output mode in dev) bakes `CDN_BASE = '/cdn'` into the thin-client output and won't work outside dev. Use `?cdn=1` alone (no `?dev=1`) when producing a real CDN ZIP.
 
 ---
 

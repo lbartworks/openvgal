@@ -36,7 +36,7 @@ That's it. The ZIP contains everything: images, 3D room templates, PBR materials
 
 ### CDN-first mode
 
-If you prefer smaller ZIPs and automatic updates, use [openvgal.com/create/cdn](https://openvgal.com/create/cdn.html). The ZIP only includes your images and configuration. Templates, materials, and viewer code load from `cdn.openvgal.com` at runtime. You can also import an existing gallery and add new rooms without regenerating everything.
+If you prefer smaller ZIPs and automatic updates, use [openvgal.com/create?cdn=1](https://openvgal.com/create/index.html?cdn=1). The ZIP only includes your images and configuration. Templates, materials, and viewer code load from `cdn.openvgal.com` at runtime. You can also import an existing gallery and add new rooms without regenerating everything.
 
 ### Customize before download
 
@@ -82,7 +82,7 @@ OpenVGAL uses a `building_v2.json` file to describe interconnected gallery rooms
 
 The placement of artworks is driven by `Occupancy_*` planes baked into each template GLB — one plane per wall or panel side, defining the available strip's centre, normal, and width. The generator reads them from `cdn/templates/catalog.json` (or probes the GLB at runtime as a fallback), then packs artworks across strips with width-aware density balancing and overflows into additional rooms when the largest shape can't fit the remainder.
 
-The browser generator at `/create` automates all of this: it takes your image folders, runs the layout algorithm, generates the JSON, fetches templates and materials from the CDN, and packages everything into a deployable ZIP. A CDN-first mode at `/create/cdn` produces lighter ZIPs that load shared assets from `cdn.openvgal.com` at runtime. A separate metadata editor at `/create/editor` lets you add or change artwork titles and subtitles after generation.
+The browser generator at `/create` automates all of this: it takes your image folders, runs the layout algorithm, generates the JSON, fetches templates and materials from the CDN, and packages everything into a deployable ZIP. A CDN-first mode at `/create?cdn=1` produces lighter ZIPs that load shared assets from `cdn.openvgal.com` at runtime. A separate metadata editor at `/create/editor` lets you add or change artwork titles and subtitles after generation.
 
 For a deeper dive into the JSON format, the layout algorithm, the material system, and how to create custom templates, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -103,8 +103,7 @@ For a deeper dive into the JSON format, the layout algorithm, the material syste
 The main web application:
 - `index.html` -- Landing page
 - `viewer.html` -- 3D gallery viewer (Babylon.js), includes gallery map
-- `create/index.html` -- Browser-based gallery generator (self-contained ZIP)
-- `create/cdn.html` -- CDN-first gallery generator (lightweight ZIP)
+- `create/index.html` -- Browser-based gallery generator (self-contained ZIP, or CDN-first thin client with `?cdn=1`)
 - `create/customize.html`, `customize.js` -- Per-artwork editor (size + metadata) lazy-loaded from the generator
 - `create/editor.html` -- Standalone metadata editor for artwork titles and subtitles
 - `ready.html` -- Post-download "your gallery is ready" page (hosting links + share buttons)

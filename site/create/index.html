@@ -84,6 +84,27 @@
       font-weight: 400;
     }
 
+    /* CDN-output mode (?cdn=1): badge, tagline swap, import UI, switch link.
+       All hidden by default; shown when <body class="cdn-mode"> is set. */
+    .mode-badge {
+      display: none;
+      align-items: center;
+      gap: 0.4rem;
+      background: rgba(99, 102, 241, 0.1);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      border-radius: 20px;
+      padding: 0.3rem 0.8rem;
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: #a5b4fc;
+      margin-bottom: 1rem;
+    }
+    .mode-badge svg { width: 12px; height: 12px; }
+    body.cdn-mode .mode-badge { display: inline-flex; }
+    .tagline-cdn { display: none; }
+    body.cdn-mode .tagline-standard { display: none; }
+    body.cdn-mode .tagline-cdn { display: inline; }
+
     /* --- SECTIONS --- */
     .section {
       background: rgba(255,255,255,0.02);
@@ -323,6 +344,54 @@
       font-size: 0.82rem;
     }
 
+    /* CDN-mode: imported (read-only) room rows + import banner */
+    .gallery-item.imported {
+      opacity: 0.6;
+      cursor: default;
+    }
+    .gallery-item.imported:hover {
+      border-color: rgba(255,255,255,0.05);
+    }
+
+    .import-section { display: none; }
+    body.cdn-mode .import-section { display: block; }
+
+    .import-info {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 0.75rem;
+      padding: 0.5rem 0.75rem;
+      background: rgba(99, 102, 241, 0.06);
+      border: 1px solid rgba(99, 102, 241, 0.12);
+      border-radius: 8px;
+      font-size: 0.8rem;
+      color: #a5b4fc;
+    }
+    .import-info svg { width: 14px; height: 14px; flex-shrink: 0; }
+    .import-summary { flex: 1; }
+    .import-clear {
+      background: none;
+      border: none;
+      color: #71717a;
+      cursor: pointer;
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-family: inherit;
+      transition: color 0.15s, background 0.15s;
+    }
+    .import-clear:hover {
+      color: #ef4444;
+      background: rgba(239, 68, 68, 0.08);
+    }
+
+    .import-divider {
+      height: 1px;
+      background: rgba(99, 102, 241, 0.12);
+      margin: 0.6rem 0;
+    }
+
     /* --- PROGRESS --- */
     .progress-container {
       margin-top: 1rem;
@@ -406,6 +475,43 @@
       font-size: 0.75rem;
     }
 
+    /* CDN-mode: bullet list inside info-box + switch-mode link */
+    .advantage-list {
+      list-style: none;
+      padding: 0;
+      margin: 0.5rem 0 0;
+    }
+    .advantage-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      font-size: 0.78rem;
+      color: #71717a;
+      line-height: 1.6;
+      margin-bottom: 0.3rem;
+    }
+    .advantage-list li svg {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+      margin-top: 0.15rem;
+      color: #818cf8;
+    }
+
+    .switch-link {
+      display: none;
+      text-align: center;
+      margin-top: 1.5rem;
+      font-size: 0.78rem;
+    }
+    body.cdn-mode .switch-link { display: block; }
+    .switch-link a {
+      color: #71717a;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .switch-link a:hover { color: #a5b4fc; }
+
     /* --- JSON PREVIEW --- */
     details { margin-top: 1rem; }
     details summary {
@@ -450,8 +556,15 @@
     </nav>
 
     <div class="page-header">
+      <span class="mode-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        CDN-first mode
+      </span>
       <h1>Create your gallery</h1>
-      <p>Add image folders, generate, download &mdash; everything runs in your browser</p>
+      <p>
+        <span class="tagline-standard">Add image folders, generate, download &mdash; everything runs in your browser</span>
+        <span class="tagline-cdn">Tiny deployment package &mdash; code loads from CDN, updates automatically</span>
+      </p>
     </div>
 
     <!-- Style Picker -->
@@ -466,6 +579,19 @@
       <div class="section-hint">
         Each folder becomes a separate room in your gallery.
         You can rename rooms after adding them.
+      </div>
+
+      <div class="import-section">
+        <input type="file" id="importInput" class="folder-input" accept=".json">
+        <button class="btn btn-subtle" id="importBtn" style="margin-bottom: 0.6rem;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+          Import existing building_v2.json
+        </button>
+        <div class="import-info" id="importInfo" style="display: none;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          <span class="import-summary" id="importSummary"></span>
+          <button class="import-clear" id="clearImportBtn">Clear</button>
+        </div>
       </div>
 
       <input type="file" id="folderInput" class="folder-input" webkitdirectory multiple>
@@ -573,6 +699,10 @@
         <pre class="json-preview" id="jsonPreview"></pre>
       </details>
     </div>
+
+    <div class="switch-link">
+      Need a self-contained package? <a href="index.html">Use the standard generator</a>
+    </div>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -583,13 +713,23 @@
   <script>
     // CDN Configuration - templates and materials are served from Cloudflare CDN.
     // Dev mode (?dev=1): pull templates/materials from local /cdn instead.
+    // CDN-output mode (?cdn=1): produce a thin-client ZIP (referencing the CDN
+    // viewer) instead of the self-contained bundle. See ADR-0003.
     // Usage: from repo root run `python -m http.server 8080`, open
     //   http://localhost:8080/site/create/index.html?dev=1
     // The preview iframe inherits openvgal_cdn_base from window.parent (viewer.html).
-    const CDN_BASE = new URLSearchParams(window.location.search).get('dev') === '1'
+    // Heads up: a ZIP downloaded with ?cdn=1&dev=1 bakes CDN_BASE='/cdn' into
+    // the thin-client output and won't work outside dev.
+    const URL_PARAMS = new URLSearchParams(window.location.search);
+    const CDN_BASE = URL_PARAMS.get('dev') === '1'
       ? '/cdn'
       : 'https://cdn.openvgal.com';
+    const CDN_OUTPUT_MODE = URL_PARAMS.get('cdn') === '1';
     window.openvgal_cdn_base = CDN_BASE;
+    if (CDN_OUTPUT_MODE) {
+      document.body.classList.add('cdn-mode');
+      document.title = 'Create Gallery (CDN) - OpenVGAL';
+    }
 
     // Mount gallery settings panel
     GallerySettings.mount(document.getElementById('settings-container'));
@@ -600,8 +740,14 @@
     // State
     const galleries = [];
     let generatedJSON = null;
+    let importedJSON = null; // CDN mode only
 
     // DOM Elements
+    const importBtn = document.getElementById('importBtn');
+    const importInput = document.getElementById('importInput');
+    const importInfo = document.getElementById('importInfo');
+    const importSummary = document.getElementById('importSummary');
+    const clearImportBtn = document.getElementById('clearImportBtn');
     const folderInput = document.getElementById('folderInput');
     const addFolderBtn = document.getElementById('addFolderBtn');
     const galleryList = document.getElementById('galleryList');
@@ -629,19 +775,75 @@
       onChange: function() { updateGalleryList(); }
     });
 
+    // --- CDN mode: import existing building_v2.json ---
+    if (CDN_OUTPUT_MODE) {
+      importBtn.addEventListener('click', function() { importInput.click(); });
+
+      importInput.addEventListener('change', function(e) {
+        var file = e.target.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+          try {
+            var parsed = JSON.parse(ev.target.result);
+            if (!parsed.root) {
+              alert('Invalid building_v2.json: missing "root" entry.');
+              return;
+            }
+            if (!parsed.Technical) {
+              alert('Invalid building_v2.json: missing "Technical" entry.');
+              return;
+            }
+            importedJSON = parsed;
+            GallerySettings.load(parsed.Technical);
+            if (parsed.root && parsed.root.template) {
+              var inferredStyle = StylePicker.inferStyleFromTemplate(parsed.root.template);
+              StylePicker.selectStyle(inferredStyle);
+            }
+            var roomCount = Object.keys(parsed).filter(function(k) { return k !== 'Technical' && k !== 'root'; }).length;
+            importSummary.textContent = roomCount + ' room' + (roomCount !== 1 ? 's' : '') + ' imported';
+            importInfo.style.display = 'flex';
+            importBtn.style.display = 'none';
+            updateGalleryList();
+          } catch (err) {
+            alert('Invalid JSON file: ' + err.message);
+          }
+        };
+        reader.readAsText(file);
+        importInput.value = '';
+      });
+
+      clearImportBtn.addEventListener('click', function() {
+        importedJSON = null;
+        importInfo.style.display = 'none';
+        importBtn.style.display = '';
+        markResultStaleIfGenerated();
+        updateGalleryList();
+      });
+    }
+
     generateBtn.addEventListener('click', async function() {
       generateBtn.disabled = true;
       progressContainer.style.display = 'block';
       resultSection.style.display = 'none';
 
       try {
-        var selectedStyle = StylePicker.getSelected();
-        var styleConfig = selectedStyle ? selectedStyle.config : null;
-        generatedJSON = await buildGalleryJSON(galleries, function(current, total, message) {
+        var progressCB = function(current, total, message) {
           var percent = Math.round((current / total) * 100);
           progressFill.style.width = percent + '%';
           progressText.textContent = message;
-        }, styleConfig);
+        };
+
+        var selectedStyle = StylePicker.getSelected();
+        var styleConfig = selectedStyle ? selectedStyle.config : null;
+
+        if (importedJSON && galleries.length > 0) {
+          generatedJSON = await extendGalleryJSON(importedJSON, galleries, progressCB, styleConfig);
+        } else if (importedJSON) {
+          generatedJSON = JSON.parse(JSON.stringify(importedJSON));
+        } else {
+          generatedJSON = await buildGalleryJSON(galleries, progressCB, styleConfig);
+        }
 
         // Build file map for preview blob URLs
         window.openvgal_fileMap = buildFileMap(galleries);
@@ -676,7 +878,8 @@
       zipProgressContainer.style.display = 'block';
 
       try {
-        await createAndDownloadZip(generatedJSON, function(progress, message) {
+        var zipBuilder = CDN_OUTPUT_MODE ? createCdnZip : createAndDownloadZip;
+        await zipBuilder(generatedJSON, function(progress, message) {
           zipProgressFill.style.width = progress + '%';
           zipProgressText.textContent = message;
         });
@@ -934,6 +1137,221 @@
       onProgress(100, 'Download complete!');
     }
 
+    // --- CDN-output ZIP: thin client + extend-existing-gallery ---
+
+    function generateCdnIndexHtml() {
+      // Thin loader that fetches viewer.html from CDN at runtime.
+      // The page origin stays local so building_v2.json and images resolve locally.
+      return '<!DOCTYPE html>\n' +
+        '<html><head><meta charset="utf-8"></head>\n' +
+        '<body style="margin:0;background:#000;color:#a1a1aa;font-family:Inter,system-ui,sans-serif;' +
+        'display:flex;align-items:center;justify-content:center;height:100vh">\n' +
+        '<p id="cdn-status">Loading gallery...</p>\n' +
+        '<script>\n' +
+        'fetch("' + CDN_BASE + '/core/viewer.html")\n' +
+        '  .then(function(r) { if (!r.ok) throw new Error(r.status); return r.text(); })\n' +
+        '  .then(function(html) { document.open(); document.write(html); document.close(); })\n' +
+        '  .catch(function(e) { document.getElementById("cdn-status").textContent = "Failed to load viewer from CDN: " + e.message; });\n' +
+        '<\/script>\n' +
+        '</body></html>';
+    }
+
+    // Extend an existing building_v2.json with new gallery rooms.
+    // Preserves all existing rooms, doors, and metadata.
+    async function extendGalleryJSON(existingJSON, newGalleries, onProgress, styleConfig) {
+      var building = JSON.parse(JSON.stringify(existingJSON));
+
+      // Find max uniqueId by scanning existing metadata
+      var maxId = 0;
+      for (var key in building) {
+        if (key === 'Technical') continue;
+        for (var item in building[key]) {
+          var entry = building[key][item];
+          if (entry && entry.metadata) {
+            var match = entry.metadata.match(/ID #(\d+)/);
+            if (match) {
+              var id = parseInt(match[1], 10);
+              if (id > maxId) maxId = id;
+            }
+          }
+        }
+      }
+      var uniqueId = maxId + 1;
+
+      // Find leaf room: a room that no other room lists as its parent
+      var allRooms = Object.keys(building).filter(function(k) { return k !== 'Technical'; });
+      var parentSet = {};
+      for (var i = 0; i < allRooms.length; i++) {
+        var p = building[allRooms[i]].parent;
+        if (p && p !== 'none') parentSet[p] = true;
+      }
+      var leafRooms = allRooms.filter(function(r) { return !parentSet[r]; });
+      var lastRoom = leafRooms.length > 0 ? leafRooms[leafRooms.length - 1] : 'root';
+
+      // Build the new rooms via the shared v2 builder, then graft onto the existing building.
+      var newBuilding = await buildGalleryJSON(newGalleries, onProgress, styleConfig);
+
+      var newRoomKeys = Object.keys(newBuilding).filter(function(k) {
+        return k !== 'Technical' && k !== 'root';
+      });
+      // Remap colliding names; rewrite parent links accordingly.
+      var nameMap = {};
+      var takenNames = {};
+      Object.keys(building).forEach(function(k) { takenNames[k] = true; });
+      newRoomKeys.forEach(function(name) {
+        var unique = name;
+        var suffix = 1;
+        while (takenNames[unique]) {
+          unique = name + '_' + suffix;
+          suffix++;
+        }
+        nameMap[name] = unique;
+        takenNames[unique] = true;
+      });
+
+      // buildGalleryJSON emits parents before children, so key order is dependency order.
+      newRoomKeys.forEach(function(name) {
+        var srcRoom = newBuilding[name];
+        var newName = nameMap[name];
+        var parentName = srcRoom.parent === 'root' ? lastRoom : nameMap[srcRoom.parent];
+
+        var dstRoom = {
+          parent: parentName,
+          resource: newName + '.glb',
+          template: srcRoom.template
+        };
+        Object.keys(srcRoom).forEach(function(k) {
+          var entry = srcRoom[k];
+          if (!entry || typeof entry !== 'object') return;
+          if (entry.resource_type === 'image') {
+            var copied = Object.assign({}, entry);
+            var rest = String(entry.metadata || '').replace(/^ID\s*#\d+\s*/, '');
+            copied.metadata = 'ID #' + uniqueId + (rest ? ' ' + rest : '');
+            uniqueId++;
+            dstRoom[k] = copied;
+          }
+        });
+
+        building[newName] = dstRoom;
+        building[parentName][newName] = { resource: newName + '.glb', resource_type: 'door' };
+        building[newName][parentName] = { resource: parentName + '.glb', resource_type: 'door' };
+      });
+
+      return building;
+    }
+
+    async function createCdnZip(config, onProgress) {
+      var zip = new JSZip();
+      var isUpdateMode = !!importedJSON;
+
+      var fileMap = window.openvgal_fileMap || {};
+      var imageEntries = Object.entries(fileMap);
+
+      if (isUpdateMode) {
+        // Update mode: JSON + new images only (no index.html, no README)
+        var totalFiles = imageEntries.length + 1;
+        var fetchedCount = 0;
+        var updateProgress = function(message) {
+          fetchedCount++;
+          onProgress(Math.round((fetchedCount / totalFiles) * 100), message);
+        };
+
+        onProgress(0, 'Generating update package...');
+        zip.file('building_v2.json', JSON.stringify(config, null, 2));
+        updateProgress('Added building_v2.json');
+
+        for (var i = 0; i < imageEntries.length; i++) {
+          var path = imageEntries[i][0];
+          var imgFile = imageEntries[i][1];
+          try {
+            zip.file(path.replace(/^\//, ''), imgFile);
+            updateProgress('Added ' + path);
+          } catch (e) {
+            console.warn('Failed to add image ' + path + ':', e);
+            updateProgress('Skipped ' + path);
+          }
+        }
+      } else {
+        // Full mode: index.html (thin loader) + JSON + images + README
+        var totalFiles = imageEntries.length + 3;
+        var fetchedCount = 0;
+        var updateProgress = function(message) {
+          fetchedCount++;
+          onProgress(Math.round((fetchedCount / totalFiles) * 100), message);
+        };
+
+        onProgress(0, 'Generating package...');
+
+        zip.file('index.html', generateCdnIndexHtml());
+        updateProgress('Created index.html');
+
+        zip.file('building_v2.json', JSON.stringify(config, null, 2));
+        updateProgress('Added building_v2.json');
+
+        for (var i = 0; i < imageEntries.length; i++) {
+          var path = imageEntries[i][0];
+          var imgFile = imageEntries[i][1];
+          try {
+            zip.file(path.replace(/^\//, ''), imgFile);
+            updateProgress('Added ' + path);
+          } catch (e) {
+            console.warn('Failed to add image ' + path + ':', e);
+            updateProgress('Skipped ' + path);
+          }
+        }
+
+        var galleryFolders = Object.keys(config).filter(function(k) { return k !== 'Technical' && k !== 'root'; });
+        var readmeContent = '# OpenVGAL Virtual Gallery (CDN-first)\n\n' +
+          'Your virtual 3D art gallery is ready to deploy!\n\n' +
+          '## Quick Start\n\n' +
+          '1. Extract this ZIP to your web server folder\n' +
+          '2. Open `index.html` in a browser\n\n' +
+          '## How it works\n\n' +
+          'This gallery uses **CDN-first deployment**. All viewer code (babylon.js,\n' +
+          'templates, materials, overlay) loads from `cdn.openvgal.com`. Your deployment\n' +
+          'only contains content and configuration:\n\n' +
+          '```\nyour-gallery/\n' +
+          '  index.html          <- viewer (loads scripts from CDN)\n' +
+          '  building_v2.json    <- gallery configuration\n' +
+          galleryFolders.map(function(k) { return '  ' + k + '/               <- your images'; }).join('\n') + '\n```\n\n' +
+          '## Updating\n\n' +
+          'Code updates happen automatically via CDN. To update your gallery content,\n' +
+          'just replace `building_v2.json` and your image folders.\n\n' +
+          '## Customization\n\n' +
+          '- **Custom logo**: Add `materials/logo.png` next to index.html. White artwork\n' +
+          '  on black background, 1024x512 px recommended. The viewer checks for a local\n' +
+          '  logo first, then falls back to the CDN default.\n' +
+          '- **Custom overlay**: Add `overlay.js` next to index.html to override the\n' +
+          '  default CDN overlay behavior.\n\n' +
+          '## Need the self-contained version?\n\n' +
+          'Visit https://openvgal.com/create/ for a ZIP that includes all code and\n' +
+          'works offline (no CDN dependency).\n\n' +
+          '## Need Help?\n\n' +
+          'Visit https://openvgal.com for documentation and support.\n\n' +
+          'Generated with OpenVGAL Generator (CDN-first mode)\n';
+        zip.file('README.md', readmeContent);
+        updateProgress('Added README.md');
+      }
+
+      onProgress(100, 'Creating ZIP file...');
+      var blob = await zip.generateAsync({
+        type: 'blob',
+        compression: 'DEFLATE',
+        compressionOptions: { level: 6 }
+      });
+
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = isUpdateMode ? 'openvgal-gallery-update.zip' : 'openvgal-gallery-cdn.zip';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      onProgress(100, 'Download complete!');
+    }
+
     // --- Customize editor: lazy-loaded fragment + module ---
     var customizeBtn = document.getElementById('customizeBtn');
     var customizeHost = document.getElementById('customize-host');
@@ -1027,10 +1445,11 @@
 
     function updateGalleryList() {
       markResultStaleIfGenerated();
-      var items = galleryList.querySelectorAll('.gallery-item');
+      var items = galleryList.querySelectorAll('.gallery-item, .import-divider');
       items.forEach(function(item) { item.remove(); });
 
-      if (galleries.length === 0) {
+      var hasContent = importedJSON || galleries.length > 0;
+      if (!hasContent) {
         emptyState.style.display = 'block';
         generateBtn.disabled = true;
         return;
@@ -1038,6 +1457,49 @@
 
       emptyState.style.display = 'none';
       generateBtn.disabled = false;
+
+      // Imported rooms (CDN mode only) render as read-only rows with a lock icon —
+      // kept page-local because the editable shared renderer doesn't model that state.
+      if (importedJSON) {
+        var importedRooms = Object.keys(importedJSON).filter(function(k) { return k !== 'Technical' && k !== 'root'; });
+        importedRooms.forEach(function(roomName) {
+          var room = importedJSON[roomName];
+          var item = document.createElement('div');
+          item.className = 'gallery-item imported';
+
+          var iconDiv = document.createElement('div');
+          iconDiv.className = 'gallery-icon';
+          iconDiv.innerHTML = GalleryPage.SVG_ICONS.lock;
+
+          var nameSpan = document.createElement('span');
+          nameSpan.style.cssText = 'color: #a1a1aa; font-size: 0.82rem; font-weight: 500;';
+          nameSpan.textContent = roomName;
+
+          var detailsDiv = document.createElement('div');
+          detailsDiv.className = 'gallery-details';
+          detailsDiv.appendChild(nameSpan);
+
+          var imgCount = 0;
+          for (var key in room) {
+            if (room[key] && room[key].resource_type === 'image') imgCount++;
+          }
+
+          var countSpan = document.createElement('span');
+          countSpan.className = 'gallery-count';
+          countSpan.textContent = imgCount + ' images';
+
+          item.appendChild(iconDiv);
+          item.appendChild(detailsDiv);
+          item.appendChild(countSpan);
+          galleryList.appendChild(item);
+        });
+
+        if (galleries.length > 0) {
+          var divider = document.createElement('div');
+          divider.className = 'import-divider';
+          galleryList.appendChild(divider);
+        }
+      }
 
       GalleryPage.renderGalleryItems(galleryList, galleries, {
         onChange: function() { updateGalleryList(); }
@@ -1049,6 +1511,34 @@
       var stats = GalleryPage.computeStats(generatedJSON);
       statGalleries.textContent = stats.galleryCount;
       statImages.textContent = stats.imageCount;
+
+      // CDN mode swaps the deployment info-box; standard mode keeps the static HTML.
+      if (CDN_OUTPUT_MODE) {
+        var infoBox = resultSection.querySelector('.info-box');
+        if (importedJSON) {
+          infoBox.innerHTML = '<h3>Update package</h3>' +
+            '<ol>' +
+            '<li>Upload <code>building_v2.json</code> and new image folder(s) to your existing gallery</li>' +
+            '<li>Replace the existing <code>building_v2.json</code> on your server</li>' +
+            '</ol>' +
+            '<ul class="advantage-list" style="margin-top: 0.75rem;">' +
+            '<li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>Existing rooms are preserved exactly as they were</li>' +
+            '<li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>Only new images and updated JSON in this package</li>' +
+            '</ul>';
+        } else {
+          infoBox.innerHTML = '<h3>CDN-first deployment</h3>' +
+            '<ol>' +
+            '<li>Extract the ZIP on your web server</li>' +
+            '<li>Open <code>index.html</code> &mdash; that\'s it</li>' +
+            '</ol>' +
+            '<ul class="advantage-list" style="margin-top: 0.75rem;">' +
+            '<li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>No babylon.js, templates, or materials in your deployment</li>' +
+            '<li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>Code updates happen via CDN &mdash; all galleries update instantly</li>' +
+            '<li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>Add local <code>overlay.html</code> or <code>materials/logo.png</code> to customize</li>' +
+            '</ul>';
+        }
+      }
+
       jsonPreview.textContent = JSON.stringify(generatedJSON, null, 2);
     }
   </script>

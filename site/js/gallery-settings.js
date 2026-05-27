@@ -1,6 +1,7 @@
 /**
  * OpenVGAL Gallery Settings Panel
- * Shared module consumed by index.html, cdn.html, and editor.html
+ * Shared module consumed by create/index.html (both standard and ?cdn=1 modes)
+ * and create/editor.html.
  */
 var GallerySettings = (function() {
   var _mounted = false;

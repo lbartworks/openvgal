@@ -1,11 +1,10 @@
 /**
  * OpenVGAL Gallery Page Helpers
  *
- * Shared page-level logic for the two generator pages
- * (site/create/index.html, site/create/cdn.html). The two pages have
- * different ZIP outputs and a few page-specific features (Customize,
- * Import JSON), but the drop-zone, gallery list, preview overlay, and
- * stats logic must stay in lockstep — this module is the single source.
+ * Shared page-level logic for site/create/index.html, which runs in two
+ * output modes (standard self-contained ZIP and ?cdn=1 thin client). The
+ * drop-zone, gallery list, preview overlay, and stats logic stay in this
+ * module so both modes share one implementation.
  *
  * Depends on filterImageFiles / groupFilesByFolder from gallery-generator.js.
  */
@@ -133,7 +132,7 @@ var GalleryPage = (function() {
 
   // Append editable rows for each gallery to `container`. Caller is responsible
   // for clearing the container before calling, and for rendering any read-only
-  // rows (e.g. cdn.html's imported rooms) separately.
+  // rows (e.g. imported rooms in ?cdn=1 mode) separately.
   // `onChange` runs after a row is renamed or removed.
   function renderGalleryItems(container, galleries, opts) {
     var onChange = (opts && opts.onChange) || function() {};
