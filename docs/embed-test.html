@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>OpenVGAL embed harness</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #111; color: #eee; margin: 0; display: grid; grid-template-rows: auto 1fr; height: 100vh; }
+    header { padding: 0.6rem 1rem; background: #1a1a1a; border-bottom: 1px solid #2a2a2a; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+    header h1 { font-size: 0.9rem; font-weight: 500; margin: 0; color: #a5b4fc; letter-spacing: 0.04em; }
+    header label { font-size: 0.78rem; color: #a1a1aa; }
+    header select, header button { background: #222; color: #eee; border: 1px solid #333; padding: 0.25rem 0.5rem; font: inherit; border-radius: 4px; }
+    main { display: grid; grid-template-columns: 1fr 320px; min-height: 0; }
+    iframe { border: 0; width: 100%; height: 100%; background: #000; }
+    aside { background: #161616; border-left: 1px solid #2a2a2a; padding: 0.6rem; overflow: auto; font-size: 0.78rem; }
+    aside h2 { font-size: 0.78rem; margin: 0 0 0.4rem; color: #a5b4fc; letter-spacing: 0.04em; text-transform: uppercase; }
+    #log { font-family: ui-monospace, monospace; white-space: pre-wrap; word-break: break-word; line-height: 1.45; }
+    .ev { border-left: 3px solid #6366f1; padding: 0.3rem 0.5rem; margin: 0.3rem 0; background: #1c1c1c; border-radius: 0 4px 4px 0; }
+    .ev.zip { border-left-color: #4caf50; }
+    .ev .ts { color: #71717a; font-size: 0.7rem; }
+    .ev .ty { color: #a5b4fc; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>OPENVGAL EMBED HARNESS</h1>
+    <label>
+      mode
+      <select id="mode">
+        <option value="embed=1">embed=1 (standard ZIP via postMessage)</option>
+        <option value="embed=1&cdn=1">embed=1 &amp; cdn=1 (thin-client ZIP)</option>
+      </select>
+    </label>
+    <label>
+      preselect style
+      <input id="preselect" placeholder="(none)" style="width: 8rem" />
+    </label>
+    <button id="reload">Reload iframe</button>
+    <button id="clear">Clear log</button>
+  </header>
+  <main>
+    <iframe id="frame" src="about:blank"></iframe>
+    <aside>
+      <h2>Messages</h2>
+      <div id="log"></div>
+    </aside>
+  </main>
+
+  <script>
+    const frame = document.getElementById('frame');
+    const log = document.getElementById('log');
+    const modeSel = document.getElementById('mode');
+    const preselect = document.getElementById('preselect');
+
+    // Serve this from the repo root via `python -m http.server 8080` and open
+    // http://localhost:8080/docs/embed-test.html so the iframe URL resolves.
+    function buildSrc() {
+      return '../site/create/index.html?' + modeSel.value;
+    }
+
+    function entry(type, body, klass) {
+      const div = document.createElement('div');
+      div.className = 'ev' + (klass ? ' ' + klass : '');
+      div.innerHTML = '<span class="ts">' + new Date().toLocaleTimeString() + '</span> ' +
+                      '<span class="ty">' + type + '</span><br>' + body;
+      log.prepend(div);
+    }
+
+    window.addEventListener('message', (e) => {
+      // The harness is permissive about origin so it works under any local
+      // server. Production parents MUST validate event.origin — see docs/embed.md.
+      const msg = e.data;
+      if (!msg || typeof msg !== 'object') return;
+
+      if (msg.type === 'openvgal:ready') {
+        entry('openvgal:ready', 'origin: <code>' + e.origin + '</code>');
+        const style = preselect.value.trim();
+        if (style) {
+          frame.contentWindow.postMessage({ type: 'openvgal:configure', style }, '*');
+          entry('→ openvgal:configure', 'style: <code>' + style + '</code>');
+        }
+        return;
+      }
+
+      if (msg.type === 'openvgal:zip-ready') {
+        const meta = msg.meta || {};
+        const sizeKb = msg.zip && msg.zip.size ? (msg.zip.size / 1024).toFixed(1) + ' kB' : '?';
+        const body = 'blob size: <strong>' + sizeKb + '</strong>' +
+                     '<br>meta: <code>' + JSON.stringify(meta) + '</code>';
+        entry('openvgal:zip-ready', body, 'zip');
+        // Offer a download so we can sanity-check the produced ZIP.
+        if (msg.zip instanceof Blob) {
+          const url = URL.createObjectURL(msg.zip);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'embed-test.zip';
+          a.textContent = '↓ save zip';
+          a.style.cssText = 'display:inline-block;margin-top:0.3rem;color:#4caf50';
+          log.firstChild.appendChild(document.createElement('br'));
+          log.firstChild.appendChild(a);
+        }
+        return;
+      }
+
+      entry(msg.type || '(unknown)', '<code>' + JSON.stringify(msg).slice(0, 200) + '</code>');
+    });
+
+    document.getElementById('reload').addEventListener('click', () => {
+      frame.src = buildSrc();
+    });
+    document.getElementById('clear').addEventListener('click', () => {
+      log.innerHTML = '';
+    });
+    modeSel.addEventListener('change', () => { frame.src = buildSrc(); });
+
+    frame.src = buildSrc();
+  </script>
+</body>
+</html>

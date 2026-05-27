@@ -105,6 +105,16 @@
     body.cdn-mode .tagline-standard { display: none; }
     body.cdn-mode .tagline-cdn { display: inline; }
 
+    /* Embed mode (?embed=1): hide chrome so the create flow renders inside
+       a parent iframe (e.g. openvgal-site /create wrapper). Post-zip UX is
+       owned by the parent, so the info-box and switch-link drop out too. */
+    body.embed-mode nav,
+    body.embed-mode .page-header,
+    body.embed-mode .switch-link,
+    body.embed-mode .info-box,
+    body.embed-mode #downloadBtn { display: none; }
+    body.embed-mode .page-wrapper { padding-top: 1rem; }
+
     /* --- SECTIONS --- */
     .section {
       background: rgba(255,255,255,0.02);
@@ -725,10 +735,38 @@
       ? '/cdn'
       : 'https://cdn.openvgal.com';
     const CDN_OUTPUT_MODE = URL_PARAMS.get('cdn') === '1';
+    // Embed mode (?embed=1): page is iframed by a parent site (e.g. openvgal-site).
+    // Chrome is hidden, downloads are replaced by postMessage. See docs/embed.md
+    // for the contract.
+    const EMBED_MODE = URL_PARAMS.get('embed') === '1';
     window.openvgal_cdn_base = CDN_BASE;
     if (CDN_OUTPUT_MODE) {
       document.body.classList.add('cdn-mode');
       document.title = 'Create Gallery (CDN) - OpenVGAL';
+    }
+    if (EMBED_MODE) {
+      document.body.classList.add('embed-mode');
+      // Buffer style requests that arrive before the StylePicker catalog loads.
+      // selectStyle silently no-ops on unknown keys, so we retry briefly.
+      function applyStyleWhenReady(key) {
+        var tries = 0;
+        var iv = setInterval(function() {
+          var sel = StylePicker.getSelected();
+          if (sel && sel.key === key) { clearInterval(iv); return; }
+          StylePicker.selectStyle(key);
+          if (++tries >= 30) clearInterval(iv);
+        }, 100);
+      }
+      window.addEventListener('message', function(e) {
+        var msg = e.data;
+        if (!msg || typeof msg !== 'object') return;
+        if (msg.type === 'openvgal:configure' && typeof msg.style === 'string') {
+          applyStyleWhenReady(msg.style);
+        }
+      });
+      // Tell the parent we're up. Hosts typically wait for this before sending
+      // openvgal:configure.
+      try { window.parent.postMessage({ type: 'openvgal:ready' }, '*'); } catch (_) {}
     }
 
     // Mount gallery settings panel
@@ -861,7 +899,7 @@
     downloadBtn.addEventListener('click', function() {
       if (generatedJSON) {
         downloadJSON(generatedJSON);
-        GalleryPage.openReadyPage(generatedJSON);
+        if (!EMBED_MODE) GalleryPage.openReadyPage(generatedJSON);
       }
     });
 
@@ -872,7 +910,8 @@
       // Open the ready page synchronously inside the click stack so mobile
       // browsers don't treat it as a deferred popup. Keeps tab order: download
       // triggers right after, ZIP creation continues asynchronously.
-      GalleryPage.openReadyPage(generatedJSON);
+      // In embed mode the parent owns the post-zip UX, so we skip it.
+      if (!EMBED_MODE) GalleryPage.openReadyPage(generatedJSON);
 
       downloadZipBtn.disabled = true;
       zipProgressContainer.style.display = 'block';
@@ -1124,17 +1163,7 @@
         compressionOptions: { level: 6 }
       });
 
-      // Download
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url;
-      a.download = 'openvgal-gallery.zip';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      onProgress(100, 'Download complete!');
+      deliverZip(blob, 'openvgal-gallery.zip', config, onProgress);
     }
 
     // --- CDN-output ZIP: thin client + extend-existing-gallery ---
@@ -1340,15 +1369,42 @@
         compressionOptions: { level: 6 }
       });
 
+      var cdnName = isUpdateMode ? 'openvgal-gallery-update.zip' : 'openvgal-gallery-cdn.zip';
+      deliverZip(blob, cdnName, config, onProgress);
+    }
+
+    // In standard mode this triggers a browser download. In embed mode it posts
+    // the blob to the parent and never downloads. Contract documented in
+    // docs/embed.md.
+    function deliverZip(blob, filename, config, onProgress) {
+      if (EMBED_MODE) {
+        var stats = GalleryPage.computeStats(config);
+        var sel = StylePicker.getSelected();
+        try {
+          window.parent.postMessage({
+            type: 'openvgal:zip-ready',
+            zip: blob,
+            meta: {
+              count: stats.imageCount,
+              totalBytes: blob.size,
+              style: sel ? sel.key : null
+            }
+          }, '*');
+        } catch (e) {
+          console.warn('Embed mode: failed to post zip-ready to parent', e);
+        }
+        onProgress(100, 'Sent to parent.');
+        return;
+      }
+
       var url = URL.createObjectURL(blob);
       var a = document.createElement('a');
       a.href = url;
-      a.download = isUpdateMode ? 'openvgal-gallery-update.zip' : 'openvgal-gallery-cdn.zip';
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-
       onProgress(100, 'Download complete!');
     }
 
