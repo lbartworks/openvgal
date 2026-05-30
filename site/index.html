@@ -9,51 +9,17 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;1,400;1,500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.openvgal.com/core/brand.css">
     <style>
         /* ============================================================
-           OpenVGAL landing — "Quiet Gallery" brand
-           Tokens copied verbatim from openvgal-meta/reference/brand.css;
-           mark is the canonical "open threshold" logo from
-           openvgal-meta/reference/OpenVGal Logo v2.html.
-           Content unchanged; look re-skinned.
+           OpenVGAL landing — "Quiet Gallery" brand.
+           Design tokens load from the shared stylesheet linked above
+           (cdn.openvgal.com/core/brand.css, source site/css/brand.css);
+           only page-specific rules live here. The one local override
+           keeps this page's tighter large-radius (brand default is 8px).
+           Mark is the canonical "open threshold" logo.
            ============================================================ */
-
-        /* ---------- Design tokens ---------- */
-        :root {
-            /* Surfaces — warm, low-chroma papers & rooms */
-            --paper:     oklch(0.98 0.005 70);
-            --paper-2:   oklch(0.962 0.008 75);
-            --room:      oklch(0.995 0.002 80);
-            --room-2:    oklch(0.985 0.004 80);
-
-            /* Ink — near-black with a cool cast, three weights */
-            --ink:       oklch(0.16 0.01 270);
-            --ink-2:     oklch(0.40 0.012 270);
-            --ink-3:     oklch(0.55 0.012 270);
-
-            /* Rules — hairline dividers */
-            --rule:      oklch(0.88 0.008 80);
-            --rule-soft: oklch(0.92 0.006 80);
-
-            /* Accent — the one warm "wood" tone. Use sparingly. */
-            --wood:      oklch(0.78 0.065 68);
-            --wood-deep: oklch(0.66 0.075 64);
-
-            /* Type families */
-            --font-sans:  "IBM Plex Sans", system-ui, sans-serif;
-            --font-serif: "IBM Plex Serif", Georgia, serif;
-            --font-mono:  "IBM Plex Mono", ui-monospace, monospace;
-
-            /* Layout */
-            --maxw:   1100px;
-            --radius: 2px;
-            --radius-lg: 4px;
-            --radius-card: 12px;
-
-            /* Elevation — long, soft, low-opacity ink shadows */
-            --shadow-frame:  0 30px 60px -38px oklch(0.16 0.01 270 / 0.5);
-            --shadow-window: 0 40px 80px -50px oklch(0.16 0.01 270 / 0.55);
-        }
+        :root { --radius-lg: 4px; }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html { scroll-behavior: smooth; }
