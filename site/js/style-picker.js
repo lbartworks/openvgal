@@ -66,8 +66,8 @@ var StylePicker = (function() {
       '  transform: translateY(-2px); box-shadow: 0 6px 24px rgba(0,0,0,0.4);',
       '}',
       '.sp-card.selected {',
-      '  border-color: #6366f1;',
-      '  box-shadow: 0 0 0 1px #6366f1, 0 0 20px rgba(99,102,241,0.15);',
+      '  border-color: oklch(0.66 0.075 64);',
+      '  box-shadow: 0 0 0 1px oklch(0.66 0.075 64), 0 0 20px color-mix(in oklab, oklch(0.78 0.065 68) 22%, transparent);',
       '}',
 
       /* Preview */
@@ -89,7 +89,7 @@ var StylePicker = (function() {
       '.sp-badge {',
       '  position: absolute; top: 10px; right: 10px;',
       '  width: 22px; height: 22px; border-radius: 50%;',
-      '  background: #6366f1; display: flex; align-items: center;',
+      '  background: oklch(0.66 0.075 64); display: flex; align-items: center;',
       '  justify-content: center; opacity: 0; transform: scale(0.5);',
       '  transition: opacity 0.2s, transform 0.2s; z-index: 2;',
       '}',

@@ -140,7 +140,7 @@ export function mountCustomize(hostEl, opts) {
         blobUrls.push(url);
         thumb.src = url;
       } else {
-        thumb.style.background = 'rgba(99,102,241,0.08)';
+        thumb.style.background = 'color-mix(in oklab, var(--wood) 18%, transparent)';
       }
       thumb.alt = itemKey;
 

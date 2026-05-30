@@ -42,10 +42,6 @@ If you prefer smaller ZIPs and automatic updates, use [openvgal.com/create?cdn=1
 
 Click **Customize** in the generator to tweak each artwork before downloading: edit titles and subtitles, resize per artwork (S / M / L buckets or a free slider in cm or inches). Sizes are stored in real-world centimetres in `building_v2.json` so what you set is what visitors see.
 
-### Metadata editor
-
-After generating a gallery, use the [metadata editor](https://openvgal.com/create/editor.html) to add or change artwork titles and subtitles. Import your `building_v2.json`, edit per-image or in batch, and download the updated file.
-
 ### Custom Logo
 
 Replace `materials/logo.png` in the ZIP with your own image. Use white artwork on a black background (the white areas glow in the gallery). Recommended size: 1024x512 px, PNG format.
@@ -64,7 +60,6 @@ Replace `materials/logo.png` in the ZIP with your own image. Use white artwork o
 - **CDN-first mode.** A lightweight alternative: the ZIP contains only the JSON config and your images. Templates, materials, viewer code, and Babylon.js load from [cdn.openvgal.com](https://cdn.openvgal.com) at runtime. Smaller ZIPs, and your galleries automatically pick up viewer updates.
 - **Gallery styles.** Choose between Classic, Minimalist, and Dark gallery styles. Each style provides a coordinated set of templates (root, rooms with panels, rooms without panels, small rooms) with matching materials and lighting. Select a style in the generator before building.
 - **Template-driven lighting.** Templates embed lighting configuration directly in the GLB file. Empty objects named `ambientLightUp_I{value}` and `ambientLightDown_I{value}` control ambient light intensity per template. Fixture meshes named `F_N_dx_dy_dz_I{value}` define RectAreaLights — position, direction, and intensity are all read from the mesh name and bounding box. This lets each style (e.g. Dark) define its own lighting atmosphere without any code changes.
-- **Metadata editor.** A dedicated tool at [openvgal.com/create/editor](https://openvgal.com/create/editor.html) for editing artwork titles and subtitles. Import an existing `building_v2.json`, batch-edit or per-image edit metadata, and export the updated file.
 - **Gallery map.** A visual overview of all rooms in a gallery. Click any room card to jump directly to it. Shows a thumbnail from the first artwork and the artwork count per room.
 - **Artwork plaques.** Museum-style labels rendered below each artwork showing title and subtitle. Toggle them on or off from the viewer overlay or the generator settings.
 - **Live 3D preview.** Preview your gallery directly in the generator before building.
@@ -82,7 +77,7 @@ OpenVGAL uses a `building_v2.json` file to describe interconnected gallery rooms
 
 The placement of artworks is driven by `Occupancy_*` planes baked into each template GLB — one plane per wall or panel side, defining the available strip's centre, normal, and width. The generator reads them from `cdn/templates/catalog.json` (or probes the GLB at runtime as a fallback), then packs artworks across strips with width-aware density balancing and overflows into additional rooms when the largest shape can't fit the remainder.
 
-The browser generator at `/create` automates all of this: it takes your image folders, runs the layout algorithm, generates the JSON, fetches templates and materials from the CDN, and packages everything into a deployable ZIP. A CDN-first mode at `/create?cdn=1` produces lighter ZIPs that load shared assets from `cdn.openvgal.com` at runtime. A separate metadata editor at `/create/editor` lets you add or change artwork titles and subtitles after generation.
+The browser generator at `/create` automates all of this: it takes your image folders, runs the layout algorithm, generates the JSON, fetches templates and materials from the CDN, and packages everything into a deployable ZIP. A CDN-first mode at `/create?cdn=1` produces lighter ZIPs that load shared assets from `cdn.openvgal.com` at runtime.
 
 For a deeper dive into the JSON format, the layout algorithm, the material system, and how to create custom templates, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -105,7 +100,6 @@ The main web application:
 - `viewer.html` -- 3D gallery viewer (Babylon.js), includes gallery map
 - `create/index.html` -- Browser-based gallery generator (self-contained ZIP, or CDN-first thin client with `?cdn=1`)
 - `create/customize.html`, `customize.js` -- Per-artwork editor (size + metadata) lazy-loaded from the generator
-- `create/editor.html` -- Standalone metadata editor for artwork titles and subtitles
 - `ready.html` -- Post-download "your gallery is ready" page (hosting links + share buttons)
 - `hosting.html` -- Coming-soon placeholder for the managed hosting service
 - `tools/catalog-manager.html` -- Visual editor for `cdn/templates/catalog.json` (drop a GLB to extract `Occupancy_*` strips)

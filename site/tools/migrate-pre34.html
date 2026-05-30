@@ -3,71 +3,95 @@
 <head>
   <meta charset="UTF-8">
   <title>OpenVGAL — Migrate pre-3.4 JSON</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'><rect width='256' height='256' fill='%23faf8f3'/><polygon points='35.84,35.84 220.16,35.84 161.18,87.14 94.82,87.14' fill='%23fbf9f5'/><polygon points='35.84,35.84 94.82,87.14 94.82,153.5 35.84,220.16' fill='%23fefdfb'/><polygon points='220.16,35.84 161.18,87.14 161.18,153.5 220.16,220.16' fill='%23fefdfb'/><polygon points='35.84,220.16 220.16,220.16 161.18,153.5 94.82,153.5' fill='%23c89b6e'/><rect x='94.82' y='87.14' width='66.36' height='66.36' fill='%23fbf9f5'/><line x1='35.84' y1='35.84' x2='94.82' y2='87.14' stroke='%231c1c24' stroke-width='4.84'/><line x1='220.16' y1='35.84' x2='161.18' y2='87.14' stroke='%231c1c24' stroke-width='4.84'/><line x1='35.84' y1='220.16' x2='94.82' y2='153.5' stroke='%231c1c24' stroke-width='4.84'/><line x1='220.16' y1='220.16' x2='161.18' y2='153.5' stroke='%231c1c24' stroke-width='4.84'/><rect x='94.82' y='87.14' width='66.36' height='66.36' fill='none' stroke='%231c1c24' stroke-width='5.76'/><rect x='35.84' y='35.84' width='184.32' height='184.32' fill='none' stroke='%231c1c24' stroke-width='6.91'/></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;1,400;1,500&display=swap" rel="stylesheet">
   <style>
+    /* ============================================================
+       Migrate tool — "Quiet Gallery" brand.
+       Tokens copied verbatim from openvgal-meta/reference/brand.css.
+       Visual shell only; markup IDs/classes and behavior unchanged.
+       ============================================================ */
+    :root {
+      --paper:     oklch(0.98 0.005 70);
+      --paper-2:   oklch(0.962 0.008 75);
+      --room:      oklch(0.995 0.002 80);
+      --room-2:    oklch(0.985 0.004 80);
+      --ink:       oklch(0.16 0.01 270);
+      --ink-2:     oklch(0.40 0.012 270);
+      --ink-3:     oklch(0.55 0.012 270);
+      --rule:      oklch(0.88 0.008 80);
+      --rule-soft: oklch(0.92 0.006 80);
+      --wood:      oklch(0.78 0.065 68);
+      --wood-deep: oklch(0.66 0.075 64);
+      --font-sans:  "IBM Plex Sans", system-ui, sans-serif;
+      --font-serif: "IBM Plex Serif", Georgia, serif;
+      --font-mono:  "IBM Plex Mono", ui-monospace, monospace;
+    }
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-      background: #000; color: #d4d4d8;
+      font-family: var(--font-sans);
+      background: var(--paper); color: var(--ink-2);
       min-height: 100vh; padding: 2rem 1.5rem 4rem;
-      -webkit-font-smoothing: antialiased;
+      -webkit-font-smoothing: antialiased; line-height: 1.5;
     }
     .wrap { max-width: 760px; margin: 0 auto; }
-    h1 { color: #fafafa; font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.4rem; }
-    .sub { color: #71717a; font-size: 0.85rem; margin-bottom: 2rem; line-height: 1.55; }
-    .sub code { background: rgba(99,102,241,0.1); color: #a5b4fc; padding: 0.1rem 0.35rem; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.8em; }
+    h1 { font-family: var(--font-sans); color: var(--ink); font-size: 1.4rem; font-weight: 600; letter-spacing: -0.6px; margin-bottom: 0.4rem; }
+    .sub { color: var(--ink-3); font-size: 0.85rem; margin-bottom: 2rem; line-height: 1.55; }
+    .sub code { background: color-mix(in oklab, var(--wood) 18%, transparent); color: var(--wood-deep); padding: 0.1rem 0.35rem; border-radius: 3px; font-family: var(--font-mono); font-size: 0.8em; }
 
-    .section { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 1rem; }
-    .section h2 { color: #e4e4e7; font-size: 0.95rem; font-weight: 600; margin-bottom: 0.6rem; }
-    .section .hint { color: #71717a; font-size: 0.78rem; line-height: 1.6; margin-bottom: 0.85rem; }
+    .section { background: var(--room); border: 1px solid var(--rule); border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 1rem; }
+    .section h2 { font-family: var(--font-sans); color: var(--ink); font-size: 0.95rem; font-weight: 600; margin-bottom: 0.6rem; }
+    .section .hint { color: var(--ink-3); font-size: 0.78rem; line-height: 1.6; margin-bottom: 0.85rem; }
 
     .drop {
-      border: 1.5px dashed rgba(255,255,255,0.18); border-radius: 10px;
+      border: 1.5px dashed var(--rule); border-radius: 10px;
       padding: 1.4rem; text-align: center; cursor: pointer;
-      transition: all 0.2s; background: rgba(255,255,255,0.015);
+      transition: all 0.2s; background: var(--paper);
     }
-    .drop:hover { border-color: rgba(99,102,241,0.3); background: rgba(99,102,241,0.04); }
-    .drop.over { border-color: #6366f1; border-style: solid; background: rgba(99,102,241,0.08); }
-    .drop .lbl { color: #a1a1aa; font-size: 0.85rem; font-weight: 500; }
-    .drop .sublbl { color: #52525b; font-size: 0.72rem; margin-top: 0.25rem; }
+    .drop:hover { border-color: color-mix(in oklab, var(--wood) 55%, transparent); background: color-mix(in oklab, var(--wood) 6%, transparent); }
+    .drop.over { border-color: var(--wood-deep); border-style: solid; background: color-mix(in oklab, var(--wood) 12%, transparent); }
+    .drop .lbl { color: var(--ink-2); font-size: 0.85rem; font-weight: 500; }
+    .drop .sublbl { color: var(--ink-3); font-size: 0.72rem; margin-top: 0.25rem; }
     input[type="file"] { display: none; }
 
     .btn {
-      display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; border: none;
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
       padding: 0.55rem 1rem; border-radius: 7px; font-size: 0.82rem; font-weight: 500;
-      cursor: pointer; font-family: inherit; transition: all 0.15s;
+      cursor: pointer; font-family: var(--font-mono); letter-spacing: 0.3px; transition: all 0.15s;
+      border: 1px solid transparent;
     }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .btn-primary { background: #fff; color: #09090b; }
-    .btn-primary:hover:not(:disabled) { opacity: 0.92; transform: translateY(-1px); }
-    .btn-default { background: rgba(255,255,255,0.06); color: #d4d4d8; border: 1px solid rgba(255,255,255,0.08); }
-    .btn-default:hover:not(:disabled) { background: rgba(255,255,255,0.1); }
+    .btn-primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+    .btn-primary:hover:not(:disabled) { background: transparent; color: var(--ink); transform: translateY(-1px); }
+    .btn-default { background: var(--paper); color: var(--ink); border: 1px solid var(--rule); }
+    .btn-default:hover:not(:disabled) { background: var(--paper-2); border-color: var(--ink-3); }
 
     .row { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; }
 
     .field { display: flex; flex-direction: column; gap: 0.3rem; }
-    .field-label { color: #a1a1aa; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500; }
+    .field-label { font-family: var(--font-mono); color: var(--ink-3); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500; }
     input[type="text"] {
-      background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.08);
-      color: #e4e4e7; padding: 0.45rem 0.6rem; border-radius: 6px;
-      font-size: 0.82rem; font-family: 'JetBrains Mono', monospace; outline: none;
+      background: var(--paper); border: 1px solid var(--rule);
+      color: var(--ink); padding: 0.45rem 0.6rem; border-radius: 6px;
+      font-size: 0.82rem; font-family: var(--font-mono); outline: none;
       transition: border-color 0.15s; width: 120px;
     }
-    input[type="text"]:focus { border-color: rgba(99,102,241,0.4); }
+    input[type="text"]:focus { border-color: var(--wood-deep); }
 
     .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.6rem; margin-top: 0.5rem; }
-    .stat { background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; padding: 0.6rem 0.75rem; }
-    .stat .k { color: #71717a; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.06em; }
-    .stat .v { color: #e4e4e7; font-size: 0.95rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-top: 0.2rem; }
+    .stat { background: var(--paper-2); border: 1px solid var(--rule-soft); border-radius: 8px; padding: 0.6rem 0.75rem; }
+    .stat .k { font-family: var(--font-mono); color: var(--ink-3); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.06em; }
+    .stat .v { color: var(--ink); font-size: 0.95rem; font-weight: 600; font-family: var(--font-mono); margin-top: 0.2rem; }
 
-    .log { background: rgba(0,0,0,0.3); border-radius: 6px; padding: 0.7rem 0.85rem; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; line-height: 1.55; max-height: 220px; overflow-y: auto; }
-    .log div { color: #a1a1aa; }
-    .log .ok { color: #6ee7b7; } .log .warn { color: #fcd34d; } .log .err { color: #fca5a5; }
+    .log { background: var(--paper-2); border: 1px solid var(--rule-soft); border-radius: 6px; padding: 0.7rem 0.85rem; font-family: var(--font-mono); font-size: 0.72rem; line-height: 1.55; max-height: 220px; overflow-y: auto; }
+    .log div { color: var(--ink-2); }
+    .log .ok { color: oklch(0.52 0.13 150); } .log .warn { color: oklch(0.55 0.12 75); } .log .err { color: oklch(0.52 0.20 27); }
 
-    .back { color: #71717a; font-size: 0.75rem; text-decoration: none; display: inline-block; margin-bottom: 1.5rem; }
-    .back:hover { color: #a1a1aa; }
+    .back { color: var(--ink-3); font-size: 0.75rem; text-decoration: none; display: inline-block; margin-bottom: 1.5rem; }
+    .back:hover { color: var(--ink); }
   </style>
 </head>
 <body>

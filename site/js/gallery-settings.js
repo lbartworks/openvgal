@@ -1,7 +1,6 @@
 /**
  * OpenVGAL Gallery Settings Panel
- * Shared module consumed by create/index.html (both standard and ?cdn=1 modes)
- * and create/editor.html.
+ * Shared module consumed by create/index.html (both standard and ?cdn=1 modes).
  */
 var GallerySettings = (function() {
   var _mounted = false;
@@ -61,11 +60,11 @@ var GallerySettings = (function() {
       '  transition: transform 0.2s, background 0.2s;',
       '}',
       '.gs-switch input:checked + .gs-slider {',
-      '  background: rgba(99, 102, 241, 0.3);',
+      '  background: color-mix(in oklab, oklch(0.78 0.065 68) 38%, transparent);',
       '}',
       '.gs-switch input:checked + .gs-slider::before {',
       '  transform: translateX(16px);',
-      '  background: #818cf8;',
+      '  background: oklch(0.78 0.065 68);',
       '}'
     ].join('\n');
     document.head.appendChild(style);

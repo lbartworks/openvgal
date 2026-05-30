@@ -4,30 +4,45 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Create Gallery - OpenVGAL</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'><rect width='256' height='256' fill='%23faf8f3'/><polygon points='35.84,35.84 220.16,35.84 161.18,87.14 94.82,87.14' fill='%23fbf9f5'/><polygon points='35.84,35.84 94.82,87.14 94.82,153.5 35.84,220.16' fill='%23fefdfb'/><polygon points='220.16,35.84 161.18,87.14 161.18,153.5 220.16,220.16' fill='%23fefdfb'/><polygon points='35.84,220.16 220.16,220.16 161.18,153.5 94.82,153.5' fill='%23c89b6e'/><rect x='94.82' y='87.14' width='66.36' height='66.36' fill='%23fbf9f5'/><line x1='35.84' y1='35.84' x2='94.82' y2='87.14' stroke='%231c1c24' stroke-width='4.84'/><line x1='220.16' y1='35.84' x2='161.18' y2='87.14' stroke='%231c1c24' stroke-width='4.84'/><line x1='35.84' y1='220.16' x2='94.82' y2='153.5' stroke='%231c1c24' stroke-width='4.84'/><line x1='220.16' y1='220.16' x2='161.18' y2='153.5' stroke='%231c1c24' stroke-width='4.84'/><rect x='94.82' y='87.14' width='66.36' height='66.36' fill='none' stroke='%231c1c24' stroke-width='5.76'/><rect x='35.84' y='35.84' width='184.32' height='184.32' fill='none' stroke='%231c1c24' stroke-width='6.91'/></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;1,400;1,500&display=swap" rel="stylesheet">
   <style>
+    /* ============================================================
+       Create generator — "Quiet Gallery" brand.
+       Tokens copied verbatim from openvgal-meta/reference/brand.css.
+       Visual shell only; markup IDs/classes and behavior unchanged.
+       ============================================================ */
+    :root {
+      --paper:     oklch(0.98 0.005 70);
+      --paper-2:   oklch(0.962 0.008 75);
+      --room:      oklch(0.995 0.002 80);
+      --room-2:    oklch(0.985 0.004 80);
+      --ink:       oklch(0.16 0.01 270);
+      --ink-2:     oklch(0.40 0.012 270);
+      --ink-3:     oklch(0.55 0.012 270);
+      --rule:      oklch(0.88 0.008 80);
+      --rule-soft: oklch(0.92 0.006 80);
+      --wood:      oklch(0.78 0.065 68);
+      --wood-deep: oklch(0.66 0.075 64);
+      --font-sans:  "IBM Plex Sans", system-ui, sans-serif;
+      --font-serif: "IBM Plex Serif", Georgia, serif;
+      --font-mono:  "IBM Plex Mono", ui-monospace, monospace;
+      --radius: 2px;
+      --radius-lg: 8px;
+      --radius-card: 12px;
+    }
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-      background: #000;
-      color: #a1a1aa;
+      font-family: var(--font-sans);
+      background: var(--paper);
+      color: var(--ink);
       min-height: 100vh;
       -webkit-font-smoothing: antialiased;
-    }
-
-    /* Ambient glow */
-    body::before {
-      content: '';
-      position: fixed;
-      top: -200px; left: 50%;
-      transform: translateX(-50%);
-      width: 700px; height: 700px;
-      background: radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, transparent 70%);
-      pointer-events: none;
-      z-index: 0;
+      line-height: 1.5;
     }
 
     .page-wrapper {
@@ -38,32 +53,37 @@
       padding: 0 1.5rem 4rem;
     }
 
+    .ovg-symbol { position: absolute; width: 0; height: 0; }
+
     /* --- NAV --- */
     nav {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 1.25rem 0;
+      padding: 1.4rem 0;
       margin-bottom: 1.5rem;
+      border-bottom: 1px solid var(--rule);
     }
-    .nav-logo {
-      font-size: 0.8rem;
-      font-weight: 600;
-      letter-spacing: 0.12em;
-      color: #fff;
-      text-decoration: none;
+    .brand { display: flex; align-items: center; gap: 13px; text-decoration: none; }
+    .brand .mk { width: 36px; height: 36px; display: block; overflow: visible; }
+    .brand .word {
+      font-family: var(--font-sans);
+      font-weight: 500;
+      font-size: 21px;
+      letter-spacing: -0.5px;
+      color: var(--ink);
     }
     .nav-back {
-      color: #52525b;
+      color: var(--ink-3);
       text-decoration: none;
-      font-size: 0.8rem;
+      font-size: 0.85rem;
       font-weight: 400;
       display: flex;
       align-items: center;
       gap: 0.35rem;
       transition: color 0.15s;
     }
-    .nav-back:hover { color: #a1a1aa; }
+    .nav-back:hover { color: var(--ink); }
     .nav-back svg { width: 14px; height: 14px; }
 
     /* --- HEADER --- */
@@ -72,15 +92,16 @@
       margin-bottom: 2.5rem;
     }
     .page-header h1 {
-      font-size: 1.75rem;
-      font-weight: 700;
-      letter-spacing: -0.03em;
-      color: #fafafa;
+      font-family: var(--font-sans);
+      font-size: 2.2rem;
+      font-weight: 600;
+      letter-spacing: -1px;
+      color: var(--ink);
       margin-bottom: 0.5rem;
     }
     .page-header p {
-      color: #52525b;
-      font-size: 0.88rem;
+      color: var(--ink-2);
+      font-size: 0.92rem;
       font-weight: 400;
     }
 
@@ -90,13 +111,15 @@
       display: none;
       align-items: center;
       gap: 0.4rem;
-      background: rgba(99, 102, 241, 0.1);
-      border: 1px solid rgba(99, 102, 241, 0.2);
-      border-radius: 20px;
-      padding: 0.3rem 0.8rem;
-      font-size: 0.72rem;
+      font-family: var(--font-mono);
+      background: color-mix(in oklab, var(--wood) 18%, transparent);
+      border: 1px solid color-mix(in oklab, var(--wood) 40%, transparent);
+      border-radius: 100px;
+      padding: 0.3rem 0.85rem;
+      font-size: 0.7rem;
+      letter-spacing: 0.4px;
       font-weight: 500;
-      color: #a5b4fc;
+      color: var(--wood-deep);
       margin-bottom: 1rem;
     }
     .mode-badge svg { width: 12px; height: 12px; }
@@ -117,9 +140,9 @@
 
     /* --- SECTIONS --- */
     .section {
-      background: rgba(255,255,255,0.02);
-      border: 1px solid rgba(255,255,255,0.05);
-      border-radius: 14px;
+      background: var(--room);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-card);
       padding: 1.5rem;
       margin-bottom: 1rem;
     }
@@ -127,29 +150,32 @@
     .section-header {
       display: flex;
       align-items: center;
-      gap: 0.65rem;
+      gap: 0.7rem;
       margin-bottom: 1rem;
     }
     .step-badge {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 24px; height: 24px;
-      border-radius: 6px;
-      background: rgba(99, 102, 241, 0.1);
-      color: #818cf8;
-      font-size: 0.7rem;
-      font-weight: 600;
+      width: 28px; height: 28px;
+      border-radius: var(--radius-lg);
+      background: color-mix(in oklab, var(--wood) 22%, transparent);
+      color: var(--wood-deep);
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      font-weight: 500;
       flex-shrink: 0;
     }
     .section-title {
-      font-size: 0.88rem;
+      font-family: var(--font-sans);
+      font-size: 1.15rem;
       font-weight: 600;
-      color: #e4e4e7;
+      color: var(--ink);
+      letter-spacing: -0.3px;
     }
     .section-hint {
-      font-size: 0.8rem;
-      color: #a1a1aa;
+      font-size: 0.85rem;
+      color: var(--ink-2);
       line-height: 1.6;
       margin-bottom: 1rem;
     }
@@ -159,104 +185,107 @@
       display: inline-flex;
       align-items: center;
       gap: 0.45rem;
-      border: none;
+      font-family: var(--font-mono);
       padding: 0.6rem 1.2rem;
-      border-radius: 8px;
-      font-size: 0.82rem;
+      border-radius: var(--radius);
+      border: 1px solid transparent;
+      font-size: 0.78rem;
+      letter-spacing: 0.3px;
       font-weight: 500;
       cursor: pointer;
-      transition: all 0.15s ease;
-      font-family: inherit;
+      transition: background 0.18s, color 0.18s, border-color 0.18s, transform 0.18s;
       text-decoration: none;
     }
     .btn svg { width: 14px; height: 14px; }
     .btn:disabled {
-      opacity: 0.3;
+      opacity: 0.35;
       cursor: not-allowed;
     }
 
     .btn-default {
-      background: rgba(255,255,255,0.06);
-      color: #d4d4d8;
-      border: 1px solid rgba(255,255,255,0.08);
+      background: var(--paper);
+      color: var(--ink);
+      border: 1px solid var(--rule);
     }
     .btn-default:hover:not(:disabled) {
-      background: rgba(255,255,255,0.1);
-      border-color: rgba(255,255,255,0.14);
+      background: var(--paper-2);
+      border-color: var(--ink-3);
     }
 
     .btn-primary {
-      background: #fff;
-      color: #09090b;
+      background: var(--ink);
+      color: var(--paper);
+      border-color: var(--ink);
     }
     .btn-primary:hover:not(:disabled) {
-      opacity: 0.9;
+      background: transparent;
+      color: var(--ink);
       transform: translateY(-1px);
     }
 
     .btn-accent {
-      background: rgba(99, 102, 241, 0.1);
-      color: #a5b4fc;
-      border: 1px solid rgba(99, 102, 241, 0.15);
+      background: color-mix(in oklab, var(--wood) 20%, transparent);
+      color: var(--wood-deep);
+      border: 1px solid color-mix(in oklab, var(--wood) 45%, transparent);
     }
     .btn-accent:hover:not(:disabled) {
-      background: rgba(99, 102, 241, 0.18);
-      border-color: rgba(99, 102, 241, 0.28);
+      background: color-mix(in oklab, var(--wood) 32%, transparent);
+      border-color: var(--wood-deep);
     }
 
     .btn-subtle {
       background: transparent;
-      color: #71717a;
-      border: 1px solid rgba(255,255,255,0.06);
+      color: var(--ink-3);
+      border: 1px solid var(--rule);
     }
     .btn-subtle:hover:not(:disabled) {
-      background: rgba(255,255,255,0.04);
-      color: #a1a1aa;
+      background: var(--paper-2);
+      color: var(--ink-2);
     }
 
     /* --- DROP ZONE --- */
     .drop-zone {
-      border: 1.5px dashed rgba(255,255,255,0.18);
-      border-radius: 12px;
+      border: 1.5px dashed var(--rule);
+      border-radius: var(--radius-card);
       padding: 2.5rem 1.5rem;
       text-align: center;
       cursor: pointer;
       transition: all 0.2s ease;
       margin-top: 0.75rem;
       position: relative;
-      background: rgba(255,255,255,0.02);
+      background: var(--paper);
     }
     .drop-zone:hover {
-      border-color: rgba(99, 102, 241, 0.25);
-      background: rgba(99, 102, 241, 0.03);
+      border-color: color-mix(in oklab, var(--wood) 55%, transparent);
+      background: color-mix(in oklab, var(--wood) 6%, transparent);
     }
-    .drop-zone:hover .drop-icon { color: #6366f1; }
-    .drop-zone:hover .drop-text { color: #a1a1aa; }
+    .drop-zone:hover .drop-icon { color: var(--wood-deep); }
+    .drop-zone:hover .drop-text { color: var(--ink-2); }
 
     .drop-zone.drag-over {
-      border-color: #6366f1;
+      border-color: var(--wood-deep);
       border-style: solid;
-      background: rgba(99, 102, 241, 0.06);
+      background: color-mix(in oklab, var(--wood) 12%, transparent);
     }
-    .drop-zone.drag-over .drop-icon { color: #818cf8; }
-    .drop-zone.drag-over .drop-text { color: #c7d2fe; }
+    .drop-zone.drag-over .drop-icon { color: var(--wood-deep); }
+    .drop-zone.drag-over .drop-text { color: var(--ink); }
 
     .drop-icon {
-      color: #52525b;
+      color: var(--ink-3);
       margin-bottom: 0.75rem;
       transition: color 0.2s;
     }
     .drop-icon svg { width: 36px; height: 36px; }
     .drop-text {
       font-size: 0.85rem;
-      color: #52525b;
+      color: var(--ink-2);
       margin-bottom: 0.2rem;
       transition: color 0.2s;
       font-weight: 500;
     }
     .drop-subtext {
       font-size: 0.72rem;
-      color: #3f3f46;
+      color: var(--ink-3);
     }
 
     .folder-input { display: none; }
@@ -268,26 +297,26 @@
       display: flex;
       align-items: center;
       gap: 0.65rem;
-      background: rgba(255,255,255,0.02);
-      border: 1px solid rgba(255,255,255,0.05);
-      border-radius: 10px;
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-lg);
       padding: 0.6rem 0.85rem;
       margin-bottom: 0.4rem;
       transition: border-color 0.15s;
     }
     .gallery-item:hover {
-      border-color: rgba(255,255,255,0.1);
+      border-color: var(--ink-3);
     }
 
     .gallery-icon {
       flex-shrink: 0;
       width: 32px; height: 32px;
       border-radius: 7px;
-      background: rgba(99, 102, 241, 0.08);
+      background: color-mix(in oklab, var(--wood) 18%, transparent);
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #818cf8;
+      color: var(--wood-deep);
     }
     .gallery-icon svg { width: 14px; height: 14px; }
 
@@ -296,10 +325,10 @@
     .gallery-name-input {
       background: transparent;
       border: 1px solid transparent;
-      color: #d4d4d8;
+      color: var(--ink);
       padding: 0.2rem 0.4rem;
       border-radius: 4px;
-      font-size: 0.82rem;
+      font-size: 0.85rem;
       font-family: inherit;
       font-weight: 500;
       width: 100%;
@@ -307,24 +336,24 @@
       transition: border-color 0.15s, background 0.15s;
     }
     .gallery-name-input:hover {
-      border-color: rgba(255,255,255,0.08);
-      background: rgba(255,255,255,0.02);
+      border-color: var(--rule);
+      background: var(--paper-2);
     }
     .gallery-name-input:focus {
       outline: none;
-      border-color: rgba(99, 102, 241, 0.4);
-      background: rgba(255,255,255,0.03);
+      border-color: var(--wood-deep);
+      background: var(--room);
     }
 
     .gallery-folder {
-      color: #3f3f46;
+      color: var(--ink-3);
       font-size: 0.68rem;
       margin-top: 0.1rem;
       padding-left: 0.4rem;
     }
 
     .gallery-count {
-      color: #52525b;
+      color: var(--ink-3);
       font-size: 0.75rem;
       white-space: nowrap;
       flex-shrink: 0;
@@ -333,7 +362,7 @@
     .gallery-remove {
       background: none;
       border: none;
-      color: #3f3f46;
+      color: var(--ink-3);
       cursor: pointer;
       padding: 0.25rem;
       border-radius: 4px;
@@ -342,16 +371,16 @@
       transition: color 0.15s, background 0.15s;
     }
     .gallery-remove:hover {
-      color: #ef4444;
-      background: rgba(239, 68, 68, 0.08);
+      color: #c0392b;
+      background: color-mix(in oklab, #c0392b 10%, transparent);
     }
     .gallery-remove svg { width: 14px; height: 14px; }
 
     .empty-state {
       text-align: center;
-      color: #3f3f46;
+      color: var(--ink-3);
       padding: 1.5rem;
-      font-size: 0.82rem;
+      font-size: 0.85rem;
     }
 
     /* CDN-mode: imported (read-only) room rows + import banner */
@@ -360,7 +389,7 @@
       cursor: default;
     }
     .gallery-item.imported:hover {
-      border-color: rgba(255,255,255,0.05);
+      border-color: var(--rule);
     }
 
     .import-section { display: none; }
@@ -372,18 +401,18 @@
       gap: 0.6rem;
       margin-bottom: 0.75rem;
       padding: 0.5rem 0.75rem;
-      background: rgba(99, 102, 241, 0.06);
-      border: 1px solid rgba(99, 102, 241, 0.12);
+      background: color-mix(in oklab, var(--wood) 12%, transparent);
+      border: 1px solid color-mix(in oklab, var(--wood) 35%, transparent);
       border-radius: 8px;
       font-size: 0.8rem;
-      color: #a5b4fc;
+      color: var(--wood-deep);
     }
     .import-info svg { width: 14px; height: 14px; flex-shrink: 0; }
     .import-summary { flex: 1; }
     .import-clear {
       background: none;
       border: none;
-      color: #71717a;
+      color: var(--ink-3);
       cursor: pointer;
       padding: 0.2rem 0.4rem;
       border-radius: 4px;
@@ -392,13 +421,13 @@
       transition: color 0.15s, background 0.15s;
     }
     .import-clear:hover {
-      color: #ef4444;
-      background: rgba(239, 68, 68, 0.08);
+      color: #c0392b;
+      background: color-mix(in oklab, #c0392b 10%, transparent);
     }
 
     .import-divider {
       height: 1px;
-      background: rgba(99, 102, 241, 0.12);
+      background: var(--rule);
       margin: 0.6rem 0;
     }
 
@@ -409,13 +438,13 @@
     }
     .progress-bar {
       height: 3px;
-      background: rgba(255,255,255,0.05);
+      background: var(--rule-soft);
       border-radius: 3px;
       overflow: hidden;
     }
     .progress-fill {
       height: 100%;
-      background: linear-gradient(90deg, #6366f1, #a78bfa);
+      background: linear-gradient(90deg, var(--wood), var(--wood-deep));
       width: 0%;
       transition: width 0.3s;
       border-radius: 3px;
@@ -423,7 +452,7 @@
     .progress-text {
       text-align: center;
       margin-top: 0.5rem;
-      color: #52525b;
+      color: var(--ink-3);
       font-size: 0.75rem;
     }
 
@@ -437,14 +466,16 @@
     }
     .stat { text-align: center; }
     .stat-value {
-      font-size: 1.75rem;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      color: #fafafa;
+      font-family: var(--font-sans);
+      font-size: 2rem;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+      color: var(--ink);
     }
     .stat-label {
-      font-size: 0.68rem;
-      color: #52525b;
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--ink-3);
       text-transform: uppercase;
       letter-spacing: 0.1em;
       font-weight: 500;
@@ -458,30 +489,32 @@
 
     /* --- INFO BOXES --- */
     .info-box {
-      background: rgba(255,255,255,0.015);
-      border: 1px solid rgba(255,255,255,0.04);
-      border-radius: 10px;
+      background: var(--paper-2);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-lg);
       padding: 1rem 1.25rem;
       margin-top: 1rem;
     }
     .info-box h3 {
-      font-size: 0.78rem;
+      font-family: var(--font-sans);
+      font-size: 0.95rem;
       font-weight: 600;
-      color: #d4d4d8;
+      color: var(--ink);
       margin-bottom: 0.4rem;
     }
     .info-box ol, .info-box ul {
       margin: 0;
       padding-left: 1.25rem;
-      color: #71717a;
-      font-size: 0.78rem;
+      color: var(--ink-2);
+      font-size: 0.8rem;
       line-height: 1.8;
     }
     .info-box code {
-      background: rgba(99, 102, 241, 0.1);
+      font-family: var(--font-mono);
+      background: color-mix(in oklab, var(--wood) 16%, transparent);
       padding: 0.1rem 0.35rem;
       border-radius: 3px;
-      color: #a5b4fc;
+      color: var(--wood-deep);
       font-size: 0.75rem;
     }
 
@@ -495,8 +528,8 @@
       display: flex;
       align-items: flex-start;
       gap: 0.5rem;
-      font-size: 0.78rem;
-      color: #71717a;
+      font-size: 0.8rem;
+      color: var(--ink-2);
       line-height: 1.6;
       margin-bottom: 0.3rem;
     }
@@ -505,50 +538,53 @@
       height: 14px;
       flex-shrink: 0;
       margin-top: 0.15rem;
-      color: #818cf8;
+      color: var(--wood-deep);
     }
 
     .switch-link {
       display: none;
       text-align: center;
       margin-top: 1.5rem;
-      font-size: 0.78rem;
+      font-size: 0.8rem;
+      color: var(--ink-2);
     }
     body.cdn-mode .switch-link { display: block; }
     .switch-link a {
-      color: #71717a;
-      text-decoration: none;
+      color: var(--ink-2);
+      text-decoration: underline;
+      text-underline-offset: 2px;
       transition: color 0.15s;
     }
-    .switch-link a:hover { color: #a5b4fc; }
+    .switch-link a:hover { color: var(--wood-deep); }
 
     /* --- JSON PREVIEW --- */
     details { margin-top: 1rem; }
     details summary {
       cursor: pointer;
-      font-size: 0.75rem;
-      color: #3f3f46;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--ink-3);
       transition: color 0.15s;
     }
-    details summary:hover { color: #71717a; }
+    details summary:hover { color: var(--ink-2); }
     .json-preview {
-      background: rgba(255,255,255,0.015);
-      border: 1px solid rgba(255,255,255,0.04);
+      background: var(--paper-2);
+      border: 1px solid var(--rule);
       border-radius: 8px;
       padding: 1rem;
       max-height: 300px;
       overflow: auto;
-      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-family: var(--font-mono);
       font-size: 0.7rem;
       white-space: pre;
-      color: #71717a;
+      color: var(--ink-2);
       margin-top: 0.5rem;
     }
 
     /* --- RESPONSIVE --- */
     @media (max-width: 600px) {
       .page-wrapper { padding: 0 1rem 3rem; }
-      .page-header h1 { font-size: 1.4rem; }
+      .page-header h1 { font-size: 1.7rem; }
       .section { padding: 1.25rem; }
       .actions { flex-direction: column; }
       .actions .btn { width: 100%; justify-content: center; }
@@ -556,9 +592,29 @@
   </style>
 </head>
 <body>
+  <!-- Canonical "open threshold" mark (openvgal-meta/reference/OpenVGal Logo v2.html), defined once, reused via <use>. -->
+  <svg class="ovg-symbol" aria-hidden="true" focusable="false">
+    <symbol id="ovg-mark" viewBox="0 0 256 256">
+      <polygon points="35.84,35.84 220.16,35.84 161.18,87.14 94.82,87.14" fill="oklch(0.985 0.004 80)"/>
+      <polygon points="35.84,35.84 94.82,87.14 94.82,153.5 35.84,220.16" fill="oklch(0.995 0.002 80)"/>
+      <polygon points="220.16,35.84 161.18,87.14 161.18,153.5 220.16,220.16" fill="oklch(0.995 0.002 80)"/>
+      <polygon points="35.84,220.16 220.16,220.16 161.18,153.5 94.82,153.5" fill="oklch(0.78 0.065 68)"/>
+      <rect x="94.82" y="87.14" width="66.36" height="66.36" fill="oklch(0.985 0.004 80)"/>
+      <line x1="35.84" y1="35.84" x2="94.82" y2="87.14" stroke="oklch(0.16 0.01 270)" stroke-width="4.84"/>
+      <line x1="220.16" y1="35.84" x2="161.18" y2="87.14" stroke="oklch(0.16 0.01 270)" stroke-width="4.84"/>
+      <line x1="35.84" y1="220.16" x2="94.82" y2="153.5" stroke="oklch(0.16 0.01 270)" stroke-width="4.84"/>
+      <line x1="220.16" y1="220.16" x2="161.18" y2="153.5" stroke="oklch(0.16 0.01 270)" stroke-width="4.84"/>
+      <rect x="94.82" y="87.14" width="66.36" height="66.36" fill="none" stroke="oklch(0.16 0.01 270)" stroke-width="5.76"/>
+      <rect x="35.84" y="35.84" width="184.32" height="184.32" fill="none" stroke="oklch(0.16 0.01 270)" stroke-width="6.91"/>
+    </symbol>
+  </svg>
+
   <div class="page-wrapper">
     <nav>
-      <a href="/" class="nav-logo">OPENVGAL</a>
+      <a href="/" class="brand">
+        <svg class="mk" viewBox="0 0 256 256"><use href="#ovg-mark"/></svg>
+        <span class="word">OpenVGal</span>
+      </a>
       <a href="/" class="nav-back">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
         Back

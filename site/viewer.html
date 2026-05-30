@@ -147,7 +147,7 @@
 		}
 		.loadingBar {
 		  height: 100%;
-		  background: linear-gradient(90deg, #818cf8, #a78bfa);
+		  background: linear-gradient(90deg, oklch(0.78 0.065 68), oklch(0.66 0.075 64));
 		  border-radius: 6px;
 		  width: 0%;
 		}
@@ -178,9 +178,9 @@
             transition: background 0.2s, border-color 0.2s, color 0.2s;
         }
         #map-button:hover {
-            background: rgba(99, 102, 241, 0.15);
-            border-color: rgba(99, 102, 241, 0.4);
-            color: #a5b4fc;
+            background: color-mix(in oklab, oklch(0.78 0.065 68) 22%, transparent);
+            border-color: color-mix(in oklab, oklch(0.78 0.065 68) 50%, transparent);
+            color: oklch(0.78 0.065 68);
         }
         #map-modal {
             display: none;
@@ -243,12 +243,12 @@
         }
         .map-card:hover {
             transform: translateY(-4px) scale(1.015);
-            border-color: rgba(99, 102, 241, 0.45);
-            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(99, 102, 241, 0.15);
+            border-color: color-mix(in oklab, oklch(0.78 0.065 68) 55%, transparent);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px color-mix(in oklab, oklch(0.78 0.065 68) 25%, transparent);
         }
         .map-card.map-card-active {
-            border-color: #6366f1;
-            box-shadow: 0 0 0 1px #6366f1, 0 6px 20px rgba(99, 102, 241, 0.2);
+            border-color: oklch(0.66 0.075 64);
+            box-shadow: 0 0 0 1px oklch(0.66 0.075 64), 0 6px 20px color-mix(in oklab, oklch(0.78 0.065 68) 28%, transparent);
         }
         .map-card-thumb-wrap {
             position: relative;
