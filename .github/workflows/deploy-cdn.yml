@@ -16,6 +16,7 @@ on:
       - 'site/babylonjs.loaders.min.js'
       - 'site/js/gallery-settings.js'
       - 'site/js/style-picker.js'
+      - 'site/css/brand.css'
       - 'site/viewer.html'
       - 'site/icons/**'
 env:
@@ -31,6 +32,7 @@ jobs:
           mkdir -p cdn/core/icons cdn/core/js
           cp site/js/gallery-settings.js cdn/core/js/
           cp site/js/style-picker.js cdn/core/js/
+          cp site/css/brand.css cdn/core/
           cp site/declarations.js cdn/core/
           cp site/room_builder_aux.js cdn/core/
           cp site/overlay.js cdn/core/
