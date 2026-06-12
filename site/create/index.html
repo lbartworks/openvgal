@@ -113,11 +113,14 @@
 
     /* Embed mode (?embed=1): hide chrome so the create flow renders inside
        a parent iframe (e.g. openvgal-site /create wrapper). Post-zip UX is
-       owned by the parent, so the info-box and switch-link drop out too. */
+       owned by the parent, so the info-box, switch-link, and the step-3
+       summary (title + stats — the host shows its own) drop out too. */
     body.embed-mode nav,
     body.embed-mode .page-header,
     body.embed-mode .switch-link,
     body.embed-mode .info-box,
+    body.embed-mode #resultSection .section-header,
+    body.embed-mode #resultSection .stats,
     body.embed-mode #downloadBtn { display: none; }
     body.embed-mode .page-wrapper { padding-top: 1rem; }
 
@@ -785,6 +788,9 @@
     }
     if (EMBED_MODE) {
       document.body.classList.add('embed-mode');
+      // The button builds + posts the blob to the parent (docs/embed.md);
+      // it never downloads here, so "Download ZIP" would mislead.
+      document.getElementById('downloadZipBtn').lastChild.textContent = 'Export gallery';
       // Buffer style requests that arrive before the StylePicker catalog loads.
       // selectStyle silently no-ops on unknown keys, so we retry briefly.
       function applyStyleWhenReady(key) {

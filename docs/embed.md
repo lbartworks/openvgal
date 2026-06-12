@@ -6,8 +6,13 @@ When `?embed=1` is present:
 
 - Page chrome (nav, header, deployment info-box, mode switch link, JSON-only
   download) is hidden.
-- The "Download ZIP" button no longer triggers a download. Instead, the ZIP
-  blob is posted to `window.parent` via `postMessage`.
+- The step-3 export summary is hidden too: the "Your gallery is ready"
+  title/badge and the Rooms/Artworks stats block. The host owns the export
+  summary and shows its own (count, size, etc.).
+- The export trigger is relabelled from "Download ZIP" to **"Export gallery"**
+  (same `#downloadZipBtn` element and handler — label only), because in embed
+  mode it does not download. Instead, the ZIP blob is posted to
+  `window.parent` via `postMessage`; the host provides the real download.
 - The page does not open the `ready.html` confirmation tab.
 
 Combine with `?cdn=1` (`?embed=1&cdn=1`) to produce the thin-client CDN ZIP
@@ -32,7 +37,8 @@ unchanged.
    earlier may need to wait for the catalog. The child buffers and retries for
    ~3 s, so a configure sent immediately after `openvgal:ready` is safe.
 3. **(Optional) Parent posts `openvgal:configure`** to preselect a style.
-4. **User builds the gallery and clicks "Download ZIP".**
+4. **User builds the gallery and clicks "Export gallery"** (the relabelled
+   `#downloadZipBtn`).
 5. **Child posts `openvgal:zip-ready`** with the blob and metadata.
 
 ## Messages
@@ -62,7 +68,7 @@ configure listener is wired.
 }
 ```
 
-Sent each time the user clicks "Download ZIP". One blob per click. The blob is
+Sent each time the user clicks "Export gallery". One blob per click. The blob is
 transferred by structured clone — no transferable list needed.
 
 ### Parent → child
