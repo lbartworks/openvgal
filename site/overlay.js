@@ -116,7 +116,13 @@ function changeLanguage(lang) {
 
 // Load overlay content: CDN first, fall back to local
 function loadOverlay() {
-    const initOverlay = (html) => {
+    // iconBase rewrites overlay.html's relative `icons/` paths to an absolute
+    // base. Needed when the overlay is fetched from the CDN but injected into a
+    // gallery page that doesn't bundle the icons (CDN/thin-client ZIP).
+    const initOverlay = (html, iconBase) => {
+        if (iconBase) {
+            html = html.replace(/(src=["'])icons\//g, '$1' + iconBase + 'icons/');
+        }
         document.body.insertAdjacentHTML('beforeend', html);
         const helpPopup = document.getElementById('help-popup');
         if (helpPopup) helpPopup.style.display = 'none';
@@ -128,13 +134,15 @@ function loadOverlay() {
         return r.text();
     });
 
-    const cdnUrl = (typeof cdn_base !== 'undefined' && cdn_base) ? cdn_base + '/core/overlay.html' : null;
+    const cdnBase = (typeof cdn_base !== 'undefined' && cdn_base) ? cdn_base : null;
+    const cdnUrl = cdnBase ? cdnBase + '/core/overlay.html' : null;
 
     const promise = cdnUrl
-        ? fetchText(cdnUrl).catch(() => fetchText('overlay.html'))
-        : fetchText('overlay.html');
+        ? fetchText(cdnUrl).then(html => initOverlay(html, cdnBase + '/core/'))
+            .catch(() => fetchText('overlay.html').then(html => initOverlay(html)))
+        : fetchText('overlay.html').then(html => initOverlay(html));
 
-    promise.then(initOverlay).catch(e => console.warn('Failed to load overlay:', e));
+    promise.catch(e => console.warn('Failed to load overlay:', e));
 }
 
 // If loaded dynamically (e.g. CDN ZIP), DOMContentLoaded has already fired — run immediately
