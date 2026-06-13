@@ -1,0 +1,38 @@
+name: Version consistency
+# Backstop for the .githooks/pre-commit stamp: fails if the displayed version
+# drifts from VERSION (e.g. a commit made with --no-verify, or the hook not
+# installed). Also checks the README changelog's top entry, which the hook does
+# not touch.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'VERSION'
+      - 'README.md'
+      - 'site/index.html'
+  pull_request:
+    paths:
+      - 'VERSION'
+      - 'README.md'
+      - 'site/index.html'
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check version references agree with VERSION
+        run: |
+          version=$(tr -d ' \t\r\n' < VERSION)
+          h1=$(grep -m1 -oE '^# OpenVGAL v[0-9]+\.[0-9]+\.[0-9]+' README.md | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || true)
+          changelog=$(grep -m1 -oE '^\*\*v[0-9]+\.[0-9]+\.[0-9]+' README.md | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || true)
+          footer=$(grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+ &middot; Open source' site/index.html | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || true)
+          echo "VERSION=$version  H1=$h1  changelog=$changelog  footer=$footer"
+          fail=0
+          for found in "$h1" "$changelog" "$footer"; do
+            if [ "$found" != "$version" ]; then fail=1; fi
+          done
+          if [ "$fail" = "1" ]; then
+            echo "::error::Version drift — VERSION=$version but H1=$h1 changelog=$changelog footer=$footer. Run the bump through VERSION + the pre-commit hook, and add a matching changelog entry."
+            exit 1
+          fi
+          echo "OK — all version references agree on $version"

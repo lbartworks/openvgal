@@ -1,10 +1,10 @@
 https://github.com/lbartworks/openvgal/assets/121262093/517b6b67-7a87-4f2c-8166-b5c9314ff9e9
 
-# OpenVGAL v3.4.2
+# OpenVGAL v3.4.3
 
 Open-source 3D virtual gallery platform built on [Babylon.js](https://www.babylonjs.com/). Create interactive WebGL art galleries from your images, download a ZIP, host it anywhere.
 
-**Website:** [openvgal.com](https://openvgal.com) &nbsp;|&nbsp; **Create a gallery:** [openvgal.com/create](https://openvgal.com/create) &nbsp;|&nbsp; **Live demo:** [nostromophoto.com/virtual](https://nostromophoto.com/virtual/virtual.html)
+**Website:** [openvgal.com](https://openvgal.com) &nbsp;|&nbsp; **Clone of this repository:** [demo.openvgal.com](https://demo.openvgal.com) &nbsp;|&nbsp; **Create a gallery:** [openvgal.com/create](https://openvgal.com/create) &nbsp;|&nbsp; **Live demo:** [nostromophoto.com/virtual](https://nostromophoto.com/virtual/virtual.html)
 
 ![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)
 
@@ -147,6 +147,11 @@ Note: the `file://` protocol will not work in Chrome due to cross-origin iframe 
 ---
 
 ## Changelog
+
+**v3.4.3 (June 2026)**
+- Embed mode (`?embed=1`): the builder hides its own step-3 export summary and relabels the export trigger to "Export gallery", so the host owns the post-export UI
+- Fix the artwork-plaques toggle contrast on the light theme (the label was nearly invisible)
+- Fix overlay icons in CDN / thin-client ZIPs by rewriting icon paths to the CDN base
 
 **v3.4.2 (May 2026)**
 - Pre-3.4 → 3.4 [migration tool](https://openvgal.com/tools/migrate-pre34.html): rescales normalised `width`/`height` in older `building_v2.json` files to real centimetres so they render correctly in the 3.4 viewer

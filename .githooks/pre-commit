@@ -1,0 +1,25 @@
+#!/bin/sh
+# Keep the displayed version in sync with the VERSION file.
+#
+# VERSION is the single source of truth. This hook stamps that number into the
+# two places users see it -- the README title and the landing-page footer -- and
+# stages them, so the committed (git-served) files are always correct without a
+# deploy-time build step. Edit VERSION (and add a changelog line); the hook does
+# the rest. The changelog is authored by hand and is NOT touched here; CI
+# (.github/workflows/version-check.yml) verifies its top entry matches VERSION.
+#
+# Install once per clone:  git config core.hooksPath .githooks
+set -e
+
+root=$(git rev-parse --show-toplevel)
+version=$(tr -d ' \t\r\n' < "$root/VERSION")
+
+# README H1: "# OpenVGAL vX.Y.Z"
+sed -i.bak -E "s/^# OpenVGAL v[0-9]+\.[0-9]+\.[0-9]+/# OpenVGAL v${version}/" "$root/README.md"
+
+# Landing footer: "vX.Y.Z &middot; Open source ..." ( & is literal in the
+# replacement, so it must be escaped as \& )
+sed -i.bak -E "s/v[0-9]+\.[0-9]+\.[0-9]+ &middot; Open source/v${version} \&middot; Open source/" "$root/site/index.html"
+
+rm -f "$root/README.md.bak" "$root/site/index.html.bak"
+git add "$root/README.md" "$root/site/index.html"
