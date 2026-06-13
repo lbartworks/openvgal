@@ -122,7 +122,8 @@
     body.embed-mode #resultSection .section-header,
     body.embed-mode #resultSection .stats,
     body.embed-mode #resultSection details,
-    body.embed-mode #downloadBtn { display: none; }
+    body.embed-mode #downloadBtn,
+    body.embed-mode #downloadZipBtn { display: none; }
     body.embed-mode .page-wrapper { padding-top: 1rem; }
 
     /* --- SECTIONS --- */
@@ -789,9 +790,9 @@
     }
     if (EMBED_MODE) {
       document.body.classList.add('embed-mode');
-      // The button builds + posts the blob to the parent (docs/embed.md);
-      // it never downloads here, so "Download ZIP" would mislead.
-      document.getElementById('downloadZipBtn').lastChild.textContent = 'Export gallery';
+      // The builder's export trigger is hidden in embed mode (docs/embed.md):
+      // the parent owns the save actions and asks for the zip via
+      // openvgal:export-request, rather than the user clicking a button here.
       // Buffer style requests that arrive before the StylePicker catalog loads.
       // selectStyle silently no-ops on unknown keys, so we retry briefly.
       function applyStyleWhenReady(key) {
@@ -808,11 +809,29 @@
         if (!msg || typeof msg !== 'object') return;
         if (msg.type === 'openvgal:configure' && typeof msg.style === 'string') {
           applyStyleWhenReady(msg.style);
+        } else if (msg.type === 'openvgal:export-request') {
+          // Parent clicked a Save action. Run the same zip-build path the
+          // Export button ran; deliverZip posts openvgal:zip-ready back.
+          buildAndDeliverZip();
         }
       });
-      // Tell the parent we're up. Hosts typically wait for this before sending
-      // openvgal:configure.
+      // Post our content height so the parent can size the iframe to fit (no
+      // 100dvh band). Fires on step transitions, customize open/close, etc.
+      var postResize = function() {
+        try {
+          window.parent.postMessage({
+            type: 'openvgal:resize',
+            height: document.documentElement.scrollHeight
+          }, '*');
+        } catch (_) {}
+      };
+      if (typeof ResizeObserver === 'function') {
+        new ResizeObserver(postResize).observe(document.documentElement);
+      }
+      // Tell the parent we're up, then post an initial height. Hosts typically
+      // wait for openvgal:ready before sending openvgal:configure.
       try { window.parent.postMessage({ type: 'openvgal:ready' }, '*'); } catch (_) {}
+      postResize();
     }
 
     // Mount gallery settings panel
@@ -949,8 +968,11 @@
       }
     });
 
-    // ZIP Download - bundles everything needed to deploy
-    downloadZipBtn.addEventListener('click', async function() {
+    // ZIP Download - bundles everything needed to deploy. Triggered by the
+    // Export button (standard mode) or by openvgal:export-request from the
+    // parent (embed mode). deliverZip handles the handoff: browser download in
+    // standard mode, postMessage(openvgal:zip-ready) in embed mode.
+    async function buildAndDeliverZip() {
       if (!generatedJSON) return;
 
       // Open the ready page synchronously inside the click stack so mobile
@@ -974,7 +996,9 @@
       }
 
       downloadZipBtn.disabled = false;
-    });
+    }
+
+    downloadZipBtn.addEventListener('click', buildAndDeliverZip);
 
     async function createAndDownloadZip(config, onProgress) {
       var zip = new JSZip();
@@ -1642,6 +1666,22 @@
       }
 
       jsonPreview.textContent = JSON.stringify(generatedJSON, null, 2);
+
+      // Embed mode: a gallery now exists to export. Tell the parent so it can
+      // enable its save group (docs/embed.md). The parent then drives export
+      // via openvgal:export-request rather than the (hidden) Export button.
+      if (EMBED_MODE) {
+        var sel = StylePicker.getSelected();
+        try {
+          window.parent.postMessage({
+            type: 'openvgal:gallery-ready',
+            count: stats.imageCount,
+            style: sel ? sel.key : null
+          }, '*');
+        } catch (e) {
+          console.warn('Embed mode: failed to post gallery-ready to parent', e);
+        }
+      }
     }
   </script>
 </body>

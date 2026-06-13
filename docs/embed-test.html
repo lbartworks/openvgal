@@ -34,6 +34,7 @@
       preselect style
       <input id="preselect" placeholder="(none)" style="width: 8rem" />
     </label>
+    <button id="export" disabled>Request export</button>
     <button id="reload">Reload iframe</button>
     <button id="clear">Clear log</button>
   </header>
@@ -50,6 +51,7 @@
     const log = document.getElementById('log');
     const modeSel = document.getElementById('mode');
     const preselect = document.getElementById('preselect');
+    const exportBtn = document.getElementById('export');
 
     // Serve this from the repo root via `python -m http.server 8080` and open
     // http://localhost:8080/docs/embed-test.html so the iframe URL resolves.
@@ -81,6 +83,18 @@
         return;
       }
 
+      if (msg.type === 'openvgal:gallery-ready') {
+        entry('openvgal:gallery-ready', 'count: <code>' + msg.count + '</code>, style: <code>' + msg.style + '</code>');
+        // A gallery now exists — the parent's export trigger is meaningful.
+        exportBtn.disabled = false;
+        return;
+      }
+
+      if (msg.type === 'openvgal:resize') {
+        entry('openvgal:resize', 'height: <code>' + msg.height + 'px</code>');
+        return;
+      }
+
       if (msg.type === 'openvgal:zip-ready') {
         const meta = msg.meta || {};
         const sizeKb = msg.zip && msg.zip.size ? (msg.zip.size / 1024).toFixed(1) + ' kB' : '?';
@@ -104,13 +118,18 @@
       entry(msg.type || '(unknown)', '<code>' + JSON.stringify(msg).slice(0, 200) + '</code>');
     });
 
+    exportBtn.addEventListener('click', () => {
+      frame.contentWindow.postMessage({ type: 'openvgal:export-request' }, '*');
+      entry('→ openvgal:export-request', '');
+    });
     document.getElementById('reload').addEventListener('click', () => {
+      exportBtn.disabled = true;
       frame.src = buildSrc();
     });
     document.getElementById('clear').addEventListener('click', () => {
       log.innerHTML = '';
     });
-    modeSel.addEventListener('change', () => { frame.src = buildSrc(); });
+    modeSel.addEventListener('change', () => { exportBtn.disabled = true; frame.src = buildSrc(); });
 
     frame.src = buildSrc();
   </script>

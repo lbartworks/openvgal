@@ -1,6 +1,6 @@
 https://github.com/lbartworks/openvgal/assets/121262093/517b6b67-7a87-4f2c-8166-b5c9314ff9e9
 
-# OpenVGAL v3.4.4
+# OpenVGAL v3.4.5
 
 Open-source 3D virtual gallery platform built on [Babylon.js](https://www.babylonjs.com/). Create interactive WebGL art galleries from your images, download a ZIP, host it anywhere.
 
@@ -147,6 +147,9 @@ Note: the `file://` protocol will not work in Chrome due to cross-origin iframe 
 ---
 
 ## Changelog
+
+**v3.4.5 (June 2026)**
+- Embed mode (`?embed=1`): parent-driven export — the builder hides its own export buttons and exports on `openvgal:export-request`, plus new `openvgal:gallery-ready` and `openvgal:resize` messages (see `docs/embed.md`)
 
 **v3.4.4 (June 2026)**
 - Embed mode (`?embed=1`): hide the step-3 "Show JSON preview" disclosure so the export card hugs its action row (no empty panel under the buttons)
