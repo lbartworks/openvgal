@@ -7,8 +7,9 @@ When `?embed=1` is present:
 - Page chrome (nav, header, deployment info-box, mode switch link, JSON-only
   download) is hidden.
 - The step-3 export summary is hidden too: the "Your gallery is ready"
-  title/badge and the Rooms/Artworks stats block. The host owns the export
-  summary and shows its own (count, size, etc.).
+  title/badge, the Rooms/Artworks stats block, and the "Show JSON preview"
+  disclosure. The host owns the export summary and shows its own (count, size,
+  etc.), so the step-3 card hugs its action row.
 - The export trigger is relabelled from "Download ZIP" to **"Export gallery"**
   (same `#downloadZipBtn` element and handler — label only), because in embed
   mode it does not download. Instead, the ZIP blob is posted to
