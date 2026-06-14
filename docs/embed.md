@@ -18,14 +18,17 @@ When `?embed=1` is present:
   `openvgal:zip-ready`. The host provides the real download.
 - The page does not open the `ready.html` confirmation tab.
 
-Combine with `?cdn=1` (`?embed=1&cdn=1`) to produce the thin-client CDN ZIP
-instead of the self-contained bundle.
+Embed mode always builds the **cloud** flavor (ADR-0008): a kernel-only ZIP of
+`building_v2.json` + the user images at `room/filename` (no leading slash, no
+`images/` segment), with every other asset family (engine, templates, materials)
+referenced rather than bundled. The host uploads this to storage, which keys each
+image as `{artist}/{hall}/{room}/{filename}`. `?cdn=1` has no effect on the export
+in embed mode — the cloud kernel is the only embed delivery.
 
 ## URL
 
 ```
 https://demo.openvgal.com/create/index.html?embed=1
-https://demo.openvgal.com/create/index.html?embed=1&cdn=1
 ```
 
 Self-hosters use the same page without `?embed=1` and see today's behaviour
@@ -110,9 +113,11 @@ group. Re-sent if the user rebuilds.
 ```
 
 Sent in response to each `openvgal:export-request` — one blob per request
-(the export button is hidden in embed mode). The blob is transferred by
-structured clone — no transferable list needed. It reflects the current state
-of the gallery, including any Customize edits made before the request.
+(the export button is hidden in embed mode). The blob is the cloud kernel —
+`building_v2.json` + the user images at `room/filename`, nothing else. It is
+transferred by structured clone (no transferable list needed) and reflects the
+current state of the gallery, including any Customize edits made before the
+request.
 
 ### Parent → child
 
@@ -135,11 +140,10 @@ fields may be added later.
 ```
 
 Asks the child to build the ZIP. Sent when the user clicks a parent-owned Save
-action (e.g. "Save as draft" or "Save local copy"). The child runs the same
-build path the hidden Export button used and replies with `openvgal:zip-ready`.
-Only meaningful after `openvgal:gallery-ready`; if no gallery has been built
-yet the request is a no-op. Combine with `?cdn=1` to get the thin-client CDN
-ZIP as the response.
+action (e.g. "Save as draft" or "Save local copy"). The child builds the cloud
+kernel (`building_v2.json` + images at `room/filename`) and replies with
+`openvgal:zip-ready`. Only meaningful after `openvgal:gallery-ready`; if no
+gallery has been built yet the request is a no-op.
 
 ## Origin handling
 
@@ -164,8 +168,9 @@ It iframes `site/create/index.html?embed=1` and logs the child→parent messages
 `openvgal:zip-ready` plus the blob size). Build a gallery in the iframe; once
 `gallery-ready` arrives the harness enables its **Request export** button, which
 posts `openvgal:export-request` and prompts the child to reply with
-`openvgal:zip-ready` (with a download link to sanity-check the ZIP). Add `&cdn=1`
-to the mode selector to test the CDN-output variant.
+`openvgal:zip-ready` (with a download link to sanity-check the ZIP). The response
+is the cloud kernel — open the ZIP to confirm it holds only `building_v2.json`
+and the images at `room/filename`.
 
 ## Stability
 
