@@ -1,6 +1,6 @@
 https://github.com/lbartworks/openvgal/assets/121262093/517b6b67-7a87-4f2c-8166-b5c9314ff9e9
 
-# OpenVGAL v3.4.6
+# OpenVGAL v3.4.7
 
 Open-source 3D virtual gallery platform built on [Babylon.js](https://www.babylonjs.com/). Create interactive WebGL art galleries from your images, download a ZIP, host it anywhere.
 
@@ -147,6 +147,10 @@ Note: the `file://` protocol will not work in Chrome due to cross-origin iframe 
 ---
 
 ## Changelog
+
+**v3.4.7 (June 2026)**
+- Cinematic visit: fixed camera misalignment — the destination look-at is now computed from the artwork's arrival position (via a save/restore of camera pose), so legs land squarely in front of each artwork instead of accumulating a side-view drift
+- Cinematic visit button is now a white movie-camera icon inline with the ◀/▶ arrows (no more overlap), with an indigo glow while the tour runs
 
 **v3.4.6 (June 2026)**
 - Unified pack builder: one kernel (`building_v2.json` + images at `room/filename`) + a per-flavor step table replaces the separate full/CDN builders; full and CDN ZIPs are unchanged

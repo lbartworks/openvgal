@@ -13,6 +13,18 @@
         <div class="nav-buttons">
             <button class="nav-button" onclick="manual_move_backward()">&#x25C0;</button>
             <button class="nav-button" onclick="manual_move_forward()">&#x25B6;</button>
+            <button class="nav-button cinematic-button" type="button"
+                    title="Cinematic visit" aria-label="Cinematic visit"
+                    onclick="if(typeof CB_cinematic_visit==='function')CB_cinematic_visit()">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none"
+                     stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"
+                     stroke-linecap="round" aria-hidden="true">
+                    <circle cx="6.75" cy="8" r="2.7"/>
+                    <circle cx="11.55" cy="7.6" r="3.2"/>
+                    <rect x="2.75" y="11" width="13" height="8.5" rx="1.8"/>
+                    <polygon points="15.75 13.2 21.25 10.8 21.25 19.7 15.75 17.3"/>
+                </svg>
+            </button>
         </div>
     </div>
     <div class="overlay-section" id="help-section">

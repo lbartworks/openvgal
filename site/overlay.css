@@ -136,9 +136,14 @@
 
 /* Individual button tweaks */
 .nav-button {
-    padding: 5px 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 34px;
+    padding: 0 10px;
     margin: 0 5px;
     font-size: 18px;
+    line-height: 1;
 }
 
 .help-button,
@@ -150,6 +155,21 @@
 .close-button {
     padding: 8px 20px;
     margin-top: 20px;
+}
+
+/* Cinematic visit: white movie-camera icon inline with the ◀/▶ arrows, indigo accent when running */
+.cinematic-button {
+    padding: 0 8px;
+}
+
+.cinematic-button svg {
+    display: block;
+}
+
+.cinematic-button.active {
+    border-color: #6366f1;
+    background-color: rgba(99, 102, 241, 0.3);
+    box-shadow: 0 0 8px rgba(99, 102, 241, 0.6);
 }
 
 /* Special button styles (icon-style) */
