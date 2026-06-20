@@ -139,7 +139,7 @@
             var scene = new BABYLON.Scene(engine);
 
 			//add default camera
-			const camera = new BABYLON.UniversalCamera("camera", new BABYLON.Vector3(0, 1.5, -5), scene);
+			const camera = new BABYLON.UniversalCamera("camera", new BABYLON.Vector3(0, 1.5, 0), scene);
 			camera.attachControl();
 
 			camera.applyGravity = true;
@@ -175,6 +175,121 @@
 			if (debug_scene) {
 				scene.debugLayer.show();
 				}
+
+			// --- SSAO2 (experimental). Enable with ?ssao=1; press K toggles live ---
+			if (new URLSearchParams(window.location.search).has('ssao')
+				&& BABYLON.SSAO2RenderingPipeline.IsSupported) {
+				const ssao = new BABYLON.SSAO2RenderingPipeline(
+					"ssao", scene, { ssaoRatio: 0.75, blurRatio: 1 }, [camera]);
+				ssao.radius = 5;            // world-space sample radius (meters)
+				ssao.totalStrength = 0.25;  // darkness of the occlusion
+				ssao.base = 0.02;           // floor so nothing goes fully black
+				ssao.maxZ = 60;             // depth range to consider
+				ssao.samples = 8;           // fewer samples; blur hides the noise
+				ssao.expensiveBlur = true;  // edge-aware blur keeps it smooth, not blocky
+				window._ssao = ssao;
+				let ssaoOn = true;
+				window.addEventListener("keydown", function (e) {
+					if ((e.key === "k" || e.key === "K") && !e.ctrlKey && !e.altKey && !e.metaKey) {
+						e.preventDefault();
+						ssaoOn = !ssaoOn;
+						const mgr = scene.postProcessRenderPipelineManager;
+						if (ssaoOn) mgr.attachCamerasToRenderPipeline("ssao", camera);
+						else mgr.detachCamerasFromRenderPipeline("ssao", camera);
+						console.log("SSAO2 " + (ssaoOn ? "on" : "off"));
+					}
+				});
+				console.log("SSAO2 enabled");
+
+				// Live tuning panel (only with ?ssao=1)
+				(function () {
+					const panel = document.createElement("div");
+					panel.style.cssText = "position:fixed;top:10px;left:10px;z-index:99999;"
+						+ "background:rgba(0,0,0,0.75);color:#fafafa;font:12px Inter,sans-serif;"
+						+ "padding:10px 12px;border-radius:8px;width:200px;user-select:none;";
+					panel.innerHTML = "<div style='margin-bottom:6px;font-weight:600;'>SSAO &nbsp;<span style='color:#a1a1aa;font-weight:400;'>K=on/off</span></div>";
+					const knobs = [
+						{ prop: "radius",        min: 0.2, max: 8,   step: 0.1 },
+						{ prop: "totalStrength", min: 0,   max: 2,   step: 0.05 },
+						{ prop: "base",          min: 0,   max: 0.6, step: 0.01 },
+					];
+					knobs.forEach(function (k) {
+						const row = document.createElement("label");
+						row.style.cssText = "display:block;margin:6px 0;";
+						const val = document.createElement("span");
+						val.textContent = ssao[k.prop].toFixed(2);
+						val.style.cssText = "float:right;color:#a5b4fc;";
+						const name = document.createElement("span");
+						name.textContent = k.prop;
+						const slider = document.createElement("input");
+						slider.type = "range";
+						slider.min = k.min; slider.max = k.max; slider.step = k.step;
+						slider.value = ssao[k.prop];
+						slider.style.cssText = "width:100%;margin-top:2px;";
+						slider.addEventListener("input", function () {
+							ssao[k.prop] = parseFloat(slider.value);
+							val.textContent = ssao[k.prop].toFixed(2);
+						});
+						row.appendChild(name); row.appendChild(val); row.appendChild(slider);
+						panel.appendChild(row);
+					});
+					document.body.appendChild(panel);
+				})();
+			}
+
+			// --- ACES tonemapping (experimental). Enable with ?tone=1; press T toggles live ---
+			if (new URLSearchParams(window.location.search).has('tone')) {
+				const ip = scene.imageProcessingConfiguration;
+				const TONE = BABYLON.ImageProcessingConfiguration.TONEMAPPING_ACES;
+				ip.toneMappingType = TONE;
+				ip.exposure = 1.0;     // overall brightness scale before the curve
+				ip.contrast = 1.0;     // S-curve contrast applied after tonemapping
+				ip.toneMappingEnabled = true;
+				let toneOn = true;
+				window.addEventListener("keydown", function (e) {
+					if ((e.key === "t" || e.key === "T") && !e.ctrlKey && !e.altKey && !e.metaKey) {
+						e.preventDefault();
+						toneOn = !toneOn;
+						ip.toneMappingEnabled = toneOn;
+						console.log("ACES tonemapping " + (toneOn ? "on" : "off"));
+					}
+				});
+				console.log("ACES tonemapping enabled");
+
+				// Live tuning panel (only with ?tone=1)
+				(function () {
+					const panel = document.createElement("div");
+					panel.style.cssText = "position:fixed;top:10px;right:10px;z-index:99999;"
+						+ "background:rgba(0,0,0,0.75);color:#fafafa;font:12px Inter,sans-serif;"
+						+ "padding:10px 12px;border-radius:8px;width:200px;user-select:none;";
+					panel.innerHTML = "<div style='margin-bottom:6px;font-weight:600;'>Tonemap &nbsp;<span style='color:#a1a1aa;font-weight:400;'>T=on/off</span></div>";
+					const knobs = [
+						{ prop: "exposure", min: 0.2, max: 3, step: 0.05 },
+						{ prop: "contrast", min: 0.5, max: 2, step: 0.05 },
+					];
+					knobs.forEach(function (k) {
+						const row = document.createElement("label");
+						row.style.cssText = "display:block;margin:6px 0;";
+						const val = document.createElement("span");
+						val.textContent = ip[k.prop].toFixed(2);
+						val.style.cssText = "float:right;color:#a5b4fc;";
+						const name = document.createElement("span");
+						name.textContent = k.prop;
+						const slider = document.createElement("input");
+						slider.type = "range";
+						slider.min = k.min; slider.max = k.max; slider.step = k.step;
+						slider.value = ip[k.prop];
+						slider.style.cssText = "width:100%;margin-top:2px;";
+						slider.addEventListener("input", function () {
+							ip[k.prop] = parseFloat(slider.value);
+							val.textContent = ip[k.prop].toFixed(2);
+						});
+						row.appendChild(name); row.appendChild(val); row.appendChild(slider);
+						panel.appendChild(row);
+					});
+					document.body.appendChild(panel);
+				})();
+			}
 
 			// Ctrl+Shift+D toggles the Babylon.js Inspector
 			window.addEventListener("keydown", function (e) {
@@ -252,6 +367,7 @@
 						let temp_assetcontainer=await loadAsset(glb_file, scene);
 						temp_assetcontainer.addAllToScene();
 						setupRoomLighting(scene, config_file_content);
+						setupBakedShadows(scene);
 						freezeGalleryMaterials();
 					} else {
 							glb_file=config_file_content[current_gallery]["template"];
@@ -290,6 +406,7 @@
 							setupRoomLighting(scene, config_file_content);
 							populate_template(config_file_content, current_gallery, scene);
 							console.log("template populated");
+							setupBakedShadows(scene);
 							freezeGalleryMaterials();
 					}
 
@@ -299,6 +416,7 @@
 					galleries[current_gallery]._wasAddedToScene=false;
 					galleries[current_gallery].addAllToScene();
 					setupRoomLighting(scene, config_file_content);
+					setupBakedShadows(scene);
 					freezeGalleryMaterials();
 
 					// Sync plaque visibility with toggle after restoring cached room
@@ -310,7 +428,7 @@
 
 
 				//reset camera position
-				scene.cameras[0].position=new BABYLON.Vector3(0, 1.5, -8);
+				scene.cameras[0].position=new BABYLON.Vector3(0, 1.5, 0);
 
 				//locate doors and artwork to setup the action manager
 				gallery_doors=[];
