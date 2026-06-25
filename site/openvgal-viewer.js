@@ -369,6 +369,7 @@
 						setupRoomLighting(scene, config_file_content);
 						setupBakedShadows(scene);
 						setupConeSplashes(scene);
+						setupLightmapBake(scene);
 						freezeGalleryMaterials();
 					} else {
 							glb_file=config_file_content[current_gallery]["template"];
@@ -409,6 +410,7 @@
 							console.log("template populated");
 							setupBakedShadows(scene);
 							setupConeSplashes(scene);
+							setupLightmapBake(scene);
 							freezeGalleryMaterials();
 					}
 
@@ -420,6 +422,7 @@
 					setupRoomLighting(scene, config_file_content);
 					setupBakedShadows(scene);
 					setupConeSplashes(scene);
+					setupLightmapBake(scene);
 					freezeGalleryMaterials();
 
 					// Sync plaque visibility with toggle after restoring cached room

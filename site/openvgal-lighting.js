@@ -43,6 +43,10 @@ function setupRoomLighting(scene, config) {
 			} else {
 				light.intensity = config["Technical"]["pointLight"];
 			}
+		} else if (light.name.match(/^splash_\d+/)) {
+			// Owned by the cone-splash system: its pose drives the analytic splash,
+			// the runtime light itself stays off (zero-runtime-light design).
+			light.setEnabled(false);
 		} else if (light.name !== 'hemiLight_up' && light.name !== 'hemiLight_down') {
 			light.setEnabled(false);
 			console.log("Lighting: disabled unmanaged light '" + light.name + "')");
@@ -371,9 +375,6 @@ function _buildShadowPanel() {
 // its direction); falls back to the template's marker SpotLight(s) when a
 // room has no F_ fixtures.
 //
-// A baked visibility volume (CPU raycast at load) multiplies the per-fragment
-// cone term to supply low-frequency occlusion — the soft shadow.
-//
 // L toggles; the live panel tunes strength / reach / cone angles.
 // =====================================================================
 var _ovgal_splash = null;
@@ -386,12 +387,11 @@ function _ensureConeSplashClass() {
 
 	_ConeSplashPluginClass = class ConeSplashPlugin extends BABYLON.MaterialPluginBase {
 		constructor(material) {
-			// priority 200: run after the core PBR blocks. ALL defines the plugin
+			// priority 200: run after the core PBR blocks. Every define the plugin
 			// toggles must be declared here — Babylon builds the plugin's
 			// MaterialDefines from this list, and a define set in prepareDefines()
-			// but missing here is never tracked for recompile (the bug that kept
-			// CONEVIS occlusion from ever switching on after the bake).
-			super(material, "ConeSplash", 200, { CONESPLASH: false, CONEVIS: false });
+			// but missing here is never tracked for recompile.
+			super(material, "ConeSplash", 200, { CONESPLASH: false });
 			this._enabled = false;
 			this._enable(true); // keep in pipeline; the CONESPLASH define gates the actual code
 		}
@@ -405,15 +405,9 @@ function _ensureConeSplashClass() {
 
 		prepareDefines(defines) {
 			defines["CONESPLASH"] = this._enabled;
-			// CONEVIS gates the baked-visibility (occlusion) sampling.
-			defines["CONEVIS"] = this._enabled && !!(_ovgal_splash && _ovgal_splash.volReady);
 		}
 
 		getClassName() { return "ConeSplashPlugin"; }
-
-		getSamplers(samplers) {
-			samplers.push("coneVisVolume");
-		}
 
 		getUniforms() {
 			return {
@@ -421,8 +415,6 @@ function _ensureConeSplashClass() {
 					// Both size AND type are required, else the entry is skipped.
 					{ name: "coneSplashGlobals", size: 4, type: "vec4" }, // (count, cosInner, cosOuter, strength)
 					{ name: "coneSplashColor", size: 4, type: "vec4" },   // (r, g, b, maxDist)
-					{ name: "coneVisMin", size: 4, type: "vec4" },        // xyz = volume world min
-					{ name: "coneVisSize", size: 4, type: "vec4" },       // xyz = volume world size
 					{ name: "coneSplashPos", size: 4, type: "vec4", arraySize: CONE_SPLASH_MAX },  // xyz=worldPos, w=weight
 					{ name: "coneSplashAxis", size: 4, type: "vec4", arraySize: CONE_SPLASH_MAX }  // xyz=aim dir
 				],
@@ -430,16 +422,9 @@ function _ensureConeSplashClass() {
 					"#ifdef CONESPLASH\n" +
 					"uniform vec4 coneSplashGlobals;\n" +
 					"uniform vec4 coneSplashColor;\n" +
-					"uniform vec4 coneVisMin;\n" +
-					"uniform vec4 coneVisSize;\n" +
 					"uniform vec4 coneSplashPos[" + CONE_SPLASH_MAX + "];\n" +
 					"uniform vec4 coneSplashAxis[" + CONE_SPLASH_MAX + "];\n" +
 					"#endif\n"
-					// NOTE: the coneVisVolume sampler is declared via getCustomCode's
-					// CUSTOM_FRAGMENT_DEFINITIONS, not here. This `fragment` string is
-					// parsed to fold `uniform` entries into the Material UBO, which
-					// silently drops a sampler declaration (samplers can't live in a
-					// UBO) → "undeclared identifier coneVisVolume".
 			};
 		}
 
@@ -448,14 +433,6 @@ function _ensureConeSplashClass() {
 			var s = _ovgal_splash;
 			uniformBuffer.updateFloat4("coneSplashGlobals", s.count, s.cosInner, s.cosOuter, s.strength);
 			uniformBuffer.updateFloat4("coneSplashColor", s.color.r, s.color.g, s.color.b, s.maxDist);
-			if (s.volReady) {
-				uniformBuffer.updateFloat4("coneVisMin", s.volMin.x, s.volMin.y, s.volMin.z, 0.0);
-				uniformBuffer.updateFloat4("coneVisSize", s.volSize.x, s.volSize.y, s.volSize.z, 0.0);
-				uniformBuffer.setTexture("coneVisVolume", s.volTexture);
-			} else {
-				uniformBuffer.updateFloat4("coneVisMin", 0.0, 0.0, 0.0, 0.0);
-				uniformBuffer.updateFloat4("coneVisSize", 1.0, 1.0, 1.0, 0.0);
-			}
 			uniformBuffer.updateFloatArray("coneSplashPos", s.posArray);
 			uniformBuffer.updateFloatArray("coneSplashAxis", s.axisArray);
 		}
@@ -463,10 +440,6 @@ function _ensureConeSplashClass() {
 		getCustomCode(shaderType) {
 			if (shaderType !== "fragment") return null;
 			return {
-				"CUSTOM_FRAGMENT_DEFINITIONS":
-					"#ifdef CONEVIS\n" +
-					"uniform highp sampler3D coneVisVolume;\n" +
-					"#endif\n",
 				"CUSTOM_FRAGMENT_BEFORE_FRAGCOLOR":
 					"#ifdef CONESPLASH\n" +
 					"{\n" +
@@ -484,13 +457,6 @@ function _ensureConeSplashClass() {
 					"    float csNdl = max(0.0, dot(csN, -csDir));\n" +
 					"    csAccum += coneSplashPos[ci].w * csCone * csRadial * csNdl;\n" +
 					"  }\n" +
-					"#ifdef CONEVIS\n" +
-					"  vec3 csUVW = (vPositionW - coneVisMin.xyz) / coneVisSize.xyz;\n" +
-					"  if (csUVW.x >= 0.0 && csUVW.y >= 0.0 && csUVW.z >= 0.0 &&\n" +
-					"      csUVW.x <= 1.0 && csUVW.y <= 1.0 && csUVW.z <= 1.0) {\n" +
-					"    csAccum *= texture(coneVisVolume, csUVW).r;\n" +
-					"  }\n" +
-					"#endif\n" +
 					"  finalColor.rgb += csAccum * coneSplashColor.rgb * coneSplashGlobals.w;\n" +
 					"}\n" +
 					"#endif\n"
@@ -504,6 +470,7 @@ function _ensureConeSplashClass() {
 function _collectConesFromFixtures(scene) {
 	var posArray = new Float32Array(CONE_SPLASH_MAX * 4);
 	var axisArray = new Float32Array(CONE_SPLASH_MAX * 4);
+	var lights = [];   // per-cone { pos, dir } for the shadow bake
 	var count = 0;
 
 	function parseCoord(s) {
@@ -531,22 +498,27 @@ function _collectConesFromFixtures(scene) {
 		var b = count * 4;
 		posArray[b] = pos.x; posArray[b + 1] = pos.y - 0.2; posArray[b + 2] = pos.z; posArray[b + 3] = 1.0;
 		axisArray[b] = axis.x; axisArray[b + 1] = axis.y; axisArray[b + 2] = axis.z; axisArray[b + 3] = 0.0;
+		lights.push({ pos: new BABYLON.Vector3(pos.x, pos.y - 0.2, pos.z), dir: axis.clone() });
 		count++;
 	}
 
-	return { posArray: posArray, axisArray: axisArray, count: count };
+	return { posArray: posArray, axisArray: axisArray, lights: lights, count: count };
 }
 
-// Fallback cone source when a room has no F_ fixtures: the template's marker
-// SpotLight(s). Cone origin = spot world position, cone axis = spot world
-// direction. Static, so the visibility volume bakes once at load.
-function _collectConesFromSpotLights(scene) {
+// Cone source from glTF SpotLights. With nameFilter (e.g. /^splash_\d+/) it
+// selects only the explicitly-authored splash spots; without it, any spot (the
+// template's marker). Cone origin = spot world position, axis = spot world
+// direction — both resolved by Babylon's glTF loader, so no manual handedness
+// math. Static, so the visibility volume bakes once at load.
+function _collectConesFromSpotLights(scene, nameFilter) {
 	var posArray = new Float32Array(CONE_SPLASH_MAX * 4);
 	var axisArray = new Float32Array(CONE_SPLASH_MAX * 4);
+	var lights = [];   // per-cone { pos, dir } for the shadow bake
 	var count = 0;
 
 	var spots = scene.lights.filter(function (l) {
-		return l.getClassName && l.getClassName() === "SpotLight";
+		return l.getClassName && l.getClassName() === "SpotLight"
+			&& (!nameFilter || nameFilter.test(l.name));
 	});
 	for (var i = 0; i < spots.length && count < CONE_SPLASH_MAX; i++) {
 		var spot = spots[i];
@@ -563,10 +535,11 @@ function _collectConesFromSpotLights(scene) {
 		var b = count * 4;
 		posArray[b] = pos.x; posArray[b + 1] = pos.y; posArray[b + 2] = pos.z; posArray[b + 3] = 1.0;
 		axisArray[b] = dir.x; axisArray[b + 1] = dir.y; axisArray[b + 2] = dir.z; axisArray[b + 3] = 0.0;
+		lights.push({ pos: pos.clone(), dir: dir.clone() });
 		count++;
 	}
 
-	return { posArray: posArray, axisArray: axisArray, count: count };
+	return { posArray: posArray, axisArray: axisArray, lights: lights, count: count };
 }
 
 // Which materials get a cone-splash plugin: wall-ish PBR surfaces only.
@@ -605,11 +578,18 @@ function _registerConeSplashPlugin() {
 function setupConeSplashes(scene) {
 	if (!_ovgal_splash_registered) return; // flag off, or no plugin support
 
-	var cones = _collectConesFromFixtures(scene);
-	var coneSource = "F_ fixtures";
+	// Primary: explicitly-authored `splash_N` glTF SpotLights (the GLB authoring
+	// convention — position + direction from the node, cone params still global).
+	var cones = _collectConesFromSpotLights(scene, /^splash_\d+/);
+	var coneSource = "splash_N spots";
 
-	// No authored fixtures (e.g. the root gallery) → use the template's marker
-	// SpotLight as the cone reference. Static cone = bakeable occlusion.
+	// Else legacy F_ fixtures (direction packed in the mesh name).
+	if (cones.count === 0) {
+		cones = _collectConesFromFixtures(scene);
+		if (cones.count > 0) coneSource = "F_ fixtures";
+	}
+
+	// Else the template's marker SpotLight (e.g. the root gallery).
 	if (cones.count === 0) {
 		cones = _collectConesFromSpotLights(scene);
 		if (cones.count > 0) coneSource = "template spot light";
@@ -623,12 +603,6 @@ function setupConeSplashes(scene) {
 			innerDeg: 12.0,
 			outerDeg: 28.0,
 			color: { r: 1.0, g: 0.96, b: 0.88 },
-			// Visibility volume (occlusion)
-			volReady: false,
-			volTexture: null,
-			volMin: null,
-			volSize: null,
-			volRes: { x: 24, y: 12, z: 24 },
 			plugins: []
 		};
 		window._splash = _ovgal_splash;
@@ -665,10 +639,6 @@ function setupConeSplashes(scene) {
 		_buildSplashPanel();
 		_ovgal_splash.uiBuilt = true;
 	}
-
-	// Cone sources are static (fixtures / template spot) → bake the visibility
-	// volume once now; the wall shader samples it for low-frequency occlusion.
-	_bakeVisibilityVolume();
 }
 
 function _refreshSplashAngles() {
@@ -680,100 +650,6 @@ function _refreshSplashAngles() {
 function _setSplashEnabled(on) {
 	_ovgal_splash.enabled = on;
 	_ovgal_splash.plugins.forEach(function (p) { p.isEnabled = on; });
-}
-
-function _markSplashDefinesDirty() {
-	_ovgal_splash.plugins.forEach(function (p) { p.markAllDefinesAsDirty(); });
-}
-
-// Bake the visibility (occlusion) volume: for each grid cell, raycast toward
-// the cone origins; a cell is "lit" if ANY cone reaches it unobstructed. The
-// wall fragment later samples this by world position, so an occluder between
-// a bulb and the wall darkens the splash there — the soft shadow. CPU pass,
-// run once at load (cone sources are static).
-function _bakeVisibilityVolume() {
-	var s = _ovgal_splash;
-	var scene = s.scene;
-	if (!scene || s.count === 0) { console.warn("Cone splash: nothing to bake"); return; }
-	var t0 = (window.performance && performance.now) ? performance.now() : Date.now();
-
-	// 1) Room AABB from structural meshes (also the occluder set).
-	var minX = Infinity, minY = Infinity, minZ = Infinity;
-	var maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
-	var occluders = [];
-	scene.meshes.forEach(function (m) {
-		if (!m.isVisible || !m.getTotalVertices || m.getTotalVertices() === 0) return;
-		if (m.name.match(/^Occupancy_/) || m.name === 'door_title' || m.name.match(/^F_\d/)) return;
-		m.computeWorldMatrix(true);
-		var bb = m.getBoundingInfo().boundingBox;
-		minX = Math.min(minX, bb.minimumWorld.x); minY = Math.min(minY, bb.minimumWorld.y); minZ = Math.min(minZ, bb.minimumWorld.z);
-		maxX = Math.max(maxX, bb.maximumWorld.x); maxY = Math.max(maxY, bb.maximumWorld.y); maxZ = Math.max(maxZ, bb.maximumWorld.z);
-		occluders.push(m);
-	});
-	if (!isFinite(minX)) { console.warn("Cone splash: no geometry to bound the volume"); return; }
-	var pad = 0.5;
-	minX -= pad; minY -= pad; minZ -= pad; maxX += pad; maxY += pad; maxZ += pad;
-	var sizeX = maxX - minX, sizeY = maxY - minY, sizeZ = maxZ - minZ;
-
-	// 2) Cone origins + per-cell raycast occlusion.
-	var origins = [];
-	for (var c = 0; c < s.count; c++) {
-		origins.push(new BABYLON.Vector3(s.posArray[c * 4], s.posArray[c * 4 + 1], s.posArray[c * 4 + 2]));
-	}
-	var R = s.volRes;
-	var data = new Uint8Array(R.x * R.y * R.z);
-	var bias = 0.05;
-	var predicate = function (m) { return occluders.indexOf(m) !== -1; };
-	var ray = new BABYLON.Ray(BABYLON.Vector3.Zero(), new BABYLON.Vector3(0, 0, 1), 1);
-	var picks = 0;
-
-	for (var z = 0; z < R.z; z++) {
-		for (var y = 0; y < R.y; y++) {
-			for (var x = 0; x < R.x; x++) {
-				var px = minX + (x + 0.5) / R.x * sizeX;
-				var py = minY + (y + 0.5) / R.y * sizeY;
-				var pz = minZ + (z + 0.5) / R.z * sizeZ;
-				var vis = 0;
-				for (var oi = 0; oi < origins.length; oi++) {
-					var dx = origins[oi].x - px, dy = origins[oi].y - py, dz = origins[oi].z - pz;
-					var dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-					if (dist < 1e-3) { vis = 1; break; }
-					ray.origin.copyFromFloats(px, py, pz);
-					ray.direction.copyFromFloats(dx / dist, dy / dist, dz / dist);
-					ray.length = dist - bias;
-					picks++;
-					var hit = scene.pickWithRay(ray, predicate, true);
-					if (!(hit && hit.hit)) { vis = 1; break; } // unobstructed → lit
-				}
-				data[x + y * R.x + z * R.x * R.y] = vis ? 255 : 0;
-			}
-		}
-	}
-
-	// How much of the volume is in shadow. 0 occluded = nothing can cast a
-	// shadow (cone aimed into open space / no occluder in the beam), so any
-	// "no shadow" symptom is the scene/aim, not the sampling path.
-	var occluded = 0;
-	for (var di = 0; di < data.length; di++) { if (data[di] === 0) occluded++; }
-
-	// 3) R8 trilinear 3D texture (clamped).
-	var fmt = (BABYLON.Constants && BABYLON.Constants.TEXTUREFORMAT_R != null) ? BABYLON.Constants.TEXTUREFORMAT_R : BABYLON.Engine.TEXTUREFORMAT_R;
-	var typ = (BABYLON.Constants && BABYLON.Constants.TEXTURETYPE_UNSIGNED_BYTE != null) ? BABYLON.Constants.TEXTURETYPE_UNSIGNED_BYTE : BABYLON.Engine.TEXTURETYPE_UNSIGNED_BYTE;
-	if (s.volTexture) s.volTexture.dispose();
-	var tex = new BABYLON.RawTexture3D(data, R.x, R.y, R.z, fmt, scene, false, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, typ);
-	tex.wrapU = tex.wrapV = tex.wrapR = BABYLON.Texture.CLAMP_ADDRESSMODE;
-	s.volTexture = tex;
-	s.volMin = { x: minX, y: minY, z: minZ };
-	s.volSize = { x: sizeX, y: sizeY, z: sizeZ };
-	s.volReady = true;
-
-	// 4) Recompile wall shaders to switch CONEVIS on.
-	_markSplashDefinesDirty();
-
-	var dt = ((window.performance && performance.now) ? performance.now() : Date.now()) - t0;
-	console.log("Cone splash: baked visibility volume " + R.x + "x" + R.y + "x" + R.z +
-		" (" + (R.x * R.y * R.z) + " cells, " + occluded + " occluded, " + origins.length +
-		" cones, " + picks + " picks) in " + dt.toFixed(0) + " ms");
 }
 
 function _bindSplashToggle() {
@@ -794,6 +670,7 @@ function _buildSplashPanel() {
 		+ "padding:10px 12px;border-radius:8px;width:200px;user-select:none;";
 	panel.innerHTML = "<div style='margin-bottom:6px;font-weight:600;'>Cone splash &nbsp;<span style='color:#a1a1aa;font-weight:400;'>L=on/off</span></div>";
 
+	// All sliders are live: the cone splash is fully analytic, no bake to commit.
 	function addSlider(label, min, max, step, get, set) {
 		var row = document.createElement("label");
 		row.style.cssText = "display:block;margin:6px 0;";
@@ -824,9 +701,792 @@ function _buildSplashPanel() {
 	addSlider("inner angle", 1, 45, 0.5,
 		function () { return s.innerDeg; },
 		function (v) { s.innerDeg = v; _refreshSplashAngles(); });
-	addSlider("outer angle", 2, 60, 0.5,
+	addSlider("outer angle", 2, 90, 0.5,
 		function () { return s.outerDeg; },
 		function (v) { s.outerDeg = v; _refreshSplashAngles(); });
 
 	document.body.appendChild(panel);
+}
+
+// =====================================================================
+// Startup lightmap bake (Lightmap V3) — EXPERIMENTAL. Enable with ?bake=1.
+// Bakes the contribution of every spot light into a per-mesh UV2 lightmap
+// at load time, then displays it. Same spot sources as the cone-splash
+// (splash_N spots → F_ fixtures → template spot), same analytic cone math,
+// so the look is consistent — but baked into texels instead of evaluated
+// per-fragment, which is what lets us later fold in shadows + many lights
+// for ~zero per-frame cost.
+//
+// Technique: a bake ShaderMaterial whose VERTEX shader writes UV2 as clip
+// position (uv2*2-1), so each mesh rasterizes into its own 0..1 lightmap;
+// the FRAGMENT shader evaluates the spots at the interpolated world pos and
+// writes irradiance to a half-float RTT (float = no banding when many
+// lights accumulate). Per-mesh UV2 → one RTT per mesh → the mesh's shared
+// GLB material is CLONED so each can carry its own map.
+//
+// PHASE 3 (this): per-light shadows folded into the bake. The single-pass
+// "loop all spots" shader is replaced by ONE render pass per light into a
+// ping-pong pair of half-float RTTs: each pass reads the previous accumulation,
+// adds this light's cone contribution MULTIPLIED by a shadow term sampled from
+// that light's depth map, and writes the sum. Hemispheric ambient is folded
+// into the first pass. B toggles the baked view on/off.
+//
+// Shadows use our own depth map per light (linear distance from the light,
+// stored in meters) rendered with a custom depth ShaderMaterial — no dependence
+// on Babylon's internal shadow-map encoding. The light view-projection used to
+// render each depth map is the SAME matrix sampled in the bake, so the convention
+// is self-consistent regardless of handedness / NDC depth range.
+// =====================================================================
+var _ovgal_bake = null;
+
+// Fixed shadow frustum: wide enough to cover any tuned cone angle, so the angle
+// sliders never force a depth-map re-render. Only the resolution slider rebuilds.
+var BAKE_SHADOW_FOV = 110 * Math.PI / 180;
+var BAKE_SHADOW_NEAR = 0.2;
+var BAKE_SHADOW_FAR = 50.0;
+
+// Ambient occlusion (voxel ray-march). The room is voxelized into a coarse solid
+// occupancy grid; per surface texel we trace short rays over the hemisphere and
+// darken where nearby geometry blocks them. Unlike external depth maps, this sees
+// interior objects (the bench, the backs of frames), so it produces real contact
+// shadows — corners, skirting, and a pool under the bench — not flat fill.
+var BAKE_AO_GRID = 96;    // voxels along the room's longest axis (cubic voxels)
+var BAKE_AO_BUF = 256;    // per-mesh AO buffer resolution (AO is low-frequency)
+var BAKE_AO_DIRS = 24;    // hemisphere sample rays (sphere dirs, back hemisphere culled)
+var BAKE_AO_STEPS = 24;   // max march steps per ray (capped by radius)
+var BAKE_AO_SS = 6;       // supersample: re-march the ray set rotated by N stratified angles, averaged
+var _bakeAoDirsCache = null;
+
+// Evenly distributed unit directions (Fibonacci sphere). Built lazily — BABYLON
+// isn't guaranteed loaded at module-parse time, so we keep plain {x,y,z} objects.
+function _bakeAODirs() {
+	if (_bakeAoDirsCache) return _bakeAoDirsCache;
+	var dirs = [];
+	var n = BAKE_AO_DIRS;
+	var ga = Math.PI * (3 - Math.sqrt(5));   // golden angle
+	for (var i = 0; i < n; i++) {
+		var y = 1 - (i + 0.5) / n * 2;       // 1 .. -1
+		var r = Math.sqrt(Math.max(0, 1 - y * y));
+		var phi = i * ga;
+		dirs.push({ x: Math.cos(phi) * r, y: y, z: Math.sin(phi) * r });
+	}
+	_bakeAoDirsCache = dirs;
+	return dirs;
+}
+
+function _refreshBakeAngles() {
+	var b = _ovgal_bake;
+	b.cosInner = Math.cos(b.innerDeg * Math.PI / 180);
+	b.cosOuter = Math.cos(b.outerDeg * Math.PI / 180);
+}
+
+// Define the bake ShaderMaterial once. Vertex remaps UV2 -> clip space so the
+// mesh draws into its lightmap; fragment evaluates ONE light (cone * shadow) and
+// adds it to the previous accumulation read back from prevTex (ping-pong).
+function _ensureBakeMaterial(scene) {
+	if (_ovgal_bake.material) return;
+
+	BABYLON.Effect.ShadersStore["ovgalBakeVertexShader"] =
+		"precision highp float;\n" +
+		"attribute vec3 position;\n" +
+		"attribute vec3 normal;\n" +
+		"attribute vec2 uv2;\n" +
+		"uniform mat4 world;\n" +
+		"varying vec3 vPositionW;\n" +
+		"varying vec3 vNormalW;\n" +
+		"varying vec2 vUV2;\n" +
+		"void main(void){\n" +
+		"  vec4 wp = world * vec4(position, 1.0);\n" +
+		"  vPositionW = wp.xyz;\n" +
+		"  vNormalW = normalize((world * vec4(normal, 0.0)).xyz);\n" +
+		"  vUV2 = uv2;\n" +                     // sample the previous accumulation at the same texel
+		"  vec2 clip = uv2 * 2.0 - 1.0;\n" +    // 0..1 lightmap UV -> NDC; flip Y here if the bake reads upside down
+		"  gl_Position = vec4(clip, 0.0, 1.0);\n" +
+		"}\n";
+
+	BABYLON.Effect.ShadersStore["ovgalBakeFragmentShader"] =
+		"precision highp float;\n" +
+		"varying vec3 vPositionW;\n" +
+		"varying vec3 vNormalW;\n" +
+		"varying vec2 vUV2;\n" +
+		"uniform vec4 bakeGlobals;\n" +    // x=cosInner, y=cosOuter, z=intensity, w=maxDist (reach)
+		"uniform vec4 bakeColor;\n" +      // rgb=light color
+		"uniform vec4 bakeAmbient;\n" +    // x=hemi intensity up, y=hemi intensity down (white, ground=black)
+		"uniform vec4 bakeLight;\n" +      // xyz=this light world pos
+		"uniform vec4 bakeAxis0;\n" +      // xyz=this light aim dir
+		"uniform vec4 shadowParams;\n" +   // x=darkness, y=bias(m), z=isFirstPass, w=texelSize
+		"uniform mat4 lightMatrix;\n" +    // this light view-projection (for the shadow UV)
+		"uniform vec4 aoParams;\n" +       // x = AO strength (0=off, 1=full)
+		"uniform sampler2D prevTex;\n" +   // previous accumulation (ping-pong)
+		"uniform sampler2D shadowSampler;\n" + // this light's depth map (linear meters in .r)
+		"uniform sampler2D aoSampler;\n" + // this mesh's baked AO (.r = AO, .g = 1)
+		"float sampleShadow(vec3 P, float ndl){\n" +
+		"  vec4 sc = lightMatrix * vec4(P, 1.0);\n" +
+		"  if (sc.w <= 0.0) return 1.0;\n" +
+		"  vec2 uv = (sc.xy / sc.w) * 0.5 + 0.5;\n" +
+		"  if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) return 1.0;\n" +
+		"  float cur = length(P - bakeLight.xyz);\n" +
+		// Slope-scaled bias: a surface the light grazes (small ndl) has steep depth
+		// gradients across a depth texel, so a constant bias can't prevent self-acne.
+		// Scale the bias up toward grazing angles. Head-on (ndl=1) -> base bias.
+		"  float bias = shadowParams.y * (1.0 + 6.0 * (1.0 - clamp(ndl, 0.0, 1.0)));\n" +
+		"  float t = shadowParams.w;\n" +
+		"  float sh = 0.0;\n" +
+		"  for (int dx = -1; dx <= 1; dx++){\n" +
+		"    for (int dy = -1; dy <= 1; dy++){\n" +
+		"      float stored = texture2D(shadowSampler, uv + vec2(float(dx), float(dy)) * t).r;\n" +
+		"      sh += (cur - bias > stored) ? 0.0 : 1.0;\n" +
+		"    }\n" +
+		"  }\n" +
+		"  sh /= 9.0;\n" +
+		"  return mix(shadowParams.x, 1.0, sh);\n" +   // occluded -> darkness, lit -> 1
+		"}\n" +
+		"void main(void){\n" +
+		"  vec3 N = normalize(vNormalW);\n" +
+		"  vec3 L = vPositionW - bakeLight.xyz;\n" +
+		"  float dist = length(L);\n" +
+		"  vec3 dir = L / max(dist, 1e-4);\n" +
+		"  float ang = dot(dir, bakeAxis0.xyz);\n" +
+		"  float cone = smoothstep(bakeGlobals.y, bakeGlobals.x, ang);\n" +
+		"  float radial = 1.0 - smoothstep(0.0, bakeGlobals.w, dist);\n" +
+		"  float ndl = max(dot(N, -dir), 0.0);\n" +
+		"  float occ = sampleShadow(vPositionW, ndl);\n" +
+		"  vec3 lit = vec3(cone * radial * ndl) * bakeColor.rgb * bakeGlobals.z * occ;\n" +
+		"  vec3 prev;\n" +
+		"  if (shadowParams.z > 0.5){\n" +
+		"    // first pass: no previous buffer; seed with the baked-in hemi ambient,\n" +
+		"    // darkened by baked AO (geometry boxing the point in -> less ambient).\n" +
+		"    float hemi = (N.y * 0.5 + 0.5) * bakeAmbient.x\n" +
+		"               + (-N.y * 0.5 + 0.5) * bakeAmbient.y;\n" +
+		"    vec2 ao2 = texture2D(aoSampler, vUV2).rg;\n" +
+		"    float ao = ao2.y > 0.0 ? clamp(ao2.x / ao2.y, 0.0, 1.0) : 1.0;\n" +
+		"    float aoF = mix(1.0, ao, aoParams.x);\n" +
+		"    prev = vec3(hemi * aoF);\n" +
+		"  } else {\n" +
+		"    prev = texture2D(prevTex, vUV2).rgb;\n" +
+		"  }\n" +
+		"  gl_FragColor = vec4(prev + lit, 1.0);\n" +
+		"}\n";
+
+	var mat = new BABYLON.ShaderMaterial("ovgalBake", scene,
+		{ vertex: "ovgalBake", fragment: "ovgalBake" },
+		{
+			attributes: ["position", "normal", "uv2"],
+			uniforms: ["world", "bakeGlobals", "bakeColor", "bakeAmbient", "bakeLight",
+				"bakeAxis0", "shadowParams", "lightMatrix", "aoParams"],
+			samplers: ["prevTex", "shadowSampler", "aoSampler"]
+		});
+	// Texture-space winding is arbitrary, so never cull or we drop texels.
+	mat.backFaceCulling = false;
+	_ovgal_bake.material = mat;
+}
+
+// Custom depth material: writes linear distance (meters) from the light to the
+// fragment. We supply the light view-projection directly (lightVP uniform), so
+// the depth render is independent of any camera projection/handedness.
+function _ensureDepthMaterial(scene) {
+	if (_ovgal_bake.depthMat) return;
+
+	BABYLON.Effect.ShadersStore["ovgalBakeDepthVertexShader"] =
+		"precision highp float;\n" +
+		"attribute vec3 position;\n" +
+		"uniform mat4 world;\n" +
+		"uniform mat4 lightVP;\n" +
+		"varying vec3 vDw;\n" +
+		"void main(void){\n" +
+		"  vec4 wp = world * vec4(position, 1.0);\n" +
+		"  vDw = wp.xyz;\n" +
+		"  gl_Position = lightVP * wp;\n" +
+		"}\n";
+
+	BABYLON.Effect.ShadersStore["ovgalBakeDepthFragmentShader"] =
+		"precision highp float;\n" +
+		"varying vec3 vDw;\n" +
+		"uniform vec4 lightInfo;\n" +   // xyz = light world pos
+		"void main(void){\n" +
+		"  float d = length(vDw - lightInfo.xyz);\n" +
+		"  gl_FragColor = vec4(d, d, d, 1.0);\n" +
+		"}\n";
+
+	var mat = new BABYLON.ShaderMaterial("ovgalBakeDepth", scene,
+		{ vertex: "ovgalBakeDepth", fragment: "ovgalBakeDepth" },
+		{ attributes: ["position"], uniforms: ["world", "lightVP", "lightInfo"] });
+	_ovgal_bake.depthMat = mat;
+}
+
+// AO material (voxel ray-march). Reuses the bake vertex (rasterizes the mesh into
+// its own UV2 buffer). The fragment, for each texel's world position + normal,
+// traces a few short hemisphere rays through the room's occupancy grid (a flat-3D
+// atlas in a single 2D texture) and writes ambient occlusion = 1 - blocked fraction.
+// One pass per mesh, no ping-pong: the result is AO in .r (and 1 in .g so the main
+// bake's existing ao = .r/.g read keeps working).
+function _ensureAOMaterials(scene) {
+	if (_ovgal_bake.aoMat) return;
+
+	BABYLON.Effect.ShadersStore["ovgalAOFragmentShader"] =
+		"precision highp float;\n" +
+		"varying vec3 vPositionW;\n" +
+		"varying vec3 vNormalW;\n" +
+		"uniform vec3 aoDirs[" + BAKE_AO_DIRS + "];\n" + // hemisphere sample rays (sphere set)
+		"uniform vec4 aoParams;\n" +   // x=radius(m), y=normalOffset(m), z=voxelSize(m), w=stepLen(m)
+		"uniform vec3 gridMin;\n" +    // world-space corner of the occupancy grid
+		"uniform vec4 gridN;\n" +      // xyz = voxel counts per axis
+		"uniform vec4 gridTile;\n" +   // x=tilesX, y=tilesY, z=texW, w=texH (Z-slice atlas layout)
+		"uniform sampler2D aoGrid;\n" +
+		// Sample the flat-3D occupancy atlas at world point P: 1.0 if that voxel is solid.
+		"float sampleGrid(vec3 P){\n" +
+		"  vec3 vc = floor((P - gridMin) / aoParams.z);\n" +
+		"  if (vc.x < 0.0 || vc.y < 0.0 || vc.z < 0.0 ||\n" +
+		"      vc.x >= gridN.x || vc.y >= gridN.y || vc.z >= gridN.z) return 0.0;\n" +
+		"  float tx = mod(vc.z, gridTile.x);\n" +              // which Z-slice tile
+		"  float ty = floor(vc.z / gridTile.x);\n" +
+		"  float px = tx * gridN.x + vc.x + 0.5;\n" +
+		"  float py = ty * gridN.y + vc.y + 0.5;\n" +
+		"  return texture2D(aoGrid, vec2(px / gridTile.z, py / gridTile.w)).r;\n" +
+		"}\n" +
+		// Per-texel base angle: any banding left after the supersample averages then
+		// decorrelates between neighbours (faint noise instead of coherent rings).
+		"float hash12(vec2 p){\n" +
+		"  vec3 p3 = fract(vec3(p.xyx) * 0.1031);\n" +
+		"  p3 += dot(p3, p3.yzx + 33.33);\n" +
+		"  return fract((p3.x + p3.y) * p3.z);\n" +
+		"}\n" +
+		"void main(void){\n" +
+		"  vec3 N = normalize(vNormalW);\n" +
+		"  vec3 P0 = vPositionW + N * aoParams.y;\n" +   // lift off surface to skip its own voxel
+		"  float base = hash12(gl_FragCoord.xy) * 6.2831853;\n" +
+		"  float aoSum = 0.0;\n" +
+		// Supersample (ssao's per-sample-rotation trick, baked): re-march the SAME
+		// hemisphere set rotated about N by BAKE_AO_SS stratified angles, then average.
+		// Rotation preserves dot(N,d), so weights and contact behaviour are identical;
+		// it only sweeps each ray's azimuth, so the voxel/direction quantization that
+		// bands at large radius lands somewhere different per rotation and averages
+		// into a smooth gradient. The march itself is untouched.
+		"  for (int j = 0; j < " + BAKE_AO_SS + "; j++){\n" +
+		"    float ang = base + 6.2831853 * float(j) / float(" + BAKE_AO_SS + ");\n" +
+		"    float ca = cos(ang); float sa = sin(ang);\n" +
+		"    float occ = 0.0;\n" +
+		"    float sw = 0.0;\n" +
+		"    for (int i = 0; i < " + BAKE_AO_DIRS + "; i++){\n" +
+		"      vec3 d0 = aoDirs[i];\n" +
+		"      float w = dot(N, d0);\n" +
+		"      if (w > 0.0){\n" +                         // only the surface's own hemisphere
+		"        sw += w;\n" +
+		"        vec3 d = d0 * ca + cross(N, d0) * sa + N * w * (1.0 - ca);\n" +  // Rodrigues rot about N
+		"        for (int s = 1; s <= " + BAKE_AO_STEPS + "; s++){\n" +
+		"          float t = aoParams.w * float(s);\n" +
+		"          if (t > aoParams.x) break;\n" +        // past the AO radius -> open
+		"          if (sampleGrid(P0 + d * t) > 0.5){ occ += w; break; }\n" +  // blocked
+		"        }\n" +
+		"      }\n" +
+		"    }\n" +
+		"    aoSum += (sw > 0.0) ? clamp(1.0 - occ / sw, 0.0, 1.0) : 1.0;\n" +
+		"  }\n" +
+		"  float ao = aoSum / float(" + BAKE_AO_SS + ");\n" +
+		"  gl_FragColor = vec4(ao, 1.0, 0.0, 1.0);\n" +
+		"}\n";
+
+	var amat = new BABYLON.ShaderMaterial("ovgalAO", scene,
+		{ vertex: "ovgalBake", fragment: "ovgalAO" },
+		{
+			attributes: ["position", "normal", "uv2"],
+			uniforms: ["world", "aoDirs", "aoParams", "gridMin", "gridN", "gridTile"],
+			samplers: ["aoGrid"]
+		});
+	// Texture-space winding is arbitrary, so never cull or we drop texels.
+	amat.backFaceCulling = false;
+	_ovgal_bake.aoMat = amat;
+}
+
+// Build (or rebuild) one depth map per light. Each is rendered once from the
+// light's POV with the depth material, then sampled in the bake. Independent of
+// the tuning sliders, so this only runs on first bake + resolution change.
+function _buildShadowMaps(scene) {
+	var b = _ovgal_bake;
+
+	// Dispose any previous maps (resolution change).
+	if (b.shadowMaps) b.shadowMaps.forEach(function (m) { m.dispose(); });
+	b.shadowMaps = [];
+	b.lightVP = [];
+
+	// Casters = the same room surfaces the bake covers (skip helpers). Keep them
+	// always-active so the light-POV render isn't culled by the user camera.
+	var casters = scene.meshes.filter(function (m) {
+		if (!m.isVisible) return false;
+		if (m.name.match(/^Occupancy_/) || m.name === 'door_title') return false;
+		return true;
+	});
+	casters.forEach(function (m) { m.alwaysSelectAsActiveMesh = true; });
+
+	var lh = !scene.useRightHandedSystem;
+
+	for (var k = 0; k < b.lights.length; k++) {
+		var pos = b.lights[k].pos;
+		var dir = b.lights[k].dir;
+		// Up vector must not be parallel to a near-vertical aim (gallery spots
+		// often point straight down) or LookAt degenerates.
+		var up = (Math.abs(dir.y) > 0.99) ? new BABYLON.Vector3(0, 0, 1)
+			: new BABYLON.Vector3(0, 1, 0);
+		var target = pos.add(dir);
+		var view = lh ? BABYLON.Matrix.LookAtLH(pos, target, up)
+			: BABYLON.Matrix.LookAtRH(pos, target, up);
+		var proj = lh ? BABYLON.Matrix.PerspectiveFovLH(BAKE_SHADOW_FOV, 1, BAKE_SHADOW_NEAR, BAKE_SHADOW_FAR)
+			: BABYLON.Matrix.PerspectiveFovRH(BAKE_SHADOW_FOV, 1, BAKE_SHADOW_NEAR, BAKE_SHADOW_FAR);
+		var vp = view.multiply(proj);
+		b.lightVP.push(vp);
+
+		var dm = new BABYLON.RenderTargetTexture("bakeDepth_" + k, b.shadowRes, scene,
+			false, true, BABYLON.Constants.TEXTURETYPE_HALF_FLOAT);
+		dm.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+		dm.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+		dm.renderList = casters;
+		casters.forEach(function (m) { dm.setMaterialForRendering(m, b.depthMat); });
+
+		// Bind this light's matrices, then render the map exactly once.
+		b.depthMat.setMatrix("lightVP", vp);
+		b.depthMat.setVector4("lightInfo", new BABYLON.Vector4(pos.x, pos.y, pos.z, BAKE_SHADOW_FAR));
+		dm.render();
+		b.shadowMaps.push(dm);
+	}
+}
+
+// Voxelize the room into a coarse solid-occupancy grid, packed as a flat-3D atlas
+// (Z-slices tiled across one 2D R8 texture) so the AO shader can sample it with
+// plain texture2D. Surface voxelization: each triangle is sampled finely enough
+// (<= half a voxel) that no voxel it crosses is skipped. Depends only on geometry,
+// so this runs once — the AO radius/offset are runtime params applied in _runAO.
+function _buildAOGrid(scene) {
+	var b = _ovgal_bake;
+	if (b.aoGridTex) { b.aoGridTex.dispose(); b.aoGridTex = null; }
+
+	var casters = scene.meshes.filter(function (m) {
+		if (!m.isVisible) return false;
+		if (m.name.match(/^Occupancy_/) || m.name === 'door_title') return false;
+		return true;
+	});
+
+	// Padded world AABB -> cubic voxel size from the longest axis.
+	var min = new BABYLON.Vector3(1e9, 1e9, 1e9);
+	var max = new BABYLON.Vector3(-1e9, -1e9, -1e9);
+	casters.forEach(function (m) {
+		var bb = m.getBoundingInfo().boundingBox;
+		min = BABYLON.Vector3.Minimize(min, bb.minimumWorld);
+		max = BABYLON.Vector3.Maximize(max, bb.maximumWorld);
+	});
+	var pad = 0.1;
+	min = new BABYLON.Vector3(min.x - pad, min.y - pad, min.z - pad);
+	max = new BABYLON.Vector3(max.x + pad, max.y + pad, max.z + pad);
+	var ext = max.subtract(min);
+	var longest = Math.max(ext.x, ext.y, ext.z);
+
+	// Pick the grid resolution, shrinking if the tiled atlas would exceed the
+	// texture-size cap (Z-slices are laid out in a roughly-square tile grid).
+	var maxTex = scene.getEngine().getCaps().maxTextureSize || 4096;
+	var gridLong = BAKE_AO_GRID, vs, Nx, Ny, Nz, tilesX, tilesY, texW, texH;
+	while (true) {
+		vs = longest / gridLong;
+		Nx = Math.max(1, Math.ceil(ext.x / vs));
+		Ny = Math.max(1, Math.ceil(ext.y / vs));
+		Nz = Math.max(1, Math.ceil(ext.z / vs));
+		tilesX = Math.ceil(Math.sqrt(Nz));
+		tilesY = Math.ceil(Nz / tilesX);
+		texW = tilesX * Nx;
+		texH = tilesY * Ny;
+		if ((texW <= maxTex && texH <= maxTex) || gridLong <= 16) break;
+		gridLong = Math.floor(gridLong * 0.8);
+	}
+
+	var data = new Uint8Array(texW * texH);
+	function mark(ix, iy, iz) {
+		if (ix < 0 || iy < 0 || iz < 0 || ix >= Nx || iy >= Ny || iz >= Nz) return;
+		var tx = iz % tilesX, ty = (iz - tx) / tilesX;
+		data[(ty * Ny + iy) * texW + (tx * Nx + ix)] = 255;
+	}
+
+	var step = vs * 0.5;
+	casters.forEach(function (m) {
+		var positions = m.getVerticesData(BABYLON.VertexBuffer.PositionKind);
+		var indices = m.getIndices();
+		if (!positions || !indices) return;
+		m.computeWorldMatrix(true);
+		var wm = m.getWorldMatrix();
+		for (var t = 0; t < indices.length; t += 3) {
+			var i0 = indices[t] * 3, i1 = indices[t + 1] * 3, i2 = indices[t + 2] * 3;
+			var v0 = BABYLON.Vector3.TransformCoordinates(
+				new BABYLON.Vector3(positions[i0], positions[i0 + 1], positions[i0 + 2]), wm);
+			var v1 = BABYLON.Vector3.TransformCoordinates(
+				new BABYLON.Vector3(positions[i1], positions[i1 + 1], positions[i1 + 2]), wm);
+			var v2 = BABYLON.Vector3.TransformCoordinates(
+				new BABYLON.Vector3(positions[i2], positions[i2 + 1], positions[i2 + 2]), wm);
+			var ax = v1.x - v0.x, ay = v1.y - v0.y, az = v1.z - v0.z;
+			var bx = v2.x - v0.x, by = v2.y - v0.y, bz = v2.z - v0.z;
+			var la = Math.sqrt(ax * ax + ay * ay + az * az);
+			var lb = Math.sqrt(bx * bx + by * by + bz * bz);
+			var ns = Math.min(2048, Math.max(1, Math.ceil(Math.max(la, lb) / step)));
+			var inv = 1.0 / ns;
+			for (var ii = 0; ii <= ns; ii++) {
+				for (var jj = 0; jj <= ns - ii; jj++) {
+					var u = ii * inv, w2 = jj * inv;
+					mark(
+						Math.floor((v0.x + ax * u + bx * w2 - min.x) / vs),
+						Math.floor((v0.y + ay * u + by * w2 - min.y) / vs),
+						Math.floor((v0.z + az * u + bz * w2 - min.z) / vs));
+				}
+			}
+		}
+	});
+
+	var tex = new BABYLON.RawTexture(data, texW, texH,
+		BABYLON.Constants.TEXTUREFORMAT_R, scene, false, false,
+		BABYLON.Texture.NEAREST_SAMPLINGMODE);
+	tex.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+	tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+	b.aoGridTex = tex;
+	b.aoGrid = {
+		min: min, vs: vs, Nx: Nx, Ny: Ny, Nz: Nz,
+		tilesX: tilesX, tilesY: tilesY, texW: texW, texH: texH
+	};
+}
+
+// Run the AO pass: one render per mesh, ray-marching the occupancy grid into its
+// AO buffer (.r = ambient occlusion). Radius/offset are runtime params, so the AO
+// sliders re-run this; the grid itself is geometry-only and never rebuilt here.
+function _runAO() {
+	var b = _ovgal_bake;
+	var m = b.aoMat;
+	if (!b.aoGrid || b.baked.length === 0) return;
+	var g = b.aoGrid;
+
+	var dirs = _bakeAODirs();
+	var flat = [];
+	for (var i = 0; i < dirs.length; i++) flat.push(dirs[i].x, dirs[i].y, dirs[i].z);
+	m.setArray3("aoDirs", flat);
+	m.setVector3("gridMin", new BABYLON.Vector3(g.min.x, g.min.y, g.min.z));
+	m.setVector4("gridN", new BABYLON.Vector4(g.Nx, g.Ny, g.Nz, 0));
+	m.setVector4("gridTile", new BABYLON.Vector4(g.tilesX, g.tilesY, g.texW, g.texH));
+	m.setTexture("aoGrid", b.aoGridTex);
+	// stepLen = one voxel per march step (radius caps how many actually run).
+	m.setVector4("aoParams", new BABYLON.Vector4(b.aoRadius, b.aoBias, g.vs, g.vs));
+
+	b.baked.forEach(function (it) { it.aoBuffer.render(); });
+}
+
+// Allocate a mesh's two ping-pong half-float RTTs + its debug view material.
+// Content is rendered later by _runBake (these are driven manually, NOT added to
+// scene.customRenderTargets — we don't want per-frame auto-refresh).
+function _bakeMesh(scene, mesh) {
+	var b = _ovgal_bake;
+
+	function makeBuf(tag) {
+		var rtt = new BABYLON.RenderTargetTexture(
+			"bakeRTT_" + mesh.name + "_" + tag, b.size, scene,
+			false,                                      // generateMipMaps
+			true,                                       // doNotChangeAspectRatio
+			BABYLON.Constants.TEXTURETYPE_HALF_FLOAT);  // float accumulation target
+		rtt.coordinatesIndex = 1;                       // sample with UV2 when used on the material
+		rtt.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+		rtt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+		rtt.renderList = [mesh];
+		rtt.setMaterialForRendering(mesh, b.material);  // draw this mesh with the bake shader
+		return rtt;
+	}
+	var buffers = [makeBuf("A"), makeBuf("B")];
+
+	// One AO buffer per mesh (.r = ambient occlusion). Lower res than the lightmap —
+	// AO is low-frequency, and the main bake upsamples it via UV2 bilinear.
+	var aoBuffer = new BABYLON.RenderTargetTexture(
+		"bakeAORTT_" + mesh.name, BAKE_AO_BUF, scene,
+		false, true, BABYLON.Constants.TEXTURETYPE_HALF_FLOAT);
+	aoBuffer.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+	aoBuffer.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+	aoBuffer.coordinatesIndex = 1;
+	aoBuffer.renderList = [mesh];
+	aoBuffer.setMaterialForRendering(mesh, b.aoMat);
+
+	// The bake vertex shader ignores the camera, but the RTT still frustum-culls
+	// its render list against the active camera — keep the mesh always-active so
+	// it's guaranteed to draw regardless of where the camera is pointing.
+	mesh.alwaysSelectAsActiveMesh = true;
+
+	// Debug view: an unlit material showing ONLY the baked lightmap (per-mesh
+	// UV2). Material-agnostic on purpose — room surfaces are NodeMaterials (BJS_*)
+	// with no emissiveTexture, so we don't clone the original here; that's the
+	// Phase 5 job. B toggles back to `orig`. emissiveTexture is pointed at the
+	// final accumulation buffer by _runBake once the parity is known.
+	var orig = mesh.material;
+	var view = new BABYLON.StandardMaterial("bakeView_" + mesh.name, scene);
+	view.disableLighting = true;            // show the lightmap raw, no runtime lights
+	view.emissiveTexture = buffers[0];
+	view.emissiveTexture.coordinatesIndex = 1;
+	mesh.material = view;
+
+	b.baked.push({ mesh: mesh, buffers: buffers, aoBuffer: aoBuffer, orig: orig, view: view });
+}
+
+// Imperative bake driver: for each mesh, accumulate the lights via ping-pong.
+// Pass k reads buffer k%2, writes buffer (k+1)%2 = previous + cone(light k) *
+// shadow(light k); the first pass seeds with the hemi ambient instead of a read.
+// Re-running is cheap (no depth re-render), so the tuning sliders call this.
+function _runBake() {
+	var b = _ovgal_bake;
+	var m = b.material;
+	if (b.count === 0) return;
+
+	// Shared (per-light-invariant) uniforms.
+	m.setVector4("bakeGlobals", new BABYLON.Vector4(b.cosInner, b.cosOuter, b.intensity, b.maxDist));
+	m.setVector4("bakeColor", new BABYLON.Vector4(b.color.r, b.color.g, b.color.b, 0));
+	var iUp = _ovgal_lights.ambientUp ? _ovgal_lights.ambientUp.intensity : 0;
+	var iDown = _ovgal_lights.ambientDown ? _ovgal_lights.ambientDown.intensity : 0;
+	m.setVector4("bakeAmbient", new BABYLON.Vector4(iUp * b.ambient, iDown * b.ambient, 0, 0));
+	m.setVector4("aoParams", new BABYLON.Vector4(b.aoStrength, 0, 0, 0));
+
+	var texel = 1.0 / b.shadowRes;
+	var finalIndex = b.count % 2;
+
+	b.baked.forEach(function (it) {
+		// This mesh's baked AO seeds the ambient on the first pass (k === 0).
+		m.setTexture("aoSampler", it.aoBuffer);
+		for (var k = 0; k < b.count; k++) {
+			var src = it.buffers[k % 2];
+			var dst = it.buffers[(k + 1) % 2];
+			var lp = b.lights[k].pos, ld = b.lights[k].dir;
+			m.setVector4("bakeLight", new BABYLON.Vector4(lp.x, lp.y, lp.z, 0));
+			m.setVector4("bakeAxis0", new BABYLON.Vector4(ld.x, ld.y, ld.z, 0));
+			m.setMatrix("lightMatrix", b.lightVP[k]);
+			m.setTexture("shadowSampler", b.shadowMaps[k]);
+			m.setTexture("prevTex", src);
+			m.setVector4("shadowParams",
+				new BABYLON.Vector4(b.shadowDarkness, b.shadowBias, k === 0 ? 1 : 0, texel));
+			dst.render();
+		}
+		// Point the debug view at whichever buffer holds the final accumulation.
+		if (it.view.emissiveTexture !== it.buffers[finalIndex]) {
+			it.view.emissiveTexture = it.buffers[finalIndex];
+			it.view.emissiveTexture.coordinatesIndex = 1;
+		}
+	});
+}
+
+/**
+ * Bakes a startup UV2 lightmap from the scene's spot lights. No-op unless
+ * ?bake=1. Call after meshes + materials are loaded (alongside the splash /
+ * shadow setup), before material freeze.
+ * @param {BABYLON.Scene} scene
+ */
+function setupLightmapBake(scene) {
+	if (!new URLSearchParams(window.location.search).has('bake')) return;
+
+	if (!scene.getEngine().getCaps().textureHalfFloatRender) {
+		console.warn("Lightmap bake: no half-float render target support — aborting");
+		return;
+	}
+
+	// Same spot source priority as the cone-splash: authored splash_N spots,
+	// then F_ fixtures, then the template's marker spot.
+	var cones = _collectConesFromSpotLights(scene, /^splash_\d+/);
+	var source = "splash_N spots";
+	if (cones.count === 0) { cones = _collectConesFromFixtures(scene); source = "F_ fixtures"; }
+	if (cones.count === 0) { cones = _collectConesFromSpotLights(scene); source = "template spot light"; }
+	if (cones.count === 0) {
+		console.warn("Lightmap bake: no spot lights / F_ fixtures in scene — nothing to bake");
+		return;
+	}
+
+	if (!_ovgal_bake) {
+		// One global setting shared by every light (defaults match the splash).
+		_ovgal_bake = {
+			intensity: 1.5,
+			maxDist: 12.0,
+			innerDeg: 12.0,
+			outerDeg: 28.0,
+			color: { r: 1.0, g: 0.96, b: 0.88 },
+			ambient: 1.0,        // multiplier on the baked-in hemispheric ambient (1 = match runtime)
+			shadowRes: 1024,     // per-light depth map resolution
+			shadowDarkness: 0.5, // 0 = black shadow, 1 = no shadow
+			shadowBias: 0.04,    // depth-compare bias in meters (acne vs peter-panning)
+			aoStrength: 1.0,     // 0 = no AO, 1 = full AO darkening of the ambient
+			aoRadius: 0.5,       // meters — only blockers within this reach darken
+			aoBias: 0.08,        // normal offset (meters) lifting the march off the surface
+			size: 512,
+			visible: true,
+			baked: []
+		};
+		window._bake = _ovgal_bake;
+		_refreshBakeAngles();
+	}
+	_ovgal_bake.posArray = cones.posArray;
+	_ovgal_bake.axisArray = cones.axisArray;
+	_ovgal_bake.lights = cones.lights;
+	_ovgal_bake.count = cones.count;
+	_ovgal_bake.scene = scene;
+
+	_ensureBakeMaterial(scene);
+	_ensureDepthMaterial(scene);
+	_ensureAOMaterials(scene);
+
+	// Bake the room surfaces that carry a UV2 channel (skip helpers + UV2-less meshes).
+	var meshes = scene.meshes.filter(function (m) {
+		if (!m.isVisible) return false;
+		if (m.name.match(/^Occupancy_/) || m.name === 'door_title') return false;
+		if (!m.isVerticesDataPresent || !m.isVerticesDataPresent(BABYLON.VertexBuffer.UV2Kind)) return false;
+		return true;
+	});
+
+	meshes.forEach(function (m) { _bakeMesh(scene, m); });
+
+	// Render the per-light depth maps, then commit the accumulation. Deferred one
+	// frame so the engine/camera are fully ready, and the two shader effects are
+	// force-compiled first — otherwise rtt.render() silently skips a mesh whose
+	// material effect isn't ready yet, leaving the buffers empty. Slider-driven
+	// re-bakes run later (effects already compiled), so they call _runBake direct.
+	if (_ovgal_bake.baked.length > 0) {
+		scene.onAfterRenderObservable.addOnce(function () {
+			var anyMesh = _ovgal_bake.baked[0].mesh;
+			Promise.all([
+				_ovgal_bake.depthMat.forceCompilationAsync(anyMesh),
+				_ovgal_bake.aoMat.forceCompilationAsync(anyMesh),
+				_ovgal_bake.material.forceCompilationAsync(anyMesh)
+			]).then(function () {
+				_buildShadowMaps(scene);
+				_buildAOGrid(scene);
+				_runAO();
+				_runBake();
+				var g = _ovgal_bake.aoGrid;
+				console.log("Lightmap bake: committed " + _ovgal_bake.shadowMaps.length
+					+ " shadow map(s), AO grid " + g.Nx + "x" + g.Ny + "x" + g.Nz
+					+ " (voxel " + g.vs.toFixed(3) + "m)");
+			}).catch(function (e) {
+				console.warn("Lightmap bake: shader compile failed", e);
+			});
+		});
+	}
+
+	console.log("Lightmap bake: " + _ovgal_bake.baked.length + " mesh(es) queued from "
+		+ cones.count + " spot(s) (" + source + ")");
+	if (_ovgal_bake.baked.length === 0) {
+		console.warn("Lightmap bake: no meshes with a UV2 channel were found");
+	}
+
+	if (!_ovgal_bake.uiBuilt) {
+		_bindBakeToggle();
+		_buildBakePanel();
+		_ovgal_bake.uiBuilt = true;
+	}
+}
+
+// Re-commit the bake after a tuning change. Cheap path (default): just re-run the
+// accumulation passes. With rebuildShadows=true (resolution change) re-render the
+// depth maps first.
+function _rebake(rebuildShadows) {
+	if (!_ovgal_bake) return;
+	if (rebuildShadows) _buildShadowMaps(_ovgal_bake.scene);
+	_runBake();
+}
+
+// Re-commit AO. Radius/offset are runtime march params (not baked into the grid),
+// so an AO-slider change only re-runs the march + the bake — never the voxel grid.
+function _rebakeAO() {
+	if (!_ovgal_bake) return;
+	_runAO();
+	_runBake();
+}
+
+function _buildBakePanel() {
+	var b = _ovgal_bake;
+	var panel = document.createElement("div");
+	panel.style.cssText = "position:fixed;top:10px;right:10px;z-index:99999;"
+		+ "background:rgba(0,0,0,0.75);color:#fafafa;font:12px Inter,sans-serif;"
+		+ "padding:10px 12px;border-radius:8px;width:200px;user-select:none;";
+	panel.innerHTML = "<div style='margin-bottom:6px;font-weight:600;'>Lightmap bake &nbsp;<span style='color:#a1a1aa;font-weight:400;'>B=show/hide</span></div>";
+
+	// Each slider re-bakes on input (the bake is a committed render-once, not live).
+	function addSlider(label, min, max, step, get, set) {
+		var row = document.createElement("label");
+		row.style.cssText = "display:block;margin:6px 0;";
+		var val = document.createElement("span");
+		val.textContent = get().toFixed(2);
+		val.style.cssText = "float:right;color:#a5b4fc;";
+		var name = document.createElement("span");
+		name.textContent = label;
+		var slider = document.createElement("input");
+		slider.type = "range";
+		slider.min = min; slider.max = max; slider.step = step;
+		slider.value = get();
+		slider.style.cssText = "width:100%;margin-top:2px;";
+		slider.addEventListener("input", function () {
+			set(parseFloat(slider.value));
+			val.textContent = parseFloat(slider.value).toFixed(2);
+		});
+		row.appendChild(name); row.appendChild(val); row.appendChild(slider);
+		panel.appendChild(row);
+	}
+
+	addSlider("intensity", 0, 5, 0.05,
+		function () { return b.intensity; },
+		function (v) { b.intensity = v; _rebake(); });
+	addSlider("reach (m)", 1, 30, 0.5,
+		function () { return b.maxDist; },
+		function (v) { b.maxDist = v; _rebake(); });
+	addSlider("inner angle", 1, 45, 0.5,
+		function () { return b.innerDeg; },
+		function (v) { b.innerDeg = v; _refreshBakeAngles(); _rebake(); });
+	addSlider("outer angle", 2, 90, 0.5,
+		function () { return b.outerDeg; },
+		function (v) { b.outerDeg = v; _refreshBakeAngles(); _rebake(); });
+	addSlider("ambient", 0, 3, 0.05,
+		function () { return b.ambient; },
+		function (v) { b.ambient = v; _rebake(); });
+	addSlider("shadow darkness", 0, 1, 0.02,
+		function () { return b.shadowDarkness; },
+		function (v) { b.shadowDarkness = v; _rebake(); });
+	addSlider("shadow bias (m)", 0, 0.1, 0.005,
+		function () { return b.shadowBias; },
+		function (v) { b.shadowBias = v; _rebake(); });
+	addSlider("AO strength", 0, 1, 0.02,
+		function () { return b.aoStrength; },
+		function (v) { b.aoStrength = v; _rebake(); });          // strength: cheap, bake only
+	addSlider("AO radius (m)", 0.1, 3, 0.05,
+		function () { return b.aoRadius; },
+		function (v) { b.aoRadius = v; _rebakeAO(); });          // radius: re-accumulate AO
+	addSlider("AO offset (m)", 0, 0.3, 0.01,
+		function () { return b.aoBias; },
+		function (v) { b.aoBias = v; _rebakeAO(); });            // offset: re-run AO march
+
+	// Resolution rebuilds the depth maps (heavy), so it commits on release only.
+	var resRow = document.createElement("label");
+	resRow.style.cssText = "display:block;margin:6px 0;";
+	var resVal = document.createElement("span");
+	resVal.textContent = b.shadowRes.toFixed(0);
+	resVal.style.cssText = "float:right;color:#a5b4fc;";
+	var resName = document.createElement("span");
+	resName.textContent = "shadow res";
+	var resSlider = document.createElement("input");
+	resSlider.type = "range";
+	resSlider.min = 512; resSlider.max = 2048; resSlider.step = 256;
+	resSlider.value = b.shadowRes;
+	resSlider.style.cssText = "width:100%;margin-top:2px;";
+	resSlider.addEventListener("input", function () {
+		resVal.textContent = parseFloat(resSlider.value).toFixed(0);
+	});
+	resSlider.addEventListener("change", function () {
+		b.shadowRes = parseInt(resSlider.value, 10);
+		_rebake(true);   // rebuild depth maps at the new resolution
+	});
+	resRow.appendChild(resName); resRow.appendChild(resVal); resRow.appendChild(resSlider);
+	panel.appendChild(resRow);
+
+	document.body.appendChild(panel);
+}
+
+function _bindBakeToggle() {
+	window.addEventListener("keydown", function (e) {
+		if ((e.key === "b" || e.key === "B") && !e.ctrlKey && !e.altKey && !e.metaKey) {
+			e.preventDefault();
+			_ovgal_bake.visible = !_ovgal_bake.visible;
+			_ovgal_bake.baked.forEach(function (it) {
+				it.mesh.material = _ovgal_bake.visible ? it.view : it.orig;
+			});
+			console.log("Lightmap bake " + (_ovgal_bake.visible ? "shown" : "hidden"));
+		}
+	});
 }
