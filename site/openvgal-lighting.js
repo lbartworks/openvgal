@@ -881,6 +881,70 @@ function _ensureBakeMaterial(scene) {
 	_ovgal_bake.material = mat;
 }
 
+// PHASE 5 display shader — shows the baked room through the real camera, NOT a
+// debug emissive view: surface albedo (UV1) multiplied by the baked lightmap
+// (UV2). Deliberately avoids the BJS_ NodeMaterials — we only READ their albedo
+// texture, never rewire the graph. Cloned per mesh so each carries its own
+// albedo + lightmap. Falls back to lightmap-only (hasAlbedo=0) when a mesh has
+// no recognizable base-color texture.
+function _ensureDisplayMaterial(scene) {
+	if (_ovgal_bake.displayMat) return;
+
+	BABYLON.Effect.ShadersStore["ovgalDisplayVertexShader"] =
+		"precision highp float;\n" +
+		"attribute vec3 position;\n" +
+		"attribute vec2 uv;\n" +
+		"attribute vec2 uv2;\n" +
+		"uniform mat4 worldViewProjection;\n" +
+		"uniform vec4 uvScaleOffset;\n" +  // xy = albedo uScale/vScale, zw = uOffset/vOffset (KHR_texture_transform)
+		"varying vec2 vUV;\n" +
+		"varying vec2 vUV2;\n" +
+		"void main(void){\n" +
+		"  vUV = uv * uvScaleOffset.xy + uvScaleOffset.zw;\n" +  // apply the texture's tiling scale + offset
+		"  vUV2 = uv2;\n" +
+		"  gl_Position = worldViewProjection * vec4(position, 1.0);\n" +
+		"}\n";
+
+	BABYLON.Effect.ShadersStore["ovgalDisplayFragmentShader"] =
+		"precision highp float;\n" +
+		"varying vec2 vUV;\n" +
+		"varying vec2 vUV2;\n" +
+		"uniform sampler2D albedoSampler;\n" +
+		"uniform sampler2D lightSampler;\n" +
+		"uniform float hasAlbedo;\n" +    // 1 = multiply by albedo, 0 = lightmap only
+		"void main(void){\n" +
+		"  vec3 lm = texture2D(lightSampler, vUV2).rgb;\n" +
+		"  vec3 alb = hasAlbedo > 0.5 ? texture2D(albedoSampler, vUV).rgb : vec3(1.0);\n" +
+		"  gl_FragColor = vec4(alb * lm, 1.0);\n" +
+		"}\n";
+
+	// Template only — every mesh clones this and binds its own samplers.
+	_ovgal_bake.displayMat = new BABYLON.ShaderMaterial("ovgalDisplay", scene,
+		{ vertex: "ovgalDisplay", fragment: "ovgalDisplay" },
+		{
+			attributes: ["position", "uv", "uv2"],
+			uniforms: ["worldViewProjection", "uvScaleOffset", "hasAlbedo"],
+			samplers: ["albedoSampler", "lightSampler"]
+		});
+}
+
+// Best-effort base-color texture from a mesh's original material, without
+// touching the NodeMaterial graph. StandardMaterials expose diffuseTexture
+// directly; NodeMaterials (BJS_*) are scanned via getActiveTextures(), picking
+// the one whose name reads like a base color. Returns null if none looks right.
+function _findAlbedoTexture(material) {
+	if (!material) return null;
+	if (material.diffuseTexture) return material.diffuseTexture;
+	if (material.albedoTexture) return material.albedoTexture;
+	if (typeof material.getActiveTextures !== "function") return null;
+	var texs = material.getActiveTextures();
+	for (var i = 0; i < texs.length; i++) {
+		var n = (texs[i].name || "") + " " + (texs[i].url || "");
+		if (/color|albedo|basecolor|diffuse/i.test(n)) return texs[i];
+	}
+	return null;
+}
+
 // Custom depth material: writes linear distance (meters) from the light to the
 // fragment. We supply the light view-projection directly (lightVP uniform), so
 // the depth render is independent of any camera projection/handedness.
@@ -1208,16 +1272,27 @@ function _bakeMesh(scene, mesh) {
 	// it's guaranteed to draw regardless of where the camera is pointing.
 	mesh.alwaysSelectAsActiveMesh = true;
 
-	// Debug view: an unlit material showing ONLY the baked lightmap (per-mesh
-	// UV2). Material-agnostic on purpose — room surfaces are NodeMaterials (BJS_*)
-	// with no emissiveTexture, so we don't clone the original here; that's the
-	// Phase 5 job. B toggles back to `orig`. emissiveTexture is pointed at the
-	// final accumulation buffer by _runBake once the parity is known.
+	// Phase 5 view: the baked room as the camera sees it — albedo (UV1) * baked
+	// lightmap (UV2), via the display shader. Albedo is read from the original
+	// material (no NodeMaterial rewiring); meshes without a recognizable base
+	// color fall back to lightmap-only. The lightmap sampler is pointed at the
+	// final accumulation buffer by _runBake once the bake parity is known.
 	var orig = mesh.material;
-	var view = new BABYLON.StandardMaterial("bakeView_" + mesh.name, scene);
-	view.disableLighting = true;            // show the lightmap raw, no runtime lights
-	view.emissiveTexture = buffers[0];
-	view.emissiveTexture.coordinatesIndex = 1;
+	var albedo = _findAlbedoTexture(orig);
+	var view = b.displayMat.clone("bakeView_" + mesh.name);
+	view.setFloat("hasAlbedo", albedo ? 1.0 : 0.0);
+	// Carry the albedo's UV scale + offset (KHR_texture_transform) so tiled textures
+	// repeat exactly as the original material draws them. Read as plain scalars (not
+	// getTextureMatrix, whose shared cached-matrix reference doesn't bind reliably
+	// through a cloned ShaderMaterial). Rotation (wAng) is ignored — no template
+	// material uses it; revisit if one ever does.
+	view.setVector4("uvScaleOffset", albedo
+		? new BABYLON.Vector4(albedo.uScale, albedo.vScale, albedo.uOffset, albedo.vOffset)
+		: new BABYLON.Vector4(1, 1, 0, 0));
+	view.setTexture("albedoSampler", albedo || buffers[0]);  // dummy bind if no albedo
+	view.setTexture("lightSampler", buffers[0]);
+	view.backFaceCulling = (orig && typeof orig.backFaceCulling === "boolean")
+		? orig.backFaceCulling : true;
 	mesh.material = view;
 
 	b.baked.push({ mesh: mesh, buffers: buffers, aoBuffer: aoBuffer, orig: orig, view: view });
@@ -1259,11 +1334,9 @@ function _runBake() {
 				new BABYLON.Vector4(b.shadowDarkness, b.shadowBias, k === 0 ? 1 : 0, texel));
 			dst.render();
 		}
-		// Point the debug view at whichever buffer holds the final accumulation.
-		if (it.view.emissiveTexture !== it.buffers[finalIndex]) {
-			it.view.emissiveTexture = it.buffers[finalIndex];
-			it.view.emissiveTexture.coordinatesIndex = 1;
-		}
+		// Point the display view's lightmap at whichever buffer holds the final
+		// accumulation (ping-pong end depends on the light count's parity).
+		it.view.setTexture("lightSampler", it.buffers[finalIndex]);
 	});
 }
 
@@ -1323,6 +1396,7 @@ function setupLightmapBake(scene) {
 	_ensureBakeMaterial(scene);
 	_ensureDepthMaterial(scene);
 	_ensureAOMaterials(scene);
+	_ensureDisplayMaterial(scene);
 
 	// Bake the room surfaces that carry a UV2 channel (skip helpers + UV2-less meshes).
 	var meshes = scene.meshes.filter(function (m) {
