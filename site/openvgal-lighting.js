@@ -912,8 +912,42 @@ function _ensureDisplayMaterial(scene) {
 		"uniform sampler2D albedoSampler;\n" +
 		"uniform sampler2D lightSampler;\n" +
 		"uniform float hasAlbedo;\n" +    // 1 = multiply by albedo, 0 = lightmap only
+		"uniform vec2 lmTexel;\n" +       // 1/lightmapSize — one texel step in UV2
+		// Coverage-weighted bilinear: the lightmap (NEAREST) stores alpha=1 on baked
+		// texels, 0 on the uncovered border past each UV island. Manually blend the 4
+		// surrounding texels weighting by coverage so uncovered (black) texels never
+		// darken the lit edge — this dilates across the seam while staying smooth.
+		"vec3 sampleLightmap(vec2 uv){\n" +
+		"  vec2 t = lmTexel;\n" +
+		"  vec2 p = uv / t - 0.5;\n" +
+		"  vec2 base = (floor(p) + 0.5) * t;\n" +
+		"  vec2 f = fract(p);\n" +
+		"  vec4 c00 = texture2D(lightSampler, base);\n" +
+		"  vec4 c10 = texture2D(lightSampler, base + vec2(t.x, 0.0));\n" +
+		"  vec4 c01 = texture2D(lightSampler, base + vec2(0.0, t.y));\n" +
+		"  vec4 c11 = texture2D(lightSampler, base + t);\n" +
+		"  float w00 = (1.0 - f.x) * (1.0 - f.y) * c00.a;\n" +
+		"  float w10 = f.x * (1.0 - f.y) * c10.a;\n" +
+		"  float w01 = (1.0 - f.x) * f.y * c01.a;\n" +
+		"  float w11 = f.x * f.y * c11.a;\n" +
+		"  float wsum = w00 + w10 + w01 + w11;\n" +
+		"  if (wsum > 1e-4){\n" +
+		"    return (c00.rgb*w00 + c10.rgb*w10 + c01.rgb*w01 + c11.rgb*w11) / wsum;\n" +
+		"  }\n" +
+		// Deep hole (all 4 neighbors uncovered): widen to a ring search for the nearest
+		// covered texel. Rare — only fires for fragments well off any UV island.
+		"  for (int r = 1; r <= 4; r++){\n" +
+		"    for (int dx = -1; dx <= 1; dx++){\n" +
+		"      for (int dy = -1; dy <= 1; dy++){\n" +
+		"        vec4 n = texture2D(lightSampler, uv + vec2(float(dx*r), float(dy*r)) * t);\n" +
+		"        if (n.a > 0.5) return n.rgb;\n" +
+		"      }\n" +
+		"    }\n" +
+		"  }\n" +
+		"  return vec3(0.0);\n" +
+		"}\n" +
 		"void main(void){\n" +
-		"  vec3 lm = texture2D(lightSampler, vUV2).rgb;\n" +
+		"  vec3 lm = sampleLightmap(vUV2);\n" +
 		"  vec3 alb = hasAlbedo > 0.5 ? texture2D(albedoSampler, vUV).rgb : vec3(1.0);\n" +
 		"  gl_FragColor = vec4(alb * lm, 1.0);\n" +
 		"}\n";
@@ -923,24 +957,41 @@ function _ensureDisplayMaterial(scene) {
 		{ vertex: "ovgalDisplay", fragment: "ovgalDisplay" },
 		{
 			attributes: ["position", "uv", "uv2"],
-			uniforms: ["worldViewProjection", "uvScaleOffset", "hasAlbedo"],
+			uniforms: ["worldViewProjection", "uvScaleOffset", "hasAlbedo", "lmTexel"],
 			samplers: ["albedoSampler", "lightSampler"]
 		});
 }
 
 // Best-effort base-color texture from a mesh's original material, without
-// touching the NodeMaterial graph. StandardMaterials expose diffuseTexture
-// directly; NodeMaterials (BJS_*) are scanned via getActiveTextures(), picking
-// the one whose name reads like a base color. Returns null if none looks right.
+// touching the NodeMaterial graph. StandardMaterial/PBR expose diffuse/albedo
+// directly. NodeMaterials (BJS_*) are read via getTextureBlocks() — NOT
+// getActiveTextures(), which stays empty until the material's first render and
+// so misses the albedo during the startup bake. We pick the block whose name,
+// or whose texture URL, reads like a base color (skipping bump/normal maps).
+var _ALBEDO_RE = /albedo|color|basecolor|diffuse/i;
 function _findAlbedoTexture(material) {
 	if (!material) return null;
 	if (material.diffuseTexture) return material.diffuseTexture;
 	if (material.albedoTexture) return material.albedoTexture;
+
+	var blocks = material.attachedBlocks || (typeof material.getTextureBlocks === "function" ? material.getTextureBlocks() : null);
+	if (blocks && blocks.length) {
+		// Prefer a block named like a base color (e.g. "albedo"); fall back to a
+		// block whose texture URL reads as color (e.g. *_Color.jpg).
+		for (var b = 0; b < blocks.length; b++) {
+			if (blocks[b].texture && _ALBEDO_RE.test(blocks[b].name || "")) return blocks[b].texture;
+		}
+		for (var c = 0; c < blocks.length; c++) {
+			var bt = blocks[c].texture;
+			if (bt && _ALBEDO_RE.test((bt.name || "") + " " + (bt.url || ""))) return bt;
+		}
+	}
+
 	if (typeof material.getActiveTextures !== "function") return null;
 	var texs = material.getActiveTextures();
 	for (var i = 0; i < texs.length; i++) {
 		var n = (texs[i].name || "") + " " + (texs[i].url || "");
-		if (/color|albedo|basecolor|diffuse/i.test(n)) return texs[i];
+		if (_ALBEDO_RE.test(n)) return texs[i];
 	}
 	return null;
 }
@@ -1250,6 +1301,13 @@ function _bakeMesh(scene, mesh) {
 		rtt.coordinatesIndex = 1;                       // sample with UV2 when used on the material
 		rtt.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
 		rtt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+		// UV2 texels not covered by this mesh's triangles (island seams, door cutout
+		// edges) keep the clearColor. We clear to fully transparent (alpha 0) so the
+		// bake's alpha=1 marks coverage; the display shader blends only covered texels,
+		// dilating across seams. NEAREST so each manual tap reads a single exact texel
+		// (no hardware bleed of black into the lit edge) — we do our own filtering.
+		rtt.clearColor = new BABYLON.Color4(0, 0, 0, 0);
+		rtt.updateSamplingMode(BABYLON.Texture.NEAREST_SAMPLINGMODE);
 		rtt.renderList = [mesh];
 		rtt.setMaterialForRendering(mesh, b.material);  // draw this mesh with the bake shader
 		return rtt;
@@ -1263,6 +1321,7 @@ function _bakeMesh(scene, mesh) {
 		false, true, BABYLON.Constants.TEXTURETYPE_HALF_FLOAT);
 	aoBuffer.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
 	aoBuffer.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+	aoBuffer.clearColor = new BABYLON.Color4(0, 0, 0, 1);
 	aoBuffer.coordinatesIndex = 1;
 	aoBuffer.renderList = [mesh];
 	aoBuffer.setMaterialForRendering(mesh, b.aoMat);
@@ -1291,6 +1350,7 @@ function _bakeMesh(scene, mesh) {
 		: new BABYLON.Vector4(1, 1, 0, 0));
 	view.setTexture("albedoSampler", albedo || buffers[0]);  // dummy bind if no albedo
 	view.setTexture("lightSampler", buffers[0]);
+	view.setVector2("lmTexel", new BABYLON.Vector2(1.0 / b.size, 1.0 / b.size));
 	view.backFaceCulling = (orig && typeof orig.backFaceCulling === "boolean")
 		? orig.backFaceCulling : true;
 	mesh.material = view;
@@ -1368,17 +1428,17 @@ function setupLightmapBake(scene) {
 	if (!_ovgal_bake) {
 		// One global setting shared by every light (defaults match the splash).
 		_ovgal_bake = {
-			intensity: 1.5,
+			intensity: 0.65,
 			maxDist: 12.0,
 			innerDeg: 12.0,
-			outerDeg: 28.0,
+			outerDeg: 48.5,
 			color: { r: 1.0, g: 0.96, b: 0.88 },
 			ambient: 1.0,        // multiplier on the baked-in hemispheric ambient (1 = match runtime)
 			shadowRes: 1024,     // per-light depth map resolution
-			shadowDarkness: 0.5, // 0 = black shadow, 1 = no shadow
+			shadowDarkness: 0.18, // 0 = black shadow, 1 = no shadow
 			shadowBias: 0.04,    // depth-compare bias in meters (acne vs peter-panning)
-			aoStrength: 1.0,     // 0 = no AO, 1 = full AO darkening of the ambient
-			aoRadius: 0.5,       // meters — only blockers within this reach darken
+			aoStrength: 0.36,    // 0 = no AO, 1 = full AO darkening of the ambient
+			aoRadius: 1.3,       // meters — only blockers within this reach darken
 			aoBias: 0.08,        // normal offset (meters) lifting the march off the surface
 			size: 512,
 			visible: true,
