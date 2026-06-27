@@ -77,7 +77,7 @@ var plaque_builder = function(name, item_position, item_size, vector, metadata, 
 	var subtitleText = lines.length > 1 ? lines[1] : '';
 
 	// Plaque dimensions proportional to artwork
-	var plaqueW = item_size.width * 0.3;
+	var plaqueW = item_size.width * 0.38;
 	var plaqueH = plaqueW * 0.3;
 	var texW = 512;
 	var texH = Math.round(texW * (plaqueH / plaqueW));
@@ -85,35 +85,37 @@ var plaque_builder = function(name, item_position, item_size, vector, metadata, 
 	var dynTex = new BABYLON.DynamicTexture("plaqueTex_" + name, {width: texW, height: texH}, scene, false);
 	var ctx = dynTex.getContext();
 
-	// Warm neutral background
-	ctx.fillStyle = "#d8d5d0";
-	ctx.fillRect(0, 0, texW, texH);
+	// Transparent background — only the text is painted, the wall shows through
+	ctx.clearRect(0, 0, texW, texH);
 
-	// Title — subdued dark text, centered
+	// Title — soft dark-gray text, centered
 	var titleSize = Math.round(texH * 0.32);
 	ctx.font = "bold " + titleSize + "px Inter, Arial, sans-serif";
-	ctx.fillStyle = "#4a4a44";
+	ctx.fillStyle = "#5a5a5a";
 	ctx.textAlign = "center";
 	ctx.textBaseline = "middle";
 	var centerX = texW / 2;
 	var centerY = subtitleText ? (texH * 0.38) : (texH / 2);
 	ctx.fillText(titleText, centerX, centerY);
 
-	// Subtitle — muted text, centered
+	// Subtitle — soft dark-gray text, centered
 	if (subtitleText) {
 		var subSize = Math.round(texH * 0.22);
 		ctx.font = subSize + "px Inter, Arial, sans-serif";
-		ctx.fillStyle = "#78786f";
+		ctx.fillStyle = "#5a5a5a";
 		ctx.fillText(subtitleText, centerX, centerY + titleSize * 0.9);
 	}
 
 	dynTex.update();
+	dynTex.hasAlpha = true;
 
 	var plaqueMat = new BABYLON.StandardMaterial("plaqueMat_" + name, scene);
 	plaqueMat.diffuseTexture = dynTex;
 	plaqueMat.emissiveTexture = dynTex;
 	plaqueMat.specularColor = new BABYLON.Color3(0, 0, 0);
 	plaqueMat.disableLighting = true;
+	plaqueMat.useAlphaFromDiffuseTexture = true;
+	plaqueMat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
 
 	var base_vector = new BABYLON.Vector3(0, 0, 0);
 	var abstractPlane = BABYLON.Plane.FromPositionAndNormal(base_vector, vector);
