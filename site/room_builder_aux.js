@@ -137,15 +137,14 @@ var plaque_builder = function(name, item_position, item_size, vector, metadata, 
 	plaquePlane.material = plaqueMat;
 	plaquePlane.isPickable = false;
 
-	let existing_plaques = scene.getMeshByName('plaques');
-	if (existing_plaques) {
-		// Dispose the intermediate MultiMaterial before merge replaces it
-		if (existing_plaques.material) existing_plaques.material.dispose(false);
-		var merged_mesh = BABYLON.Mesh.MergeMeshes([existing_plaques, plaquePlane], true, false, undefined, false, true);
-		merged_mesh.name = "plaques";
-	} else {
-		plaquePlane.name = "plaques";
-	}
+	// Each plaque keeps its own DynamicTexture, so merging them into one mesh saves
+	// no draw calls (a MultiMaterial still draws one submesh per texture) — it only
+	// risked cross-wiring the textures. Keep plaques as individual meshes (like the
+	// artwork image planes) and parent them to a single node so visibility toggles
+	// with one setEnabled() call.
+	var plaquesRoot = scene.getTransformNodeByName('plaques_root');
+	if (!plaquesRoot) plaquesRoot = new BABYLON.TransformNode('plaques_root', scene);
+	plaquePlane.parent = plaquesRoot;
 }
 
 var item_builder= function(name, item_position, item_size, vector, material,scene, item_shadow_material=null){
@@ -268,7 +267,13 @@ function populate_template(config_file, room_name,scene){
 		scaled_height = Number(gallery[item]["height"]) * SCENE_M_PER_CM;
 
 		//notice that y and z are flippped
-		item_builder(item + "_" + i ,{x:location[0], y:location[2], z:location[1]}, {width:scaled_width, height:scaled_height}, orientation, items_material, scene, item_shadow_material);
+		let artwork_plane = item_builder(item + "_" + i ,{x:location[0], y:location[2], z:location[1]}, {width:scaled_width, height:scaled_height}, orientation, items_material, scene, item_shadow_material);
+
+		// Tag the plane with its position among the gallery's image items. The viewer
+		// uses this to drive click→navigate, so the index can never drift even when the
+		// template GLB contains decorative meshes whose names also end in _<digits>
+		// (Fixture_0, Col_*_1, …). i starts at 3, so i-3 is the 0-based dict_items index.
+		if (artwork_plane) artwork_plane.metadata = { ovgal_artwork_idx: i - 3 };
 
 		//plaque below artwork (only if metadata has content beyond the ID prefix)
 		if (gallery[item]["metadata"]) {
@@ -304,12 +309,9 @@ function populate_template(config_file, room_name,scene){
 		reset_loadbar();
 	}
 
-	// Set plaque visibility from toggle state
-	var plaqueMesh = scene.getMeshByName("plaques");
-	if (plaqueMesh) {
-		plaqueMesh.isVisible = showPlaques;
-		plaqueMesh.alwaysSelectAsActiveMesh=true;
-	}
+	// Set plaque visibility from toggle state (one node parents every plaque)
+	var plaquesRoot = scene.getTransformNodeByName("plaques_root");
+	if (plaquesRoot) plaquesRoot.setEnabled(showPlaques);
 	
 
 	

@@ -107,8 +107,8 @@
 	// Toggle plaque visibility at runtime (called from overlay.html switch)
 	window.togglePlaques = function(checkbox) {
 		if (!scene) return;
-		var plaqueMesh = scene.getMeshByName('plaques');
-		if (plaqueMesh) plaqueMesh.isVisible = checkbox.checked;
+		var plaquesRoot = scene.getTransformNodeByName('plaques_root');
+		if (plaquesRoot) plaquesRoot.setEnabled(checkbox.checked);
 	};
 
 	window.initFunction = async function() {
@@ -424,8 +424,8 @@
 
 					// Sync plaque visibility with toggle after restoring cached room
 					var _pt = document.getElementById('plaquesToggle');
-					var _plaqueMesh = scene.getMeshByName('plaques');
-					if (_pt && _plaqueMesh) _plaqueMesh.isVisible = _pt.checked;
+					var _plaquesRoot = scene.getTransformNodeByName('plaques_root');
+					if (_pt && _plaquesRoot) _plaquesRoot.setEnabled(_pt.checked);
 				}
 
 
@@ -436,6 +436,14 @@
 				//locate doors and artwork to setup the action manager
 				gallery_doors=[];
 				gallery_artworks=[];
+				// Template-populated galleries tag each artwork plane with its config index
+				// (ovgal_artwork_idx). Prefer those: the name-regex below also matches
+				// decorative template meshes that end in _<digits> (Fixture_0, Col_*_1,
+				// Door_F_0, …), and since the template loads before the planes, those would
+				// be prepended and shift every artwork's click index. Regex is the fallback
+				// for full-GLB galleries, which aren't populated by populate_template.
+				let tagged_artworks=[];
+				let regex_artworks=[];
 				scene.meshes.map((mesh) => {
 					// Occupancy_* meshes are placement scaffolding for the packer.
 					// They're hidden at runtime (isVisible=false) but — since that
@@ -446,9 +454,13 @@
 					mesh.checkCollisions = true;
 					if (regul_exp_door.test(mesh.name)){
 						gallery_doors.push(mesh.name);
-					} else if (regul_exp_artworks.test(mesh.name) && !mesh.name.startsWith('Occupancy_') && !mesh.name.startsWith('F_') && mesh.name !== 'door_title')
-						gallery_artworks.push(mesh.name);
+					} else if (mesh.metadata && typeof mesh.metadata.ovgal_artwork_idx === 'number') {
+						tagged_artworks.push(mesh.name);
+					} else if (regul_exp_artworks.test(mesh.name) && !mesh.name.startsWith('F_') && mesh.name !== 'door_title') {
+						regex_artworks.push(mesh.name);
+					}
 					});
+				gallery_artworks = tagged_artworks.length ? tagged_artworks : regex_artworks;
 
 				for (const door of gallery_doors){
 					console.log('action manager de '+ door);
@@ -462,11 +474,17 @@
 
 				let indice=0;
 				for (const artwork of gallery_artworks){
-					scene.getMeshByName(artwork).actionManager= new BABYLON.ActionManager();
-					scene.getMeshByName(artwork).actionManager.registerAction(
+					const artwork_mesh = scene.getMeshByName(artwork);
+					// Use the plane's tagged config index when present so the camera always
+					// lands on the clicked artwork; fall back to scan position for full-GLB.
+					const art_idx = (artwork_mesh.metadata && typeof artwork_mesh.metadata.ovgal_artwork_idx === 'number')
+						? artwork_mesh.metadata.ovgal_artwork_idx
+						: indice;
+					artwork_mesh.actionManager= new BABYLON.ActionManager();
+					artwork_mesh.actionManager.registerAction(
 						new BABYLON.ExecuteCodeAction(
 							{ trigger: BABYLON.ActionManager.OnPickTrigger },
-							CB_artwork_picked(indice)
+							CB_artwork_picked(art_idx)
 						));
 					indice++;
 				}
