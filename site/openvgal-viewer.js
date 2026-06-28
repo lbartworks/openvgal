@@ -437,6 +437,12 @@
 				gallery_doors=[];
 				gallery_artworks=[];
 				scene.meshes.map((mesh) => {
+					// Occupancy_* meshes are placement scaffolding for the packer.
+					// They're hidden at runtime (isVisible=false) but — since that
+					// doesn't disable collisions — the blanket loop below would turn
+					// them into invisible walls right where the panels are, trapping
+					// the camera. They play no role once artworks are placed, so skip.
+					if (mesh.name.startsWith('Occupancy_')) { mesh.checkCollisions = false; return; }
 					mesh.checkCollisions = true;
 					if (regul_exp_door.test(mesh.name)){
 						gallery_doors.push(mesh.name);
