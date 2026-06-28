@@ -368,7 +368,6 @@
 						temp_assetcontainer.addAllToScene();
 						setupRoomLighting(scene, config_file_content);
 						setupBakedShadows(scene);
-						setupConeSplashes(scene);
 						setupLightmapBake(scene);
 						freezeGalleryMaterials();
 					} else {
@@ -409,7 +408,6 @@
 							populate_template(config_file_content, current_gallery, scene);
 							console.log("template populated");
 							setupBakedShadows(scene);
-							setupConeSplashes(scene);
 							setupLightmapBake(scene);
 							freezeGalleryMaterials();
 					}
@@ -421,7 +419,6 @@
 					galleries[current_gallery].addAllToScene();
 					setupRoomLighting(scene, config_file_content);
 					setupBakedShadows(scene);
-					setupConeSplashes(scene);
 					setupLightmapBake(scene);
 					freezeGalleryMaterials();
 

@@ -19,10 +19,6 @@ function initGalleryLighting(scene, config) {
 
 	_ovgal_lights.ambientUp.intensity = config["Technical"]["ambientLight"];
 	_ovgal_lights.ambientDown.intensity = config["Technical"]["ambientLight"] / 2;
-
-	// Cone-splash plugin must be registered before any material is created,
-	// otherwise its UBO uniforms can't be added to an already-built buffer.
-	_registerConeSplashPlugin();
 }
 
 /**
@@ -44,8 +40,8 @@ function setupRoomLighting(scene, config) {
 				light.intensity = config["Technical"]["pointLight"];
 			}
 		} else if (light.name.match(/^splash_\d+/)) {
-			// Owned by the cone-splash system: its pose drives the analytic splash,
-			// the runtime light itself stays off (zero-runtime-light design).
+			// Authoring markers for the lightmap bake: their pose seeds the baked
+			// spots, the runtime light itself stays off (zero-runtime-light design).
 			light.setEnabled(false);
 		} else if (light.name !== 'hemiLight_up' && light.name !== 'hemiLight_down') {
 			light.setEnabled(false);
@@ -170,11 +166,6 @@ function setupRoomLighting(scene, config) {
  * Freezes all BJS_materials — call after lights AND materials are assigned to meshes.
  */
 function freezeGalleryMaterials() {
-	// Cone-splash live tuning (?splash) needs material binds to keep running.
-	if (new URLSearchParams(window.location.search).has('splash')) {
-		console.log("Lighting: skipping material freeze (?splash active)");
-		return;
-	}
 	if (typeof BJS_materials !== 'undefined') {
 		for (var matName in BJS_materials) {
 			BJS_materials[matName].freeze();
@@ -365,111 +356,18 @@ function _buildShadowPanel() {
 }
 
 // =====================================================================
-// Cone-splash lighting (Lightmap V2) — EXPERIMENTAL. Enable with ?splash=1.
-// Replaces the visible effect of RectAreaLight fixtures with analytic,
-// world-space cone splashes injected into the wall PBR materials via a
-// MaterialPlugin. Per-fragment in world space, so it is seam-free across
-// wall mesh chunks and needs no UV2/bake.
-//
-// Cone source: F_N_dx_dy_dz_IXX fixtures (origin = fixture position, axis =
-// its direction); falls back to the template's marker SpotLight(s) when a
-// room has no F_ fixtures.
-//
-// L toggles; the live panel tunes strength / reach / cone angles.
+// Spot-light cone collectors — shared by the lightmap bake. Resolve the
+// authored spot markers (splash_N glTF spots, F_ fixtures, or a template
+// marker spot) into world-space { pos, dir } cones the bake accumulates,
+// one render pass per light. BAKE_MAX_LIGHTS caps how many a room may have.
 // =====================================================================
-var _ovgal_splash = null;
-var _ConeSplashPluginClass = null;
-var CONE_SPLASH_MAX = 32;
-
-// Lazily define the plugin class (BABYLON must be loaded first).
-function _ensureConeSplashClass() {
-	if (_ConeSplashPluginClass) return;
-
-	_ConeSplashPluginClass = class ConeSplashPlugin extends BABYLON.MaterialPluginBase {
-		constructor(material) {
-			// priority 200: run after the core PBR blocks. Every define the plugin
-			// toggles must be declared here — Babylon builds the plugin's
-			// MaterialDefines from this list, and a define set in prepareDefines()
-			// but missing here is never tracked for recompile.
-			super(material, "ConeSplash", 200, { CONESPLASH: false });
-			this._enabled = false;
-			this._enable(true); // keep in pipeline; the CONESPLASH define gates the actual code
-		}
-
-		get isEnabled() { return this._enabled; }
-		set isEnabled(v) {
-			if (this._enabled === v) return;
-			this._enabled = v;
-			this.markAllDefinesAsDirty();
-		}
-
-		prepareDefines(defines) {
-			defines["CONESPLASH"] = this._enabled;
-		}
-
-		getClassName() { return "ConeSplashPlugin"; }
-
-		getUniforms() {
-			return {
-				ubo: [
-					// Both size AND type are required, else the entry is skipped.
-					{ name: "coneSplashGlobals", size: 4, type: "vec4" }, // (count, cosInner, cosOuter, strength)
-					{ name: "coneSplashColor", size: 4, type: "vec4" },   // (r, g, b, maxDist)
-					{ name: "coneSplashPos", size: 4, type: "vec4", arraySize: CONE_SPLASH_MAX },  // xyz=worldPos, w=weight
-					{ name: "coneSplashAxis", size: 4, type: "vec4", arraySize: CONE_SPLASH_MAX }  // xyz=aim dir
-				],
-				fragment:
-					"#ifdef CONESPLASH\n" +
-					"uniform vec4 coneSplashGlobals;\n" +
-					"uniform vec4 coneSplashColor;\n" +
-					"uniform vec4 coneSplashPos[" + CONE_SPLASH_MAX + "];\n" +
-					"uniform vec4 coneSplashAxis[" + CONE_SPLASH_MAX + "];\n" +
-					"#endif\n"
-			};
-		}
-
-		bindForSubMesh(uniformBuffer) {
-			if (!this._enabled || !_ovgal_splash) return;
-			var s = _ovgal_splash;
-			uniformBuffer.updateFloat4("coneSplashGlobals", s.count, s.cosInner, s.cosOuter, s.strength);
-			uniformBuffer.updateFloat4("coneSplashColor", s.color.r, s.color.g, s.color.b, s.maxDist);
-			uniformBuffer.updateFloatArray("coneSplashPos", s.posArray);
-			uniformBuffer.updateFloatArray("coneSplashAxis", s.axisArray);
-		}
-
-		getCustomCode(shaderType) {
-			if (shaderType !== "fragment") return null;
-			return {
-				"CUSTOM_FRAGMENT_BEFORE_FRAGCOLOR":
-					"#ifdef CONESPLASH\n" +
-					"{\n" +
-					"  float csCount = coneSplashGlobals.x;\n" +
-					"  vec3 csAccum = vec3(0.0);\n" +
-					"  vec3 csN = normalize(vNormalW);\n" +
-					"  for (int ci = 0; ci < " + CONE_SPLASH_MAX + "; ci++) {\n" +
-					"    if (float(ci) >= csCount) break;\n" +
-					"    vec3 csL = vPositionW - coneSplashPos[ci].xyz;\n" +
-					"    float csDist = length(csL);\n" +
-					"    vec3 csDir = csL / max(csDist, 1e-4);\n" +
-					"    float csAng = dot(csDir, coneSplashAxis[ci].xyz);\n" +
-					"    float csCone = smoothstep(coneSplashGlobals.z, coneSplashGlobals.y, csAng);\n" +
-					"    float csRadial = 1.0 - smoothstep(0.0, coneSplashColor.w, csDist);\n" +
-					"    float csNdl = max(0.0, dot(csN, -csDir));\n" +
-					"    csAccum += coneSplashPos[ci].w * csCone * csRadial * csNdl;\n" +
-					"  }\n" +
-					"  finalColor.rgb += csAccum * coneSplashColor.rgb * coneSplashGlobals.w;\n" +
-					"}\n" +
-					"#endif\n"
-			};
-		}
-	};
-}
+var BAKE_MAX_LIGHTS = 60;
 
 // Parse cone origins + aim directions from the F_ fixtures (same convention
 // as setupRoomLighting). Returns { posArray, axisArray, count }.
 function _collectConesFromFixtures(scene) {
-	var posArray = new Float32Array(CONE_SPLASH_MAX * 4);
-	var axisArray = new Float32Array(CONE_SPLASH_MAX * 4);
+	var posArray = new Float32Array(BAKE_MAX_LIGHTS * 4);
+	var axisArray = new Float32Array(BAKE_MAX_LIGHTS * 4);
 	var lights = [];   // per-cone { pos, dir } for the shadow bake
 	var count = 0;
 
@@ -479,7 +377,7 @@ function _collectConesFromFixtures(scene) {
 	}
 
 	var fixtures = scene.meshes.filter(function (m) { return m.name.match(/^F_\d+/); });
-	for (var i = 0; i < fixtures.length && count < CONE_SPLASH_MAX; i++) {
+	for (var i = 0; i < fixtures.length && count < BAKE_MAX_LIGHTS; i++) {
 		var fixture = fixtures[i];
 		var parts = fixture.name.split("_");
 		if (parts.length < 5) continue;
@@ -511,8 +409,8 @@ function _collectConesFromFixtures(scene) {
 // direction — both resolved by Babylon's glTF loader, so no manual handedness
 // math. Static, so the visibility volume bakes once at load.
 function _collectConesFromSpotLights(scene, nameFilter) {
-	var posArray = new Float32Array(CONE_SPLASH_MAX * 4);
-	var axisArray = new Float32Array(CONE_SPLASH_MAX * 4);
+	var posArray = new Float32Array(BAKE_MAX_LIGHTS * 4);
+	var axisArray = new Float32Array(BAKE_MAX_LIGHTS * 4);
 	var lights = [];   // per-cone { pos, dir } for the shadow bake
 	var count = 0;
 
@@ -520,7 +418,7 @@ function _collectConesFromSpotLights(scene, nameFilter) {
 		return l.getClassName && l.getClassName() === "SpotLight"
 			&& (!nameFilter || nameFilter.test(l.name));
 	});
-	for (var i = 0; i < spots.length && count < CONE_SPLASH_MAX; i++) {
+	for (var i = 0; i < spots.length && count < BAKE_MAX_LIGHTS; i++) {
 		var spot = spots[i];
 		// Marker lights are parented to their glTF node; refresh that matrix
 		// then resolve world-space pos/dir (computeTransformedInformation fills
@@ -532,190 +430,34 @@ function _collectConesFromSpotLights(scene, nameFilter) {
 		if (dir.length() < 0.01) continue;
 		dir.normalize();
 
+		// Cone aperture authored in the GLB: Babylon's glTF loader stores the
+		// KHR_lights_punctual outerConeAngle/innerConeAngle as SpotLight.angle /
+		// .innerAngle (FULL cone angles, radians). Our cone math compares against
+		// the cosine of the half-angle (dot of fragment dir vs axis), so halve.
+		// innerAngle is often 0 (exporters omit it) -> leave cosInner null so the
+		// bake falls back to the global softness slider.
+		var cosOuter = (typeof spot.angle === 'number' && spot.angle > 0)
+			? Math.cos(spot.angle * 0.5) : null;
+		var cosInner = (typeof spot.innerAngle === 'number' && spot.innerAngle > 0)
+			? Math.cos(spot.innerAngle * 0.5) : null;
+
 		var b = count * 4;
 		posArray[b] = pos.x; posArray[b + 1] = pos.y; posArray[b + 2] = pos.z; posArray[b + 3] = 1.0;
 		axisArray[b] = dir.x; axisArray[b + 1] = dir.y; axisArray[b + 2] = dir.z; axisArray[b + 3] = 0.0;
-		lights.push({ pos: pos.clone(), dir: dir.clone() });
+		lights.push({ pos: pos.clone(), dir: dir.clone(), cosOuter: cosOuter, cosInner: cosInner });
 		count++;
 	}
 
 	return { posArray: posArray, axisArray: axisArray, lights: lights, count: count };
 }
 
-// Which materials get a cone-splash plugin: wall-ish PBR surfaces only.
-function _shouldSplash(material) {
-	if (!material || !material.getClassName) return false;
-	if (material.getClassName().indexOf("PBR") === -1) return false; // only PBR exposes the hooks
-	if (material.name && material.name.match(/glow|frame|plaque|metal|chrome/i)) return false;
-	return true;
-}
-
-var _ovgal_splash_registered = false;
-
-// Register the plugin globally so every matching material includes it AT
-// CREATION (its UBO uniforms can't be added after the buffer is built). Gated
-// on ?splash; called from initGalleryLighting before any gallery loads.
-function _registerConeSplashPlugin() {
-	if (_ovgal_splash_registered) return;
-	if (!new URLSearchParams(window.location.search).has('splash')) return;
-	if (typeof BABYLON.MaterialPluginBase === 'undefined' || typeof BABYLON.RegisterMaterialPlugin === 'undefined') {
-		console.warn("Cone splash: this Babylon build lacks MaterialPlugin support");
-		return;
-	}
-	_ensureConeSplashClass();
-	BABYLON.RegisterMaterialPlugin("ConeSplash", function (material) {
-		return _shouldSplash(material) ? new _ConeSplashPluginClass(material) : null;
-	});
-	_ovgal_splash_registered = true;
-	console.log("Cone splash: plugin registered (materials include it at creation)");
-}
-
-/**
- * Sets up cone-splash lighting. No-op unless ?splash=1. Call after meshes +
- * materials are loaded (alongside setupBakedShadows), before material freeze.
- * @param {BABYLON.Scene} scene
- */
-function setupConeSplashes(scene) {
-	if (!_ovgal_splash_registered) return; // flag off, or no plugin support
-
-	// Primary: explicitly-authored `splash_N` glTF SpotLights (the GLB authoring
-	// convention — position + direction from the node, cone params still global).
-	var cones = _collectConesFromSpotLights(scene, /^splash_\d+/);
-	var coneSource = "splash_N spots";
-
-	// Else legacy F_ fixtures (direction packed in the mesh name).
-	if (cones.count === 0) {
-		cones = _collectConesFromFixtures(scene);
-		if (cones.count > 0) coneSource = "F_ fixtures";
-	}
-
-	// Else the template's marker SpotLight (e.g. the root gallery).
-	if (cones.count === 0) {
-		cones = _collectConesFromSpotLights(scene);
-		if (cones.count > 0) coneSource = "template spot light";
-	}
-
-	if (!_ovgal_splash) {
-		_ovgal_splash = {
-			enabled: true,
-			strength: 1.5,
-			maxDist: 12.0,
-			innerDeg: 12.0,
-			outerDeg: 28.0,
-			color: { r: 1.0, g: 0.96, b: 0.88 },
-			plugins: []
-		};
-		window._splash = _ovgal_splash;
-		_refreshSplashAngles();
-	}
-	_ovgal_splash.posArray = cones.posArray;
-	_ovgal_splash.axisArray = cones.axisArray;
-	_ovgal_splash.count = cones.count;
-
-	// No cone source (no F_ fixtures, no template spot) → nothing to render.
-	if (cones.count === 0) {
-		console.warn("Cone splash: no F_ fixtures or spot lights in scene — nothing to render");
-		return;
-	}
-	console.log("Cone splash: " + cones.count + " cone(s) from " + coneSource);
-
-	// Gather the plugins that were attached at material creation and enable
-	// them. Cones are shared globally, so each reads the same _ovgal_splash data.
-	_ovgal_splash.plugins = [];
-	scene.materials.forEach(function (mat) {
-		if (!mat.pluginManager) return;
-		var plugin = mat.pluginManager.getPlugin("ConeSplash");
-		if (plugin) {
-			plugin.isEnabled = _ovgal_splash.enabled;
-			_ovgal_splash.plugins.push(plugin);
-		}
-	});
-
-	_ovgal_splash.scene = scene;
-	console.log("Cone splash: " + cones.count + " cones, " + _ovgal_splash.plugins.length + " materials");
-
-	if (!_ovgal_splash.uiBuilt) {
-		_bindSplashToggle();
-		_buildSplashPanel();
-		_ovgal_splash.uiBuilt = true;
-	}
-}
-
-function _refreshSplashAngles() {
-	var s = _ovgal_splash;
-	s.cosInner = Math.cos(s.innerDeg * Math.PI / 180);
-	s.cosOuter = Math.cos(s.outerDeg * Math.PI / 180);
-}
-
-function _setSplashEnabled(on) {
-	_ovgal_splash.enabled = on;
-	_ovgal_splash.plugins.forEach(function (p) { p.isEnabled = on; });
-}
-
-function _bindSplashToggle() {
-	window.addEventListener("keydown", function (e) {
-		if ((e.key === "l" || e.key === "L") && !e.ctrlKey && !e.altKey && !e.metaKey) {
-			e.preventDefault();
-			_setSplashEnabled(!_ovgal_splash.enabled);
-			console.log("Cone splash " + (_ovgal_splash.enabled ? "on" : "off"));
-		}
-	});
-}
-
-function _buildSplashPanel() {
-	var s = _ovgal_splash;
-	var panel = document.createElement("div");
-	panel.style.cssText = "position:fixed;bottom:10px;left:10px;z-index:99999;"
-		+ "background:rgba(0,0,0,0.75);color:#fafafa;font:12px Inter,sans-serif;"
-		+ "padding:10px 12px;border-radius:8px;width:200px;user-select:none;";
-	panel.innerHTML = "<div style='margin-bottom:6px;font-weight:600;'>Cone splash &nbsp;<span style='color:#a1a1aa;font-weight:400;'>L=on/off</span></div>";
-
-	// All sliders are live: the cone splash is fully analytic, no bake to commit.
-	function addSlider(label, min, max, step, get, set) {
-		var row = document.createElement("label");
-		row.style.cssText = "display:block;margin:6px 0;";
-		var val = document.createElement("span");
-		val.textContent = get().toFixed(2);
-		val.style.cssText = "float:right;color:#a5b4fc;";
-		var name = document.createElement("span");
-		name.textContent = label;
-		var slider = document.createElement("input");
-		slider.type = "range";
-		slider.min = min; slider.max = max; slider.step = step;
-		slider.value = get();
-		slider.style.cssText = "width:100%;margin-top:2px;";
-		slider.addEventListener("input", function () {
-			set(parseFloat(slider.value));
-			val.textContent = parseFloat(slider.value).toFixed(2);
-		});
-		row.appendChild(name); row.appendChild(val); row.appendChild(slider);
-		panel.appendChild(row);
-	}
-
-	addSlider("strength", 0, 5, 0.05,
-		function () { return s.strength; },
-		function (v) { s.strength = v; });
-	addSlider("reach (m)", 1, 30, 0.5,
-		function () { return s.maxDist; },
-		function (v) { s.maxDist = v; });
-	addSlider("inner angle", 1, 45, 0.5,
-		function () { return s.innerDeg; },
-		function (v) { s.innerDeg = v; _refreshSplashAngles(); });
-	addSlider("outer angle", 2, 90, 0.5,
-		function () { return s.outerDeg; },
-		function (v) { s.outerDeg = v; _refreshSplashAngles(); });
-
-	document.body.appendChild(panel);
-}
-
 // =====================================================================
 // Startup lightmap bake (Lightmap V3) — EXPERIMENTAL. Enable with ?bake=1.
 // Bakes the contribution of every spot light into a per-mesh UV2 lightmap
-// at load time, then displays it. Same spot sources as the cone-splash
-// (splash_N spots → F_ fixtures → template spot), same analytic cone math,
-// so the look is consistent — but baked into texels instead of evaluated
-// per-fragment, which is what lets us later fold in shadows + many lights
-// for ~zero per-frame cost.
+// at load time, then displays it. Spot sources in priority order: splash_N
+// spots → F_ fixtures → template marker spot, evaluated with analytic cone
+// math but baked into texels instead of per-fragment — which is what lets us
+// fold in shadows + many lights for ~zero per-frame cost.
 //
 // Technique: a bake ShaderMaterial whose VERTEX shader writes UV2 as clip
 // position (uv2*2-1), so each mesh rasterizes into its own 0..1 lightmap;
@@ -809,11 +551,11 @@ function _ensureBakeMaterial(scene) {
 		"varying vec3 vPositionW;\n" +
 		"varying vec3 vNormalW;\n" +
 		"varying vec2 vUV2;\n" +
-		"uniform vec4 bakeGlobals;\n" +    // x=cosInner, y=cosOuter, z=intensity, w=maxDist (reach)
+		"uniform vec4 bakeGlobals;\n" +    // x=cosInner(fallback, unused), y=cosOuter(fallback, unused), z=intensity, w=maxDist (reach)
 		"uniform vec4 bakeColor;\n" +      // rgb=light color
 		"uniform vec4 bakeAmbient;\n" +    // x=hemi intensity up, y=hemi intensity down (white, ground=black)
-		"uniform vec4 bakeLight;\n" +      // xyz=this light world pos
-		"uniform vec4 bakeAxis0;\n" +      // xyz=this light aim dir
+		"uniform vec4 bakeLight;\n" +      // xyz=this light world pos, w=cosInner (per-light)
+		"uniform vec4 bakeAxis0;\n" +      // xyz=this light aim dir, w=cosOuter (per-light, from GLB)
 		"uniform vec4 shadowParams;\n" +   // x=darkness, y=bias(m), z=isFirstPass, w=texelSize
 		"uniform mat4 lightMatrix;\n" +    // this light view-projection (for the shadow UV)
 		"uniform vec4 aoParams;\n" +       // x = AO strength (0=off, 1=full)
@@ -847,7 +589,7 @@ function _ensureBakeMaterial(scene) {
 		"  float dist = length(L);\n" +
 		"  vec3 dir = L / max(dist, 1e-4);\n" +
 		"  float ang = dot(dir, bakeAxis0.xyz);\n" +
-		"  float cone = smoothstep(bakeGlobals.y, bakeGlobals.x, ang);\n" +
+		"  float cone = smoothstep(bakeAxis0.w, bakeLight.w, ang);\n" +
 		"  float radial = 1.0 - smoothstep(0.0, bakeGlobals.w, dist);\n" +
 		"  float ndl = max(dot(N, -dir), 0.0);\n" +
 		"  float occ = sampleShadow(vPositionW, ndl);\n" +
@@ -1384,9 +1126,17 @@ function _runBake() {
 		for (var k = 0; k < b.count; k++) {
 			var src = it.buffers[k % 2];
 			var dst = it.buffers[(k + 1) % 2];
-			var lp = b.lights[k].pos, ld = b.lights[k].dir;
-			m.setVector4("bakeLight", new BABYLON.Vector4(lp.x, lp.y, lp.z, 0));
-			m.setVector4("bakeAxis0", new BABYLON.Vector4(ld.x, ld.y, ld.z, 0));
+			var lk = b.lights[k];
+			var lp = lk.pos, ld = lk.dir;
+			// Per-light cone from the GLB when authored, else the global sliders.
+			// smoothstep(cosOuter, cosInner, ang) needs cosInner > cosOuter (inner
+			// angle narrower than outer); clamp so a wide slider inner can't invert
+			// a narrow GLB cone.
+			var cosOuter = (typeof lk.cosOuter === 'number') ? lk.cosOuter : b.cosOuter;
+			var cosInner = (typeof lk.cosInner === 'number') ? lk.cosInner : b.cosInner;
+			if (cosInner <= cosOuter) cosInner = Math.min(1.0, cosOuter + 0.02);
+			m.setVector4("bakeLight", new BABYLON.Vector4(lp.x, lp.y, lp.z, cosInner));
+			m.setVector4("bakeAxis0", new BABYLON.Vector4(ld.x, ld.y, ld.z, cosOuter));
 			m.setMatrix("lightMatrix", b.lightVP[k]);
 			m.setTexture("shadowSampler", b.shadowMaps[k]);
 			m.setTexture("prevTex", src);
