@@ -441,10 +441,16 @@ function _collectConesFromSpotLights(scene, nameFilter) {
 		var cosInner = (typeof spot.innerAngle === 'number' && spot.innerAngle > 0)
 			? Math.cos(spot.innerAngle * 0.5) : null;
 
+		// Optional per-light intensity authored in the name as an _I<value> suffix
+		// (e.g. splash_0_I10 -> 10). Absent -> null, so the bake falls back to the
+		// global intensity slider.
+		var iMatch = spot.name.match(/_I(\d+(?:\.\d+)?)/);
+		var intensity = iMatch ? parseFloat(iMatch[1]) : null;
+
 		var b = count * 4;
 		posArray[b] = pos.x; posArray[b + 1] = pos.y; posArray[b + 2] = pos.z; posArray[b + 3] = 1.0;
 		axisArray[b] = dir.x; axisArray[b + 1] = dir.y; axisArray[b + 2] = dir.z; axisArray[b + 3] = 0.0;
-		lights.push({ pos: pos.clone(), dir: dir.clone(), cosOuter: cosOuter, cosInner: cosInner });
+		lights.push({ pos: pos.clone(), dir: dir.clone(), cosOuter: cosOuter, cosInner: cosInner, intensity: intensity });
 		count++;
 	}
 
@@ -1109,8 +1115,8 @@ function _runBake() {
 	var m = b.material;
 	if (b.count === 0) return;
 
-	// Shared (per-light-invariant) uniforms.
-	m.setVector4("bakeGlobals", new BABYLON.Vector4(b.cosInner, b.cosOuter, b.intensity, b.maxDist));
+	// Shared (per-light-invariant) uniforms. bakeGlobals.z (intensity) is re-set
+	// per light inside the loop so an authored _I<value> suffix can override it.
 	m.setVector4("bakeColor", new BABYLON.Vector4(b.color.r, b.color.g, b.color.b, 0));
 	var iUp = _ovgal_lights.ambientUp ? _ovgal_lights.ambientUp.intensity : 0;
 	var iDown = _ovgal_lights.ambientDown ? _ovgal_lights.ambientDown.intensity : 0;
@@ -1135,6 +1141,10 @@ function _runBake() {
 			var cosOuter = (typeof lk.cosOuter === 'number') ? lk.cosOuter : b.cosOuter;
 			var cosInner = (typeof lk.cosInner === 'number') ? lk.cosInner : b.cosInner;
 			if (cosInner <= cosOuter) cosInner = Math.min(1.0, cosOuter + 0.02);
+			// Per-light intensity from the GLB name (_I<value>) when authored, else
+			// the global intensity slider. cosInner/cosOuter/maxDist stay invariant.
+			var inten = (typeof lk.intensity === 'number') ? lk.intensity : b.intensity;
+			m.setVector4("bakeGlobals", new BABYLON.Vector4(b.cosInner, b.cosOuter, inten, b.maxDist));
 			m.setVector4("bakeLight", new BABYLON.Vector4(lp.x, lp.y, lp.z, cosInner));
 			m.setVector4("bakeAxis0", new BABYLON.Vector4(ld.x, ld.y, ld.z, cosOuter));
 			m.setMatrix("lightMatrix", b.lightVP[k]);
