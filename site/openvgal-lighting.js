@@ -39,7 +39,7 @@ function setupRoomLighting(scene, config) {
 			} else {
 				light.intensity = config["Technical"]["pointLight"];
 			}
-		} else if (light.name.match(/^splash_\d+/)) {
+		} else if (light.name.match(/^(?:sun|splash)_\d+/)) {
 			// Authoring markers for the lightmap bake: their pose seeds the baked
 			// spots, the runtime light itself stays off (zero-runtime-light design).
 			light.setEnabled(false);
@@ -403,6 +403,16 @@ function _collectConesFromFixtures(scene) {
 	return { posArray: posArray, axisArray: axisArray, lights: lights, count: count };
 }
 
+// Parse an authored _<letter><number> suffix (e.g. _I10, _R6) from a name.
+// Anchored: the numeric token must be followed by _ or end-of-string, so it is
+// never matched inside an unrelated word. Returns the number (0 is valid), or
+// null when the suffix is absent.
+function _parseNameSuffix(name, letter) {
+	if (!name) return null;
+	var m = name.match(new RegExp("_" + letter + "(\\d+(?:\\.\\d+)?)(?=_|$)"));
+	return m ? parseFloat(m[1]) : null;
+}
+
 // Cone source from glTF SpotLights. With nameFilter (e.g. /^splash_\d+/) it
 // selects only the explicitly-authored splash spots; without it, any spot (the
 // template's marker). Cone origin = spot world position, axis = spot world
@@ -441,16 +451,39 @@ function _collectConesFromSpotLights(scene, nameFilter) {
 		var cosInner = (typeof spot.innerAngle === 'number' && spot.innerAngle > 0)
 			? Math.cos(spot.innerAngle * 0.5) : null;
 
-		// Optional per-light intensity authored in the name as an _I<value> suffix
-		// (e.g. splash_0_I10 -> 10). Absent -> null, so the bake falls back to the
-		// global intensity slider.
-		var iMatch = spot.name.match(/_I(\d+(?:\.\d+)?)/);
-		var intensity = iMatch ? parseFloat(iMatch[1]) : null;
+		// Per-light suffixes are authored on the Blender OBJECT, which the glTF
+		// loader turns into this spot's parent NODE (e.g. "splash_0_I2_R0"). That
+		// node name is the SINGLE SOURCE OF TRUTH. The KHR light data-block name
+		// (spot.name, e.g. "splash_0") is exporter plumbing the user rarely edits,
+		// so it is ignored for authoring — falling back to it only when the light
+		// has no parent node at all.
+		//   _I<value> -> per-light intensity (e.g. _I10). Absent -> null, so the
+		//                bake falls back to the global intensity slider.
+		//   _R<value> -> per-light reach (splash distance falloff radius, meters).
+		//                Absent -> null, so the bake falls back to the reach slider.
+		//                Ignored for suns (a sun has no distance falloff by definition).
+		// The sun_/splash_ PREFIX chooses the light model: sun = parallel rays along the
+		// aim, no cone, no falloff, orthographic shadow; splash = divergent cone + reach.
+		var nodeName = (spot.parent && spot.parent.name) ? spot.parent.name : spot.name;
+		var intensity = _parseNameSuffix(nodeName, "I");
+		var reach = _parseNameSuffix(nodeName, "R");
+		var isSun = /^sun_\d+/.test(nodeName);
+
+		// If a suffix was mistakenly authored on the ignored light name and it
+		// disagrees with the node, warn — the object name is what counts.
+		if (spot.parent && spot.name && spot.name !== nodeName) {
+			var lightI = _parseNameSuffix(spot.name, "I");
+			var lightR = _parseNameSuffix(spot.name, "R");
+			if ((lightI !== null && lightI !== intensity) || (lightR !== null && lightR !== reach)) {
+				console.warn("Lighting: suffix on light name '" + spot.name
+					+ "' ignored — author _I/_R on the object name ('" + nodeName + "').");
+			}
+		}
 
 		var b = count * 4;
 		posArray[b] = pos.x; posArray[b + 1] = pos.y; posArray[b + 2] = pos.z; posArray[b + 3] = 1.0;
 		axisArray[b] = dir.x; axisArray[b + 1] = dir.y; axisArray[b + 2] = dir.z; axisArray[b + 3] = 0.0;
-		lights.push({ pos: pos.clone(), dir: dir.clone(), cosOuter: cosOuter, cosInner: cosInner, intensity: intensity });
+		lights.push({ pos: pos.clone(), dir: dir.clone(), cosOuter: cosOuter, cosInner: cosInner, intensity: intensity, reach: reach, sun: isSun });
 		count++;
 	}
 
@@ -557,7 +590,7 @@ function _ensureBakeMaterial(scene) {
 		"varying vec3 vPositionW;\n" +
 		"varying vec3 vNormalW;\n" +
 		"varying vec2 vUV2;\n" +
-		"uniform vec4 bakeGlobals;\n" +    // x=cosInner(fallback, unused), y=cosOuter(fallback, unused), z=intensity, w=maxDist (reach)
+		"uniform vec4 bakeGlobals;\n" +    // x=sun flag (>0.5 = directional sun), y=unused, z=intensity, w=reach (splash maxDist; <=0 = no falloff)
 		"uniform vec4 bakeColor;\n" +      // rgb=light color
 		"uniform vec4 bakeAmbient;\n" +    // x=hemi intensity up, y=hemi intensity down (white, ground=black)
 		"uniform vec4 bakeLight;\n" +      // xyz=this light world pos, w=cosInner (per-light)
@@ -591,12 +624,19 @@ function _ensureBakeMaterial(scene) {
 		"}\n" +
 		"void main(void){\n" +
 		"  vec3 N = normalize(vNormalW);\n" +
+		// Vector light->fragment from the light's finite position: always needed for the
+		// shadow depth compare, and for a splash's divergent direction + distance falloff.
 		"  vec3 L = vPositionW - bakeLight.xyz;\n" +
 		"  float dist = length(L);\n" +
-		"  vec3 dir = L / max(dist, 1e-4);\n" +
-		"  float ang = dot(dir, bakeAxis0.xyz);\n" +
-		"  float cone = smoothstep(bakeAxis0.w, bakeLight.w, ang);\n" +
-		"  float radial = 1.0 - smoothstep(0.0, bakeGlobals.w, dist);\n" +
+		"  vec3 dirPoint = L / max(dist, 1e-4);\n" +
+		// sun (bakeGlobals.x > 0.5): parallel rays along the authored aim direction, no
+		// cone, no distance falloff — the 5 shafts stay parallel and equally bright, and
+		// the openings come purely from the roof shadow. splash: rays fan out from the
+		// point with an angular cone + reach falloff.
+		"  bool isSun = bakeGlobals.x > 0.5;\n" +
+		"  vec3 dir = isSun ? bakeAxis0.xyz : dirPoint;\n" +
+		"  float cone = isSun ? 1.0 : smoothstep(bakeAxis0.w, bakeLight.w, dot(dirPoint, bakeAxis0.xyz));\n" +
+		"  float radial = isSun ? 1.0 : ((bakeGlobals.w <= 0.0) ? 1.0 : 1.0 - smoothstep(0.0, bakeGlobals.w, dist));\n" +
 		"  float ndl = max(dot(N, -dir), 0.0);\n" +
 		"  float occ = sampleShadow(vPositionW, ndl);\n" +
 		"  vec3 lit = vec3(cone * radial * ndl) * bakeColor.rgb * bakeGlobals.z * occ;\n" +
@@ -659,7 +699,8 @@ function _ensureDisplayMaterial(scene) {
 		"varying vec2 vUV2;\n" +
 		"uniform sampler2D albedoSampler;\n" +
 		"uniform sampler2D lightSampler;\n" +
-		"uniform float hasAlbedo;\n" +    // 1 = multiply by albedo, 0 = lightmap only
+		"uniform float hasAlbedo;\n" +    // 1 = multiply by albedo texture, 0 = use albedoColor
+		"uniform vec3 albedoColor;\n" +   // flat base-color fallback (gamma space); white when none
 		"uniform vec2 lmTexel;\n" +       // 1/lightmapSize — one texel step in UV2
 		// Coverage-weighted bilinear: the lightmap (NEAREST) stores alpha=1 on baked
 		// texels, 0 on the uncovered border past each UV island. Manually blend the 4
@@ -696,7 +737,7 @@ function _ensureDisplayMaterial(scene) {
 		"}\n" +
 		"void main(void){\n" +
 		"  vec3 lm = sampleLightmap(vUV2);\n" +
-		"  vec3 alb = hasAlbedo > 0.5 ? texture2D(albedoSampler, vUV).rgb : vec3(1.0);\n" +
+		"  vec3 alb = hasAlbedo > 0.5 ? texture2D(albedoSampler, vUV).rgb : albedoColor;\n" +
 		"  gl_FragColor = vec4(alb * lm, 1.0);\n" +
 		"}\n";
 
@@ -705,7 +746,7 @@ function _ensureDisplayMaterial(scene) {
 		{ vertex: "ovgalDisplay", fragment: "ovgalDisplay" },
 		{
 			attributes: ["position", "uv", "uv2"],
-			uniforms: ["worldViewProjection", "uvScaleOffset", "hasAlbedo", "lmTexel"],
+			uniforms: ["worldViewProjection", "uvScaleOffset", "hasAlbedo", "albedoColor", "lmTexel"],
 			samplers: ["albedoSampler", "lightSampler"]
 		});
 }
@@ -744,6 +785,18 @@ function _findAlbedoTexture(material) {
 	return null;
 }
 
+// Flat base-color factor fallback for meshes with no base-color texture — e.g. a
+// Blender Principled BSDF whose Base Color is a solid swatch (no image node)
+// exports to glTF as baseColorFactor with no texture, loading as a PBRMaterial
+// with only albedoColor set. BJS stores albedoColor/diffuseColor in LINEAR space
+// (glTF factors are linear); the display shader multiplies the lightmap against
+// raw-sampled (sRGB-encoded) albedo textures, so gamma-encode here to match.
+function _findAlbedoColor(material) {
+	if (!material) return null;
+	var c = material.albedoColor || material.diffuseColor;
+	return (c && typeof c.toGammaSpace === "function") ? c.toGammaSpace() : c;
+}
+
 // Custom depth material: writes linear distance (meters) from the light to the
 // fragment. We supply the light view-projection directly (lightVP uniform), so
 // the depth render is independent of any camera projection/handedness.
@@ -774,6 +827,9 @@ function _ensureDepthMaterial(scene) {
 	var mat = new BABYLON.ShaderMaterial("ovgalBakeDepth", scene,
 		{ vertex: "ovgalBakeDepth", fragment: "ovgalBakeDepth" },
 		{ attributes: ["position"], uniforms: ["world", "lightVP", "lightInfo"] });
+	// Render both sides: a single-face occluder (e.g. a one-sided beam plane) only
+	// casts a shadow if it's drawn regardless of which way its normal faces the light.
+	mat.backFaceCulling = false;
 	_ovgal_bake.depthMat = mat;
 }
 
@@ -881,6 +937,18 @@ function _buildShadowMaps(scene) {
 	});
 	casters.forEach(function (m) { m.alwaysSelectAsActiveMesh = true; });
 
+	// Combined room AABB — a far light (e.g. a sun above a roof opening) sits well
+	// beyond the fixed 50 m far plane, so its casters would be clipped out of the
+	// depth map and every texel would read as occluded. Push each light's far plane
+	// out to cover the whole room from that light's distance.
+	var rMin = new BABYLON.Vector3(1e9, 1e9, 1e9);
+	var rMax = new BABYLON.Vector3(-1e9, -1e9, -1e9);
+	casters.forEach(function (m) {
+		var bb = m.getBoundingInfo().boundingBox;
+		rMin = BABYLON.Vector3.Minimize(rMin, bb.minimumWorld);
+		rMax = BABYLON.Vector3.Maximize(rMax, bb.maximumWorld);
+	});
+
 	var lh = !scene.useRightHandedSystem;
 
 	for (var k = 0; k < b.lights.length; k++) {
@@ -893,8 +961,38 @@ function _buildShadowMaps(scene) {
 		var target = pos.add(dir);
 		var view = lh ? BABYLON.Matrix.LookAtLH(pos, target, up)
 			: BABYLON.Matrix.LookAtRH(pos, target, up);
-		var proj = lh ? BABYLON.Matrix.PerspectiveFovLH(BAKE_SHADOW_FOV, 1, BAKE_SHADOW_NEAR, BAKE_SHADOW_FAR)
-			: BABYLON.Matrix.PerspectiveFovRH(BAKE_SHADOW_FOV, 1, BAKE_SHADOW_NEAR, BAKE_SHADOW_FAR);
+		var proj;
+		if (b.lights[k].sun) {
+			// Sun: orthographic (parallel) projection tightly framed to the room in this
+			// light's VIEW space. Uniform texel density everywhere means the extreme
+			// openings sample the depth map as well as the centre — no perspective
+			// foreshortening, so the grazing-angle moiré ("interference rings") is gone.
+			var vmin = new BABYLON.Vector3(1e9, 1e9, 1e9);
+			var vmax = new BABYLON.Vector3(-1e9, -1e9, -1e9);
+			for (var sx = 0; sx < 2; sx++) for (var sy = 0; sy < 2; sy++) for (var sz = 0; sz < 2; sz++) {
+				var vc = BABYLON.Vector3.TransformCoordinates(
+					new BABYLON.Vector3(sx ? rMax.x : rMin.x, sy ? rMax.y : rMin.y, sz ? rMax.z : rMin.z), view);
+				vmin = BABYLON.Vector3.Minimize(vmin, vc);
+				vmax = BABYLON.Vector3.Maximize(vmax, vc);
+			}
+			var mg = 0.2; // meters of padding around the room box
+			// View-space depth: LH looks down +z (scene z positive), RH down -z (negative).
+			proj = lh
+				? BABYLON.Matrix.OrthoOffCenterLH(vmin.x - mg, vmax.x + mg, vmin.y - mg, vmax.y + mg,
+					Math.max(BAKE_SHADOW_NEAR, vmin.z - mg), vmax.z + mg)
+				: BABYLON.Matrix.OrthoOffCenterRH(vmin.x - mg, vmax.x + mg, vmin.y - mg, vmax.y + mg,
+					Math.max(BAKE_SHADOW_NEAR, -vmax.z - mg), -vmin.z + mg);
+		} else {
+			// Splash: perspective. Farthest room corner from this light + 5% margin,
+			// floored at the baseline, so a far source still covers the room.
+			var far = BAKE_SHADOW_FAR;
+			for (var cx = 0; cx < 2; cx++) for (var cy = 0; cy < 2; cy++) for (var cz = 0; cz < 2; cz++) {
+				var corner = new BABYLON.Vector3(cx ? rMax.x : rMin.x, cy ? rMax.y : rMin.y, cz ? rMax.z : rMin.z);
+				far = Math.max(far, BABYLON.Vector3.Distance(pos, corner) * 1.05);
+			}
+			proj = lh ? BABYLON.Matrix.PerspectiveFovLH(BAKE_SHADOW_FOV, 1, BAKE_SHADOW_NEAR, far)
+				: BABYLON.Matrix.PerspectiveFovRH(BAKE_SHADOW_FOV, 1, BAKE_SHADOW_NEAR, far);
+		}
 		var vp = view.multiply(proj);
 		b.lightVP.push(vp);
 
@@ -1088,6 +1186,10 @@ function _bakeMesh(scene, mesh) {
 	var albedo = _findAlbedoTexture(orig);
 	var view = b.displayMat.clone("bakeView_" + mesh.name);
 	view.setFloat("hasAlbedo", albedo ? 1.0 : 0.0);
+	// No base-color texture: fall back to the material's flat color factor so
+	// solid-colored BSDF materials keep their color instead of rendering white.
+	var albColor = albedo ? null : _findAlbedoColor(orig);
+	view.setColor3("albedoColor", albColor || new BABYLON.Color3(1, 1, 1));
 	// Carry the albedo's UV scale + offset (KHR_texture_transform) so tiled textures
 	// repeat exactly as the original material draws them. Read as plain scalars (not
 	// getTextureMatrix, whose shared cached-matrix reference doesn't bind reliably
@@ -1141,10 +1243,12 @@ function _runBake() {
 			var cosOuter = (typeof lk.cosOuter === 'number') ? lk.cosOuter : b.cosOuter;
 			var cosInner = (typeof lk.cosInner === 'number') ? lk.cosInner : b.cosInner;
 			if (cosInner <= cosOuter) cosInner = Math.min(1.0, cosOuter + 0.02);
-			// Per-light intensity from the GLB name (_I<value>) when authored, else
-			// the global intensity slider. cosInner/cosOuter/maxDist stay invariant.
+			// Per-light intensity (_I<value>) and reach (_R<value>) from the GLB name
+			// when authored, else the global sliders. A sun (name prefix sun_) ignores
+			// reach + cone and lights with parallel rays; bakeGlobals.x carries the flag.
 			var inten = (typeof lk.intensity === 'number') ? lk.intensity : b.intensity;
-			m.setVector4("bakeGlobals", new BABYLON.Vector4(b.cosInner, b.cosOuter, inten, b.maxDist));
+			var reach = (typeof lk.reach === 'number') ? lk.reach : b.maxDist;
+			m.setVector4("bakeGlobals", new BABYLON.Vector4(lk.sun ? 1.0 : 0.0, 0.0, inten, reach));
 			m.setVector4("bakeLight", new BABYLON.Vector4(lp.x, lp.y, lp.z, cosInner));
 			m.setVector4("bakeAxis0", new BABYLON.Vector4(ld.x, ld.y, ld.z, cosOuter));
 			m.setMatrix("lightMatrix", b.lightVP[k]);
@@ -1174,10 +1278,10 @@ function setupLightmapBake(scene) {
 		return;
 	}
 
-	// Same spot source priority as the cone-splash: authored splash_N spots,
-	// then F_ fixtures, then the template's marker spot.
-	var cones = _collectConesFromSpotLights(scene, /^splash_\d+/);
-	var source = "splash_N spots";
+	// Authored sun_N / splash_N spots first, then F_ fixtures, then the template's
+	// marker spot. The sun_/splash_ prefix per light selects its model in the bake.
+	var cones = _collectConesFromSpotLights(scene, /^(?:sun|splash)_\d+/);
+	var source = "sun_N / splash_N spots";
 	if (cones.count === 0) { cones = _collectConesFromFixtures(scene); source = "F_ fixtures"; }
 	if (cones.count === 0) { cones = _collectConesFromSpotLights(scene); source = "template spot light"; }
 	if (cones.count === 0) {
