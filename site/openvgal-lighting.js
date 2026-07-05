@@ -1138,6 +1138,21 @@ function _runAO() {
 function _bakeMesh(scene, mesh) {
 	var b = _ovgal_bake;
 
+	// Reuse this mesh's bake resources on room re-entry. Galleries are cached in an
+	// AssetContainer; on return the mesh and its display material survive, but the
+	// lightmap render-target *contents* are lost, so setupLightmapBake runs again to
+	// refill them (via _runBake). Keep the original allocations — and the real
+	// pre-bake material captured on first bake — rather than rebuilding: recreating
+	// would leak render targets and re-read the display shader as the source albedo,
+	// rendering the surface white.
+	var res = mesh.metadata && mesh.metadata.ovgal_bake;
+	if (res) {
+		mesh.material = res.view;
+		mesh.alwaysSelectAsActiveMesh = true;
+		b.baked.push({ mesh: mesh, buffers: res.buffers, aoBuffer: res.aoBuffer, orig: res.orig, view: res.view });
+		return;
+	}
+
 	function makeBuf(tag) {
 		var rtt = new BABYLON.RenderTargetTexture(
 			"bakeRTT_" + mesh.name + "_" + tag, b.size, scene,
@@ -1204,6 +1219,11 @@ function _bakeMesh(scene, mesh) {
 	view.backFaceCulling = (orig && typeof orig.backFaceCulling === "boolean")
 		? orig.backFaceCulling : true;
 	mesh.material = view;
+
+	// Remember this mesh's bake resources so a room re-entry reuses them (see the
+	// reuse guard at the top of this function) instead of leaking new ones.
+	if (!mesh.metadata) mesh.metadata = {};
+	mesh.metadata.ovgal_bake = { buffers: buffers, aoBuffer: aoBuffer, orig: orig, view: view };
 
 	b.baked.push({ mesh: mesh, buffers: buffers, aoBuffer: aoBuffer, orig: orig, view: view });
 }
@@ -1317,15 +1337,27 @@ function setupLightmapBake(scene) {
 	_ovgal_bake.count = cones.count;
 	_ovgal_bake.scene = scene;
 
+	// Rebuild the working bake list from scratch each run. On room re-entry the
+	// previous room's entries would otherwise linger here; _bakeMesh repopulates it
+	// from the current scene, reusing each mesh's own stored resources (no realloc,
+	// no leak).
+	_ovgal_bake.baked = [];
+
 	_ensureBakeMaterial(scene);
 	_ensureDepthMaterial(scene);
 	_ensureAOMaterials(scene);
 	_ensureDisplayMaterial(scene);
 
 	// Bake the room surfaces that carry a UV2 channel (skip helpers + UV2-less meshes).
+	// Skip self-illuminated emitters (BJS_glow / BJS_glow_masked, loaded as rBJS_glow*):
+	// they're light SOURCES, not receivers. Relighting them with the display shader
+	// would replace their glow with a dull albedo×lightmap surface — they'd stop
+	// glowing under the baked view. Leaving them out keeps their original glow
+	// material, so they stay decorative once the runtime lights are gone.
 	var meshes = scene.meshes.filter(function (m) {
 		if (!m.isVisible) return false;
 		if (m.name.match(/^Occupancy_/) || m.name === 'door_title') return false;
+		if (m.material && /glow/i.test(m.material.name || '')) return false;
 		if (!m.isVerticesDataPresent || !m.isVerticesDataPresent(BABYLON.VertexBuffer.UV2Kind)) return false;
 		return true;
 	});
