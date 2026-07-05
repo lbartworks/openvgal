@@ -419,6 +419,11 @@
 					galleries[current_gallery].addAllToScene();
 					setupRoomLighting(scene, config_file_content);
 					setupBakedShadows(scene);
+					// Re-run the bake on return: the AssetContainer preserves each mesh and
+					// its display material, but NOT the lightmap render-target contents (they
+					// come back blank), so the splash/sun must be recomputed. setupLightmapBake
+					// reuses each mesh's stored buffers + real source material and only refills
+					// the lightmap — see _bakeMesh's reuse path.
 					setupLightmapBake(scene);
 					freezeGalleryMaterials();
 
@@ -430,8 +435,25 @@
 
 
 
-				//reset camera position
-				scene.cameras[0].position=new BABYLON.Vector3(0, 1.5, 0);
+				//reset camera position — honor a "Start" empty baked into the GLB if
+				//present, otherwise fall back to the default spawn point. The empty is
+				//imported as a (mesh-less) TransformNode parented under glTF's __root__,
+				//so getAbsolutePosition/getDirection give the correct left-handed values.
+				const cam = scene.cameras[0];
+				const startNode = scene.getNodeByName('Start');
+				if (startNode) {
+					startNode.computeWorldMatrix(true);
+					cam.position.copyFrom(startNode.getAbsolutePosition());
+					// Face the empty's local +Y axis (its world direction), keeping the
+					// look level so the camera doesn't tilt up/down from the empty.
+					const forward = startNode.getDirection(BABYLON.Axis.Y);
+					forward.y = 0;
+					if (forward.lengthSquared() > 1e-6) {
+						cam.setTarget(cam.position.add(forward));
+					}
+				} else {
+					cam.position = new BABYLON.Vector3(0, 1.5, 0);
+				}
 
 				//locate doors and artwork to setup the action manager
 				gallery_doors=[];
