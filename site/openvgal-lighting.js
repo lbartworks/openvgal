@@ -363,8 +363,32 @@ function _buildShadowPanel() {
 // =====================================================================
 var BAKE_MAX_LIGHTS = 60;
 
+// Rect (area) light model. Each F_ fixture panel is baked as a grid of point
+// sub-lights stratified across its rectangle, each at 1/samples intensity. The
+// offset shadow casters average into a soft penumbra — a true area light, reusing
+// the splash pass + per-light depth map with no shader change. Samples per edge
+// scale with that edge's length (SPACING), so a long strip fills without a gap and
+// a short side isn't over-sampled; MAX_PER_AXIS + BAKE_MAX_LIGHTS cap the total.
+var BAKE_RECT_SPACING = 0.5;      // target meters between area-light samples
+var BAKE_RECT_MAX_PER_AXIS = 6;   // per-edge sample cap (start low)
+// Rect sub-lights emulate a Lambertian panel, not a spotlight. Two constraints:
+//  (1) a 90-degree "cone" is not a cone: its outer edge is the plane through
+//      the light with normal = aim, and that plane hits the floor/walls as a
+//      dead-straight HARD LINE when the feather is thin. So the shoulder must
+//      be WIDE — flat only within 45 of the aim, then a long smooth ramp — so
+//      any cutoff reads as a soft gradient, never an edge.
+//  (2) grazing (~90, the concave-corner texels of the adjacent wall) must get
+//      a SMALL but nonzero amount: exactly-zero-at-90 leaves the corner strip
+//      dark from both panels (dark wedge); full-at-90 over-lights it (bright
+//      leak). Outer just past 90 puts grazing at ~10% on the wide ramp — soft
+//      corner fill, no wedge either way. The tiny bleed a few degrees behind
+//      the plane is visually negligible.
+var BAKE_RECT_COS_OUTER = Math.cos(100 * Math.PI / 180);  // ~-0.174 — ~10% fill at grazing
+var BAKE_RECT_COS_INNER = Math.cos(45 * Math.PI / 180);   // ~0.707 — wide soft shoulder
+
 // Parse cone origins + aim directions from the F_ fixtures (same convention
-// as setupRoomLighting). Returns { posArray, axisArray, count }.
+// as setupRoomLighting), expanded into the rect model's sample grid. Returns
+// { posArray, axisArray, lights, count }.
 function _collectConesFromFixtures(scene) {
 	var posArray = new Float32Array(BAKE_MAX_LIGHTS * 4);
 	var axisArray = new Float32Array(BAKE_MAX_LIGHTS * 4);
@@ -377,7 +401,13 @@ function _collectConesFromFixtures(scene) {
 	}
 
 	var fixtures = scene.meshes.filter(function (m) { return m.name.match(/^F_\d+/); });
-	for (var i = 0; i < fixtures.length && count < BAKE_MAX_LIGHTS; i++) {
+
+	// Pass 1: resolve each panel's aim + oriented frame + desired grid. Emission
+	// waits until the sample budget is settled — the old emit-until-full loop cut
+	// a panel off mid-grid (lit on one side only, and under-powered because
+	// 1/(nu*nv) assumed the full grid) and left every later panel dark.
+	var panels = [];
+	for (var i = 0; i < fixtures.length; i++) {
 		var fixture = fixtures[i];
 		var parts = fixture.name.split("_");
 		if (parts.length < 5) continue;
@@ -390,14 +420,95 @@ function _collectConesFromFixtures(scene) {
 		if (axis.length() < 0.01) continue;
 		axis.normalize();
 
-		fixture.computeWorldMatrix(true);
-		var pos = fixture.getAbsolutePosition();
+		// Emission direction. The runtime RectAreaLight does NOT emit along this
+		// name vector directly — setupRoomLighting orients a TransformNode from it
+		// (yaw = atan2(x,z), pitch = -atan2(-y, horiz)) and the light emits along the
+		// node's LOCAL -Z. So the baked cone must aim at that same local -Z, not the
+		// raw vector. Rebuild the identical rotation and read its -Z, so the bake
+		// matches the live light exactly with no handedness assumption.
+		var horizLen = Math.sqrt(axis.x * axis.x + axis.z * axis.z);
+		var aimYaw = (horizLen < 0.01) ? 0 : Math.atan2(axis.x, axis.z);
+		var aimPitch = -Math.atan2(-axis.y, horizLen);
+		var aimRot = BABYLON.Matrix.RotationYawPitchRoll(aimYaw, aimPitch, 0);
+		var aim = BABYLON.Vector3.TransformNormal(new BABYLON.Vector3(0, 0, -1), aimRot);
+		aim.normalize();
 
-		var b = count * 4;
-		posArray[b] = pos.x; posArray[b + 1] = pos.y - 0.2; posArray[b + 2] = pos.z; posArray[b + 3] = 1.0;
-		axisArray[b] = axis.x; axisArray[b + 1] = axis.y; axisArray[b + 2] = axis.z; axisArray[b + 3] = 0.0;
-		lights.push({ pos: new BABYLON.Vector3(pos.x, pos.y - 0.2, pos.z), dir: axis.clone() });
-		count++;
+		fixture.computeWorldMatrix(true);
+		fixture.refreshBoundingInfo();
+		var pos = fixture.getAbsolutePosition();
+		var bb = fixture.getBoundingInfo().boundingBox;
+		var wm = fixture.getWorldMatrix();
+		var half = bb.extendSize;   // local half-sizes (respect the panel's own frame)
+
+		// The panel's three oriented world axes (local X/Y/Z mapped through the world
+		// matrix), each with its world half-extent = local half-size × axis scale.
+		// Sorting by half-extent, the two largest are the rectangle's in-plane edges;
+		// the smallest is its thickness (normal). This follows a rotated/tilted panel
+		// exactly — unlike the axis-aligned bounding box, which a rotation skews.
+		var ax = [
+			{ d: BABYLON.Vector3.TransformNormal(BABYLON.Axis.X, wm), h: half.x },
+			{ d: BABYLON.Vector3.TransformNormal(BABYLON.Axis.Y, wm), h: half.y },
+			{ d: BABYLON.Vector3.TransformNormal(BABYLON.Axis.Z, wm), h: half.z }
+		];
+		for (var a = 0; a < 3; a++) { ax[a].h *= ax[a].d.length(); ax[a].d.normalize(); }
+		ax.sort(function (p, q) { return q.h - p.h; });
+		var U = ax[0], V = ax[1];   // in-plane edges (half-extents U.h, V.h)
+
+		// Samples per edge proportional to its length: a long strip gets many
+		// samples along its length (no middle gap) without wasting them across its
+		// narrow side. Capped per axis and by the global light budget.
+		var nu = Math.min(BAKE_RECT_MAX_PER_AXIS, Math.max(1, Math.round(2 * U.h / BAKE_RECT_SPACING)));
+		var nv = Math.min(BAKE_RECT_MAX_PER_AXIS, Math.max(1, Math.round(2 * V.h / BAKE_RECT_SPACING)));
+		panels.push({ pos: pos, aim: aim, U: U, V: V, nu: nu, nv: nv });
+	}
+
+	// Over budget: shrink the densest grid one sample at a time, so every panel
+	// keeps a full symmetric grid — just coarser. Only when there are more panels
+	// than the budget itself are panels dropped, loudly.
+	function _totalSamples() {
+		var t = 0;
+		for (var p = 0; p < panels.length; p++) t += panels[p].nu * panels[p].nv;
+		return t;
+	}
+	while (_totalSamples() > BAKE_MAX_LIGHTS) {
+		var big = panels[0];
+		for (var q = 1; q < panels.length; q++) {
+			if (panels[q].nu * panels[q].nv > big.nu * big.nv) big = panels[q];
+		}
+		if (big.nu * big.nv <= 1) {
+			console.warn("Lighting: " + panels.length + " F_ panels exceed the bake light budget ("
+				+ BAKE_MAX_LIGHTS + ") — panels beyond the budget are dropped");
+			panels.length = BAKE_MAX_LIGHTS;
+			break;
+		}
+		if (big.nu >= big.nv) big.nu--; else big.nv--;
+	}
+
+	// Pass 2: emit each panel's stratified sample grid.
+	for (var k = 0; k < panels.length && count < BAKE_MAX_LIGHTS; k++) {
+		var pn = panels[k];
+		var rectScale = 1.0 / (pn.nu * pn.nv);   // total energy matches a single panel light
+		for (var iu = 0; iu < pn.nu; iu++) {
+			for (var iv = 0; iv < pn.nv; iv++) {
+				// Cell-center offsets in meters from the panel center, along the
+				// oriented edges (full 3D, so a tilted panel's samples follow its plane).
+				var du = ((iu + 0.5) / pn.nu - 0.5) * 2 * pn.U.h;
+				var dv = ((iv + 0.5) / pn.nv - 0.5) * 2 * pn.V.h;
+				// 0.2 m off the panel ALONG THE AIM: identical to the old world -Y drop
+				// for the usual down-facing panel, but a wall-mounted panel's samples now
+				// sit in front of its face instead of slid down it (where its own mesh
+				// shadow-clipped them).
+				var sx = pn.pos.x + pn.aim.x * 0.2 + pn.U.d.x * du + pn.V.d.x * dv;
+				var sy = pn.pos.y + pn.aim.y * 0.2 + pn.U.d.y * du + pn.V.d.y * dv;
+				var sz = pn.pos.z + pn.aim.z * 0.2 + pn.U.d.z * du + pn.V.d.z * dv;
+				var b = count * 4;
+				posArray[b] = sx; posArray[b + 1] = sy; posArray[b + 2] = sz; posArray[b + 3] = 1.0;
+				axisArray[b] = pn.aim.x; axisArray[b + 1] = pn.aim.y; axisArray[b + 2] = pn.aim.z; axisArray[b + 3] = 0.0;
+				lights.push({ pos: new BABYLON.Vector3(sx, sy, sz), dir: pn.aim.clone(), scale: rectScale,
+					cosOuter: BAKE_RECT_COS_OUTER, cosInner: BAKE_RECT_COS_INNER });
+				count++;
+			}
+		}
 	}
 
 	return { posArray: posArray, axisArray: axisArray, lights: lights, count: count };
@@ -520,9 +631,25 @@ function _collectConesFromSpotLights(scene, nameFilter) {
 // =====================================================================
 var _ovgal_bake = null;
 
-// Fixed shadow frustum: wide enough to cover any tuned cone angle, so the angle
-// sliders never force a depth-map re-render. Only the resolution slider rebuilds.
+// Fixed shadow frustum: wide enough to cover any tuned SPOT cone angle, so the
+// angle sliders never force a depth-map re-render (only the resolution slider
+// rebuilds). Sun/splash texels past this frustum fall back to the voxel-grid
+// march in the bake shader (sampleShadow -> voxelShadow).
 var BAKE_SHADOW_FOV = 110 * Math.PI / 180;
+
+// Rect sub-lights instead get FULL-coverage shadowing: up to 6 depth maps per
+// sub-light, one per world axis ("cube faces"), and one gated bake pass per map
+// so every texel is depth-tested against exactly one face — never the voxel
+// march. The voxel fallback at ~12 cm quantization was the source of both the
+// wall/ceiling staircase (floor() parity made it differ on 2 of 4 edges) and
+// the dark corner bands (wall-hugging rays false-hitting the adjacent wall's
+// voxel layer). A cube-face region spans up to 54.74 deg off its axis (the
+// corner direction), so the face FOV must exceed 109.5 deg for the 3x3 PCF taps
+// at the region edge to stay inside the map.
+var BAKE_RECT_FACE_FOV = 120 * Math.PI / 180;
+var BAKE_RECT_FACE_AXES = [
+	[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]
+];   // index = face id, must match the dominant-axis pick in the bake shader
 var BAKE_SHADOW_NEAR = 0.2;
 var BAKE_SHADOW_FAR = 50.0;
 
@@ -597,16 +724,76 @@ function _ensureBakeMaterial(scene) {
 		"uniform vec4 bakeAxis0;\n" +      // xyz=this light aim dir, w=cosOuter (per-light, from GLB)
 		"uniform vec4 shadowParams;\n" +   // x=darkness, y=bias(m), z=isFirstPass, w=texelSize
 		"uniform mat4 lightMatrix;\n" +    // this light view-projection (for the shadow UV)
-		"uniform vec4 aoParams;\n" +       // x = AO strength (0=off, 1=full)
+		"uniform vec4 aoParams;\n" +       // x = AO strength (0=off, 1=full), y = voxel size (m), z = 1 when the occupancy grid is bound
+		"uniform vec4 faceParams;\n" +     // x = cube-face id this pass covers (-1 = ungated), y = shadow-texel world size per meter of distance
+		"uniform vec3 gridMin;\n" +        // occupancy grid corner (shared with the AO pass)
+		"uniform vec4 gridN;\n" +          // xyz = voxel counts per axis
+		"uniform vec4 gridTile;\n" +       // x=tilesX, y=tilesY, z=texW, w=texH
 		"uniform sampler2D prevTex;\n" +   // previous accumulation (ping-pong)
 		"uniform sampler2D shadowSampler;\n" + // this light's depth map (linear meters in .r)
 		"uniform sampler2D aoSampler;\n" + // this mesh's baked AO (.r = AO, .g = 1)
-		"float sampleShadow(vec3 P, float ndl){\n" +
-		"  vec4 sc = lightMatrix * vec4(P, 1.0);\n" +
-		"  if (sc.w <= 0.0) return 1.0;\n" +
+		"uniform sampler2D aoGrid;\n" +    // room occupancy atlas (voxel-march fallback)
+		"float sampleGrid(vec3 P){\n" +
+		"  vec3 vc = floor((P - gridMin) / aoParams.y);\n" +
+		"  if (vc.x < 0.0 || vc.y < 0.0 || vc.z < 0.0 ||\n" +
+		"      vc.x >= gridN.x || vc.y >= gridN.y || vc.z >= gridN.z) return 0.0;\n" +
+		"  float tx = mod(vc.z, gridTile.x);\n" +
+		"  float ty = floor(vc.z / gridTile.x);\n" +
+		"  float px = tx * gridN.x + vc.x + 0.5;\n" +
+		"  float py = ty * gridN.y + vc.y + 0.5;\n" +
+		"  return texture2D(aoGrid, vec2(px / gridTile.z, py / gridTile.w)).r;\n" +
+		"}\n" +
+		// Coverage fallback for texels outside a light's depth-map frustum, which used
+		// to return "fully lit" (light leaked through walls into neighbouring rooms).
+		// Only sun/splash lights can land here now — rect sub-lights carry full
+		// cube-face map coverage, so they never take this ~voxel-quantized path.
+		// Out-of-frustum texels march the room's voxel occupancy grid toward the
+		// light instead: coarse, but a wall always blocks. Start lifted off the
+		// surface's own voxel layer; stop 2 voxels short of the light so the emitting
+		// panel's voxels (the light sits 0.2 m from them) never self-occlude.
+		// Corner de-hug: rays from texels near a wall/wall or wall/ceiling junction run
+		// parallel to the adjacent surface inside its own voxel layer and false-hit it
+		// for meters (staircase bands along corners). A 6-tap occupancy gradient at the
+		// texel gives a per-axis "escape" offset (1.5 voxels per hugged surface, not
+		// normalized — a corner needs full clearance on every axis). The offset tapers
+		// to zero at the light so the far end never drifts into the fixture housing;
+		// that matches the geometry, since a hugged surface is closest at the texel
+		// and the straight ray gains clearance toward the light.
+		"float voxelShadow(vec3 P, vec3 N){\n" +
+		"  if (aoParams.z < 0.5) return 1.0;\n" +
+		"  vec3 L = bakeLight.xyz - P;\n" +
+		"  float dist = length(L);\n" +
+		"  vec3 d = L / max(dist, 1e-4);\n" +
+		"  float vs = aoParams.y;\n" +
+		"  vec2 e = vec2(vs, 0.0);\n" +
+		"  vec3 esc = vec3(\n" +
+		"    sampleGrid(P - e.xyy) - sampleGrid(P + e.xyy),\n" +
+		"    sampleGrid(P - e.yxy) - sampleGrid(P + e.yxy),\n" +
+		"    sampleGrid(P - e.yyx) - sampleGrid(P + e.yyx));\n" +
+		"  esc -= d * dot(esc, d);\n" +
+		"  vec3 off = esc * (vs * 1.5);\n" +
+		"  vec3 P0 = P + N * vs * 1.5;\n" +
+		"  float end = dist - 2.0 * vs;\n" +
+		"  for (int s = 1; s <= 192; s++){\n" +   // 192 * voxel >= grid diagonal
+		"    float t = vs * float(s);\n" +
+		"    if (t > end) break;\n" +
+		"    if (sampleGrid(P0 + d * t + off * (1.0 - t / end)) > 0.5) return shadowParams.x;\n" +
+		"  }\n" +
+		"  return 1.0;\n" +
+		"}\n" +
+		// Normal-offset (rect faces only, faceParams.y > 0): lift the receiver off its
+		// surface by ~1-3 shadow texels' world size before projecting. At a concave
+		// corner the adjacent wall is edge-on to the light, so its stored depths share
+		// the receiver's shadow-map texel with a huge gradient no depth bias covers —
+		// the classic grazing-blocker seam. Shifting the receiver along its own normal
+		// moves its projected UV off that wall's silhouette band instead.
+		"float sampleShadow(vec3 P, vec3 N, float ndl){\n" +
+		"  vec3 Ps = P + N * (faceParams.y * length(P - bakeLight.xyz) * (1.0 + 2.0 * (1.0 - ndl)));\n" +
+		"  vec4 sc = lightMatrix * vec4(Ps, 1.0);\n" +
+		"  if (sc.w <= 0.0) return voxelShadow(P, N);\n" +
 		"  vec2 uv = (sc.xy / sc.w) * 0.5 + 0.5;\n" +
-		"  if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) return 1.0;\n" +
-		"  float cur = length(P - bakeLight.xyz);\n" +
+		"  if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) return voxelShadow(P, N);\n" +
+		"  float cur = length(Ps - bakeLight.xyz);\n" +
 		// Slope-scaled bias: a surface the light grazes (small ndl) has steep depth
 		// gradients across a depth texel, so a constant bias can't prevent self-acne.
 		// Scale the bias up toward grazing angles. Head-on (ndl=1) -> base bias.
@@ -638,8 +825,23 @@ function _ensureBakeMaterial(scene) {
 		"  float cone = isSun ? 1.0 : smoothstep(bakeAxis0.w, bakeLight.w, dot(dirPoint, bakeAxis0.xyz));\n" +
 		"  float radial = isSun ? 1.0 : ((bakeGlobals.w <= 0.0) ? 1.0 : 1.0 - smoothstep(0.0, bakeGlobals.w, dist));\n" +
 		"  float ndl = max(dot(N, -dir), 0.0);\n" +
-		"  float occ = sampleShadow(vPositionW, ndl);\n" +
-		"  vec3 lit = vec3(cone * radial * ndl) * bakeColor.rgb * bakeGlobals.z * occ;\n" +
+		// Cube-face gate: a rect sub-light runs one pass per face map, and each texel
+		// must be lit by exactly one of them — the one whose axis dominates its
+		// light->texel direction. The >= tie-breaks are deterministic (same result
+		// every pass), so the partition is exact: no double-lit, no gap, no seam.
+		"  float gate = 1.0;\n" +
+		"  if (faceParams.x > -0.5){\n" +
+		"    vec3 aD = abs(dirPoint);\n" +
+		"    float f = (aD.x >= aD.y && aD.x >= aD.z) ? (dirPoint.x >= 0.0 ? 0.0 : 1.0)\n" +
+		"            : (aD.y >= aD.z) ? (dirPoint.y >= 0.0 ? 2.0 : 3.0)\n" +
+		"            : (dirPoint.z >= 0.0 ? 4.0 : 5.0);\n" +
+		"    if (abs(f - faceParams.x) > 0.1) gate = 0.0;\n" +
+		"  }\n" +
+		// Skip the shadow work (9 depth taps or a voxel march) where this light
+		// contributes nothing anyway — most texels of most passes with a wide cone.
+		"  float occ = 1.0;\n" +
+		"  if (gate * cone * radial * ndl > 1e-5) occ = sampleShadow(vPositionW, N, ndl);\n" +
+		"  vec3 lit = vec3(gate * cone * radial * ndl) * bakeColor.rgb * bakeGlobals.z * occ;\n" +
 		"  vec3 prev;\n" +
 		"  if (shadowParams.z > 0.5){\n" +
 		"    // first pass: no previous buffer; seed with the baked-in hemi ambient,\n" +
@@ -661,8 +863,9 @@ function _ensureBakeMaterial(scene) {
 		{
 			attributes: ["position", "normal", "uv2"],
 			uniforms: ["world", "bakeGlobals", "bakeColor", "bakeAmbient", "bakeLight",
-				"bakeAxis0", "shadowParams", "lightMatrix", "aoParams"],
-			samplers: ["prevTex", "shadowSampler", "aoSampler"]
+				"bakeAxis0", "shadowParams", "lightMatrix", "aoParams", "faceParams",
+				"gridMin", "gridN", "gridTile"],
+			samplers: ["prevTex", "shadowSampler", "aoSampler", "aoGrid"]
 		});
 	// Texture-space winding is arbitrary, so never cull or we drop texels.
 	mat.backFaceCulling = false;
@@ -926,7 +1129,7 @@ function _buildShadowMaps(scene) {
 	// Dispose any previous maps (resolution change).
 	if (b.shadowMaps) b.shadowMaps.forEach(function (m) { m.dispose(); });
 	b.shadowMaps = [];
-	b.lightVP = [];
+	b.passes = [];   // one bake pass per map: {light, faceId, vp, texel, normOff}
 
 	// Casters = the same room surfaces the bake covers (skip helpers). Keep them
 	// always-active so the light-POV render isn't culled by the user camera.
@@ -951,16 +1154,71 @@ function _buildShadowMaps(scene) {
 
 	var lh = !scene.useRightHandedSystem;
 
-	for (var k = 0; k < b.lights.length; k++) {
-		var pos = b.lights[k].pos;
-		var dir = b.lights[k].dir;
+	// Render one depth map and register its bake pass.
+	function _addPass(k, pos, vp, res, faceId, normOff) {
+		var dm = new BABYLON.RenderTargetTexture("bakeDepth_" + b.passes.length, res, scene,
+			false, true, BABYLON.Constants.TEXTURETYPE_HALF_FLOAT);
+		dm.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+		dm.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+		dm.renderList = casters;
+		casters.forEach(function (m) { dm.setMaterialForRendering(m, b.depthMat); });
+		// Bind this map's matrices, then render it exactly once.
+		b.depthMat.setMatrix("lightVP", vp);
+		b.depthMat.setVector4("lightInfo", new BABYLON.Vector4(pos.x, pos.y, pos.z, BAKE_SHADOW_FAR));
+		dm.render();
+		b.shadowMaps.push(dm);
+		b.passes.push({ light: k, faceId: faceId, vp: vp, texel: 1.0 / res, normOff: normOff });
+	}
+
+	function _lookAt(pos, dir) {
 		// Up vector must not be parallel to a near-vertical aim (gallery spots
 		// often point straight down) or LookAt degenerates.
 		var up = (Math.abs(dir.y) > 0.99) ? new BABYLON.Vector3(0, 0, 1)
 			: new BABYLON.Vector3(0, 1, 0);
 		var target = pos.add(dir);
-		var view = lh ? BABYLON.Matrix.LookAtLH(pos, target, up)
+		return lh ? BABYLON.Matrix.LookAtLH(pos, target, up)
 			: BABYLON.Matrix.LookAtRH(pos, target, up);
+	}
+
+	// Farthest room corner from pos + 5% margin, floored at the baseline, so a
+	// far source still covers the room.
+	function _farFor(pos) {
+		var far = BAKE_SHADOW_FAR;
+		for (var cx = 0; cx < 2; cx++) for (var cy = 0; cy < 2; cy++) for (var cz = 0; cz < 2; cz++) {
+			var corner = new BABYLON.Vector3(cx ? rMax.x : rMin.x, cy ? rMax.y : rMin.y, cz ? rMax.z : rMin.z);
+			far = Math.max(far, BABYLON.Vector3.Distance(pos, corner) * 1.05);
+		}
+		return far;
+	}
+
+	for (var k = 0; k < b.lights.length; k++) {
+		var pos = b.lights[k].pos;
+		var dir = b.lights[k].dir;
+
+		// Rect sub-light: up to 6 world-axis cube-face maps (see BAKE_RECT_FACE_FOV).
+		// Quarter-res each — a face map only ever serves 1/6 of the directions, and a
+		// panel's many overlapping sub-lights average into the penumbra anyway.
+		if (b.lights[k].scale) {
+			var res = Math.max(128, b.shadowRes >> 2);
+			var normOff = 2 * Math.tan(BAKE_RECT_FACE_FOV / 2) / res;
+			var far0 = _farFor(pos);
+			var fproj = lh ? BABYLON.Matrix.PerspectiveFovLH(BAKE_RECT_FACE_FOV, 1, BAKE_SHADOW_NEAR, far0)
+				: BABYLON.Matrix.PerspectiveFovRH(BAKE_RECT_FACE_FOV, 1, BAKE_SHADOW_NEAR, far0);
+			// Skip a face only when its whole region sits beyond the cone's outer
+			// angle: angle(axis, aim) - 54.74 (face corner) > outer. For a down-aimed
+			// panel that drops just the +Y face.
+			var outer = Math.acos((typeof b.lights[k].cosOuter === 'number') ? b.lights[k].cosOuter : b.cosOuter);
+			var skipDot = Math.cos(Math.min(Math.PI, outer + 0.9553));
+			for (var f = 0; f < 6; f++) {
+				var axv = BAKE_RECT_FACE_AXES[f];
+				var faceAxis = new BABYLON.Vector3(axv[0], axv[1], axv[2]);
+				if (BABYLON.Vector3.Dot(faceAxis, dir) < skipDot) continue;
+				_addPass(k, pos, _lookAt(pos, faceAxis).multiply(fproj), res, f, normOff);
+			}
+			continue;
+		}
+
+		var view = _lookAt(pos, dir);
 		var proj;
 		if (b.lights[k].sun) {
 			// Sun: orthographic (parallel) projection tightly framed to the room in this
@@ -983,31 +1241,11 @@ function _buildShadowMaps(scene) {
 				: BABYLON.Matrix.OrthoOffCenterRH(vmin.x - mg, vmax.x + mg, vmin.y - mg, vmax.y + mg,
 					Math.max(BAKE_SHADOW_NEAR, -vmax.z - mg), -vmin.z + mg);
 		} else {
-			// Splash: perspective. Farthest room corner from this light + 5% margin,
-			// floored at the baseline, so a far source still covers the room.
-			var far = BAKE_SHADOW_FAR;
-			for (var cx = 0; cx < 2; cx++) for (var cy = 0; cy < 2; cy++) for (var cz = 0; cz < 2; cz++) {
-				var corner = new BABYLON.Vector3(cx ? rMax.x : rMin.x, cy ? rMax.y : rMin.y, cz ? rMax.z : rMin.z);
-				far = Math.max(far, BABYLON.Vector3.Distance(pos, corner) * 1.05);
-			}
-			proj = lh ? BABYLON.Matrix.PerspectiveFovLH(BAKE_SHADOW_FOV, 1, BAKE_SHADOW_NEAR, far)
-				: BABYLON.Matrix.PerspectiveFovRH(BAKE_SHADOW_FOV, 1, BAKE_SHADOW_NEAR, far);
+			// Splash: perspective, far enough to cover the room from this light.
+			proj = lh ? BABYLON.Matrix.PerspectiveFovLH(BAKE_SHADOW_FOV, 1, BAKE_SHADOW_NEAR, _farFor(pos))
+				: BABYLON.Matrix.PerspectiveFovRH(BAKE_SHADOW_FOV, 1, BAKE_SHADOW_NEAR, _farFor(pos));
 		}
-		var vp = view.multiply(proj);
-		b.lightVP.push(vp);
-
-		var dm = new BABYLON.RenderTargetTexture("bakeDepth_" + k, b.shadowRes, scene,
-			false, true, BABYLON.Constants.TEXTURETYPE_HALF_FLOAT);
-		dm.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
-		dm.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-		dm.renderList = casters;
-		casters.forEach(function (m) { dm.setMaterialForRendering(m, b.depthMat); });
-
-		// Bind this light's matrices, then render the map exactly once.
-		b.depthMat.setMatrix("lightVP", vp);
-		b.depthMat.setVector4("lightInfo", new BABYLON.Vector4(pos.x, pos.y, pos.z, BAKE_SHADOW_FAR));
-		dm.render();
-		b.shadowMaps.push(dm);
+		_addPass(k, pos, view.multiply(proj), b.shadowRes, -1, 0);
 	}
 }
 
@@ -1243,18 +1481,30 @@ function _runBake() {
 	var iUp = _ovgal_lights.ambientUp ? _ovgal_lights.ambientUp.intensity : 0;
 	var iDown = _ovgal_lights.ambientDown ? _ovgal_lights.ambientDown.intensity : 0;
 	m.setVector4("bakeAmbient", new BABYLON.Vector4(iUp * b.ambient, iDown * b.ambient, 0, 0));
-	m.setVector4("aoParams", new BABYLON.Vector4(b.aoStrength, 0, 0, 0));
 
-	var texel = 1.0 / b.shadowRes;
-	var finalIndex = b.count % 2;
+	// Occupancy grid for the out-of-frustum voxel-shadow fallback (built by
+	// _buildAOGrid before the first _runBake; aoParams.z gates the shader path).
+	var g = b.aoGrid;
+	var gridOK = (g && b.aoGridTex) ? 1 : 0;
+	m.setVector4("aoParams", new BABYLON.Vector4(b.aoStrength, gridOK ? g.vs : 1, gridOK, 0));
+	if (gridOK) {
+		m.setVector3("gridMin", new BABYLON.Vector3(g.min.x, g.min.y, g.min.z));
+		m.setVector4("gridN", new BABYLON.Vector4(g.Nx, g.Ny, g.Nz, 0));
+		m.setVector4("gridTile", new BABYLON.Vector4(g.tilesX, g.tilesY, g.texW, g.texH));
+		m.setTexture("aoGrid", b.aoGridTex);
+	}
+
+	if (!b.passes || b.passes.length === 0) return;
+	var finalIndex = b.passes.length % 2;
 
 	b.baked.forEach(function (it) {
 		// This mesh's baked AO seeds the ambient on the first pass (k === 0).
 		m.setTexture("aoSampler", it.aoBuffer);
-		for (var k = 0; k < b.count; k++) {
+		for (var k = 0; k < b.passes.length; k++) {
 			var src = it.buffers[k % 2];
 			var dst = it.buffers[(k + 1) % 2];
-			var lk = b.lights[k];
+			var ps = b.passes[k];
+			var lk = b.lights[ps.light];
 			var lp = lk.pos, ld = lk.dir;
 			// Per-light cone from the GLB when authored, else the global sliders.
 			// smoothstep(cosOuter, cosInner, ang) needs cosInner > cosOuter (inner
@@ -1266,16 +1516,19 @@ function _runBake() {
 			// Per-light intensity (_I<value>) and reach (_R<value>) from the GLB name
 			// when authored, else the global sliders. A sun (name prefix sun_) ignores
 			// reach + cone and lights with parallel rays; bakeGlobals.x carries the flag.
-			var inten = (typeof lk.intensity === 'number') ? lk.intensity : b.intensity;
+			// Rect sub-lights carry scale = 1/samples so the panel's samples sum to
+			// one light; the multiply keeps the slider (b.intensity) live across rebakes.
+			var inten = ((typeof lk.intensity === 'number') ? lk.intensity : b.intensity) * (lk.scale || 1.0);
 			var reach = (typeof lk.reach === 'number') ? lk.reach : b.maxDist;
 			m.setVector4("bakeGlobals", new BABYLON.Vector4(lk.sun ? 1.0 : 0.0, 0.0, inten, reach));
 			m.setVector4("bakeLight", new BABYLON.Vector4(lp.x, lp.y, lp.z, cosInner));
 			m.setVector4("bakeAxis0", new BABYLON.Vector4(ld.x, ld.y, ld.z, cosOuter));
-			m.setMatrix("lightMatrix", b.lightVP[k]);
+			m.setMatrix("lightMatrix", ps.vp);
 			m.setTexture("shadowSampler", b.shadowMaps[k]);
+			m.setVector4("faceParams", new BABYLON.Vector4(ps.faceId, ps.normOff, 0, 0));
 			m.setTexture("prevTex", src);
 			m.setVector4("shadowParams",
-				new BABYLON.Vector4(b.shadowDarkness, b.shadowBias, k === 0 ? 1 : 0, texel));
+				new BABYLON.Vector4(b.shadowDarkness, b.shadowBias, k === 0 ? 1 : 0, ps.texel));
 			dst.render();
 		}
 		// Point the display view's lightmap at whichever buffer holds the final
@@ -1297,6 +1550,14 @@ function setupLightmapBake(scene) {
 		console.warn("Lightmap bake: no half-float render target support — aborting");
 		return;
 	}
+
+	// The bake represents the F_ fixtures as baked sub-lights below, so the live
+	// RectAreaLights setupRoomLighting just created must go — left enabled they
+	// double-light the scene (the hard, straight-edged rectangular floor pool).
+	// The sun_/splash_ spots are already setEnabled(false); this completes the
+	// zero-runtime-light bake design. Collection reads the fixture meshes, not
+	// the lights, so disposing first is safe.
+	_disposeRectAreaLights(scene);
 
 	// Authored sun_N / splash_N spots first, then F_ fixtures, then the template's
 	// marker spot. The sun_/splash_ prefix per light selects its model in the bake.
