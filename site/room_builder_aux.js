@@ -267,7 +267,7 @@ function populate_template(config_file, room_name,scene){
 		scaled_height = Number(gallery[item]["height"]) * SCENE_M_PER_CM;
 
 		//notice that y and z are flippped
-		let artwork_plane = item_builder(item + "_" + i ,{x:location[0], y:location[2], z:location[1]}, {width:scaled_width, height:scaled_height}, orientation, items_material, scene, item_shadow_material);
+		let artwork_plane = item_builder(item + "_" + i ,{x:location[0], y:location[2], z:location[1]}, {width:scaled_width, height:scaled_height}, orientation, items_material, scene, null);
 
 		// Tag the plane with its position among the gallery's image items. The viewer
 		// uses this to drive click→navigate, so the index can never drift even when the

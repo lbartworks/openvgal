@@ -788,7 +788,9 @@ function _ensureBakeMaterial(scene) {
 		// the classic grazing-blocker seam. Shifting the receiver along its own normal
 		// moves its projected UV off that wall's silhouette band instead.
 		"float sampleShadow(vec3 P, vec3 N, float ndl){\n" +
-		"  vec3 Ps = P + N * (faceParams.y * length(P - bakeLight.xyz) * (1.0 + 2.0 * (1.0 - ndl)));\n" +
+		"  float nOff = faceParams.y * length(P - bakeLight.xyz) * (1.0 + 2.0 * (1.0 - ndl));\n" +
+		"  nOff = min(nOff, 0.02);\n" +   // cap: a picture frame stands only ~3 cm proud, so an offset larger than that shoves the receiver in front of the frame's lower rail and erases the contact shadow below it. 2 cm still clears corner acne.
+		"  vec3 Ps = P + N * nOff;\n" +
 		"  vec4 sc = lightMatrix * vec4(Ps, 1.0);\n" +
 		"  if (sc.w <= 0.0) return voxelShadow(P, N);\n" +
 		"  vec2 uv = (sc.xy / sc.w) * 0.5 + 0.5;\n" +
