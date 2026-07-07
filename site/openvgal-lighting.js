@@ -846,6 +846,15 @@ function _isBakeableMesh(m) {
 	return m.isVisible && !m.name.match(/^Occupancy_/) && m.name !== 'door_title';
 }
 
+// Plaques are thin unlit label planes floating a few cm off the wall. As bake
+// occluders they cast shadows (depth maps) and darken ambient (AO grid) onto the
+// wall around/behind them — the "ghost shadows". They carry no UV2 so they were
+// never bake targets anyway; exclude them from both occlusion passes so they stay
+// purely decorative.
+function _isBakeOccluder(m) {
+	return _isBakeableMesh(m) && !m.name.match(/^lbl_plaque_/);
+}
+
 // Combined world-space AABB of a mesh list (each mesh's world bounding box unioned).
 function _computeRoomAABB(meshes) {
 	var min = new BABYLON.Vector3(1e9, 1e9, 1e9);
@@ -869,9 +878,9 @@ function _buildShadowMaps(scene) {
 	b.shadowMaps = [];
 	b.passes = [];   // one bake pass per map: {light, faceId, vp, texel, normOff}
 
-	// Casters = the same room surfaces the bake covers (skip helpers). Keep them
-	// always-active so the light-POV render isn't culled by the user camera.
-	var casters = scene.meshes.filter(_isBakeableMesh);
+	// Casters = the room surfaces the bake covers, minus plaques (see _isBakeOccluder).
+	// Keep them always-active so the light-POV render isn't culled by the user camera.
+	var casters = scene.meshes.filter(_isBakeOccluder);
 	casters.forEach(function (m) { m.alwaysSelectAsActiveMesh = true; });
 
 	// Combined room AABB — a far light (e.g. a sun above a roof opening) sits well
@@ -989,7 +998,8 @@ function _buildAOGrid(scene) {
 	var b = _ovgal_bake;
 	if (b.aoGridTex) { b.aoGridTex.dispose(); b.aoGridTex = null; }
 
-	var casters = scene.meshes.filter(_isBakeableMesh);
+	// Plaques are excluded here so they never occlude ambient (see _isBakeOccluder).
+	var casters = scene.meshes.filter(_isBakeOccluder);
 
 	// Padded world AABB -> cubic voxel size from the longest axis. Reuse the room
 	// AABB _buildShadowMaps just computed over the same caster set (falling back to a
