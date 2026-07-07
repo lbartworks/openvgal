@@ -1,10 +1,10 @@
 // OpenVGAL Lighting System
-// Manages all scene illumination: ambient and RectAreaLights from F_ fixtures
+// Manages all scene illumination: hemispheric ambient plus the startup lightmap
+// bake (sun_/splash_ spots + F_ fixture area lights baked into per-mesh UV2 maps).
 
 var _ovgal_lights = {
 	ambientUp: null,
-	ambientDown: null,
-	rectAreaLights: []
+	ambientDown: null
 };
 
 /**
@@ -28,8 +28,6 @@ function initGalleryLighting(scene, config) {
  * @param {Object} config - config_file_content
  */
 function setupRoomLighting(scene, config) {
-	_disposeRectAreaLights(scene);
-
 	// Set pointLight intensities: parse _I{value} from name, fall back to Technical.pointLight
 	scene.lights.forEach(function(light) {
 		if (light.name.startsWith("pointLight")) {
@@ -67,99 +65,12 @@ function setupRoomLighting(scene, config) {
 		}
 	}
 
-	// Detect F_ fixture meshes: F_N_dx_dy_dz (direction in Blender coords, 'n' = negative)
-	var fixtures = scene.meshes.filter(function(m) {
-		return m.name.match(/^F_\d+/);
-	});
-
-	// Hide helper meshes from templates
+	// Hide helper meshes from templates. F_ fixtures are decorative geometry only —
+	// they seed the baked area lights (see _collectConesFromFixtures); no runtime
+	// RectAreaLight is created from them anymore.
 	scene.meshes.forEach(function(m) {
 		if (m.name.match(/^Occupancy_/) || m.name === 'door_title') m.isVisible = false;
 	});
-
-	if (fixtures.length === 0) return;
-
-	for (var i = 0; i < fixtures.length; i++) {
-		var fixture = fixtures[i];
-		var parts = fixture.name.split("_");
-
-		// Parse direction and intensity from name: F_N_dx_dy_dz_IXX (Blender coords, 'n' = negative)
-		if (parts.length < 5) {
-			console.error("Lighting: " + fixture.name + " missing direction — expected F_N_dx_dy_dz[_IXX]");
-			continue;
-		}
-		var lightIntensity = 0;
-		for (var p = 5; p < parts.length; p++) {
-			if (parts[p].charAt(0) === 'I') {
-				lightIntensity = parseFloat(parts[p].substring(1));
-			}
-		}
-		function parseCoord(s) {
-			if (s.charAt(0) === 'n') return -parseFloat(s.substring(1));
-			return parseFloat(s);
-		}
-		var bx = parseCoord(parts[2]);
-		var by = parseCoord(parts[3]);
-		var bz = parseCoord(parts[4]);
-		// Blender (x, y, z) → Babylon (x, z, y)
-		var lightDir = new BABYLON.Vector3(bx, bz, by);
-		if (lightDir.length() < 0.01) {
-			console.error("Lighting: " + fixture.name + " has zero direction vector");
-			continue;
-		}
-		lightDir.normalize();
-
-		fixture.computeWorldMatrix(true);
-		fixture.refreshBoundingInfo();
-
-		// --- Fixture dimensions ---
-		var fixturePos = fixture.getAbsolutePosition();
-		var fixtureBB = fixture.getBoundingInfo().boundingBox;
-		var xExtent = fixtureBB.maximumWorld.x - fixtureBB.minimumWorld.x;
-		var zExtent = fixtureBB.maximumWorld.z - fixtureBB.minimumWorld.z;
-		var lightWidth = Math.max(xExtent, zExtent);
-		var lightDepth = Math.min(xExtent, zExtent);
-
-		// --- Light position ---
-		var lightPos = new BABYLON.Vector3(fixturePos.x, fixturePos.y - 0.2, fixturePos.z);
-
-		console.log("Lighting: " + fixture.name +
-			" | pos=" + lightPos.toString() +
-			" dir=" + lightDir.toString() +
-			" width=" + lightWidth.toFixed(2) + " depth=" + lightDepth.toFixed(2));
-
-		// --- Create RectAreaLight ---
-		var light = new BABYLON.RectAreaLight(
-			"rectLight_" + fixture.name,
-			BABYLON.Vector3.Zero(),
-			lightWidth,
-			lightDepth,
-			scene
-		);
-		light.intensity = lightIntensity;
-
-		// Orient light using direction vector (yaw + pitch)
-		var transformNode = new BABYLON.TransformNode("rectLightNode_" + fixture.name, scene);
-		transformNode.position = lightPos;
-		var horizLen = Math.sqrt(lightDir.x * lightDir.x + lightDir.z * lightDir.z);
-		if (horizLen < 0.01) {
-			transformNode.rotation.y = (zExtent > xExtent) ? Math.PI / 2 : 0;
-		} else {
-			transformNode.rotation.y = Math.atan2(lightDir.x, lightDir.z);
-		}
-		transformNode.rotation.x = -Math.atan2(-lightDir.y, horizLen);
-
-		light.parent = transformNode;
-		light.position = BABYLON.Vector3.Zero();
-
-		_ovgal_lights.rectAreaLights.push({
-			light: light,
-			transformNode: transformNode,
-			fixture: fixture
-		});
-	}
-
-	console.log("Lighting: " + fixtures.length + " fixtures, " + _ovgal_lights.rectAreaLights.length + " RectAreaLights created");
 }
 
 /**
@@ -172,187 +83,6 @@ function freezeGalleryMaterials() {
 		}
 		console.log("Lighting: froze BJS_materials");
 	}
-}
-
-function _disposeRectAreaLights(scene) {
-	for (var i = 0; i < _ovgal_lights.rectAreaLights.length; i++) {
-		var entry = _ovgal_lights.rectAreaLights[i];
-		entry.light.dispose();
-		entry.transformNode.dispose();
-	}
-	_ovgal_lights.rectAreaLights = [];
-}
-
-// =====================================================================
-// Baked (frozen) shadow map — EXPERIMENTAL. Enable with ?shadow=1.
-// Casts from the room's actual dominant point/spot light (not a fake
-// light), so shadow direction matches the real illumination. The map is
-// rendered once then frozen (zero per-frame bake cost). G toggles;
-// live panel tunes darkness/blur.
-// =====================================================================
-var _ovgal_shadow = null;
-
-function _rebakeShadow() {
-	if (_ovgal_shadow) {
-		_ovgal_shadow.sg.getShadowMap().refreshRate =
-			BABYLON.RenderTargetTexture.REFRESHRATE_RENDER_ONCE;
-	}
-}
-
-/**
- * Sets up (or re-bakes) a frozen shadow map cast from the room's real
- * dominant point/spot light. No-op unless ?shadow=1. Call after meshes
- * are loaded, before material freeze.
- * @param {BABYLON.Scene} scene
- */
-function setupBakedShadows(scene) {
-	if (!new URLSearchParams(window.location.search).has('shadow')) return;
-
-	// Diagnostic: dump every light so we can see what's actually in the scene.
-	console.log("Baked shadows — scene lights:");
-	scene.lights.forEach(function (l) {
-		console.log("   " + l.getClassName() + " '" + l.name + "' enabled=" +
-			l.isEnabled() + " intensity=" + l.intensity);
-	});
-
-	// Pick the brightest enabled point/spot light — the one whose shadows
-	// will actually read against the hemispheric ambient.
-	var src = scene.lights
-		.filter(function (l) {
-			var c = l.getClassName();
-			return l.isEnabled() && (c === "PointLight" || c === "SpotLight");
-		})
-		.sort(function (a, b) { return b.intensity - a.intensity; })[0];
-
-	if (!src) {
-		console.warn("Baked shadows: no point/spot light in scene to cast from");
-		return;
-	}
-
-	if (!_ovgal_shadow) {
-		_ovgal_shadow = { mapSize: 2048, darkness: 0.4 };
-		window._shadow = _ovgal_shadow;
-	}
-	_ovgal_shadow.scene = scene;
-
-	// (Re)build the generator on first run or if the dominant light changed.
-	if (_ovgal_shadow.src !== src) {
-		_ovgal_shadow.src = src;
-		_buildShadowGenerator();
-		if (!_ovgal_shadow.uiBuilt) {
-			_bindShadowToggle();
-			_buildShadowPanel();
-			_ovgal_shadow.uiBuilt = true;
-		}
-		console.log("Baked shadows: casting from '" + src.name + "' (intensity " + src.intensity + ")");
-	}
-
-	_registerCastersAndBake();
-}
-
-// Build (or rebuild) the generator from current params. Recreating is the only
-// reliable way to apply a new blur kernel, so blur/depthScale changes call this.
-function _buildShadowGenerator() {
-	var s = _ovgal_shadow;
-	if (s.sg) s.sg.dispose();
-	var src = s.src;
-	src.shadowMinZ = 0.5;
-	src.shadowMaxZ = 30;            // tight range = better depth precision
-	var sg = new BABYLON.ShadowGenerator(s.mapSize, src);
-	sg.usePoissonSampling = true;  // clean on point-light cube maps; no ESM bleed/banding
-	sg.bias = 0.001;
-	sg.forceBackFacesOnly = true;  // back faces into the map -> kills self-shadow acne
-	sg.setDarkness(s.darkness);
-	s.sg = sg;
-}
-
-function _registerCastersAndBake() {
-	var s = _ovgal_shadow;
-	var map = s.sg.getShadowMap();
-	map.renderList = [];
-	s.scene.meshes.forEach(function (m) {
-		if (!m.isVisible) return;
-		if (m.name.match(/^Occupancy_/) || m.name === 'door_title') return;
-		m.receiveShadows = true;
-		map.renderList.push(m);
-	});
-	map.refreshRate = BABYLON.RenderTargetTexture.REFRESHRATE_RENDER_ONCE;
-}
-
-function _bindShadowToggle() {
-	var on = true, saved = 0.4;
-	window.addEventListener("keydown", function (e) {
-		if ((e.key === "g" || e.key === "G") && !e.ctrlKey && !e.altKey && !e.metaKey) {
-			e.preventDefault();
-			on = !on;
-			// Toggle via darkness so the real light keeps illuminating the room.
-			if (on) {
-				_ovgal_shadow.sg.setDarkness(saved);
-			} else {
-				saved = _ovgal_shadow.sg.getDarkness();
-				_ovgal_shadow.sg.setDarkness(1);
-			}
-			console.log("Shadows " + (on ? "on" : "off"));
-		}
-	});
-}
-
-function _buildShadowPanel() {
-	var s = _ovgal_shadow;
-	var panel = document.createElement("div");
-	panel.style.cssText = "position:fixed;bottom:10px;right:10px;z-index:99999;"
-		+ "background:rgba(0,0,0,0.75);color:#fafafa;font:12px Inter,sans-serif;"
-		+ "padding:10px 12px;border-radius:8px;width:200px;user-select:none;";
-	panel.innerHTML = "<div style='margin-bottom:6px;font-weight:600;'>Shadow &nbsp;<span style='color:#a1a1aa;font-weight:400;'>G=on/off</span></div>";
-
-	function addSlider(label, min, max, step, get, set, rebake) {
-		var row = document.createElement("label");
-		row.style.cssText = "display:block;margin:6px 0;";
-		var val = document.createElement("span");
-		val.textContent = get().toFixed(2);
-		val.style.cssText = "float:right;color:#a5b4fc;";
-		var name = document.createElement("span");
-		name.textContent = label;
-		var slider = document.createElement("input");
-		slider.type = "range";
-		slider.min = min; slider.max = max; slider.step = step;
-		slider.value = get();
-		slider.style.cssText = "width:100%;margin-top:2px;";
-		slider.addEventListener("input", function () {
-			var v = parseFloat(slider.value);
-			set(v);
-			val.textContent = v.toFixed(2);
-			if (rebake) _rebakeShadow();
-		});
-		row.appendChild(name); row.appendChild(val); row.appendChild(slider);
-		panel.appendChild(row);
-	}
-
-	// Rebalance key vs ambient — the shadow only reads when the key light is
-	// strong enough relative to the flat hemispheric fill.
-	addSlider("key intensity", 0, 30, 0.1,
-		function () { return s.src.intensity; },
-		function (v) { s.src.intensity = v; }, false);
-
-	var baseUp = _ovgal_lights.ambientUp ? _ovgal_lights.ambientUp.intensity : 0;
-	var baseDown = _ovgal_lights.ambientDown ? _ovgal_lights.ambientDown.intensity : 0;
-	s.ambientMult = 1;
-	addSlider("ambient", 0, 1.5, 0.02,
-		function () { return s.ambientMult; },
-		function (v) {
-			s.ambientMult = v;
-			if (_ovgal_lights.ambientUp) _ovgal_lights.ambientUp.intensity = baseUp * v;
-			if (_ovgal_lights.ambientDown) _ovgal_lights.ambientDown.intensity = baseDown * v;
-		}, false);
-
-	addSlider("darkness", 0, 1, 0.02,
-		function () { return s.darkness; },
-		function (v) { s.darkness = v; s.sg.setDarkness(v); }, false);
-	addSlider("resolution", 256, 4096, 128,
-		function () { return s.mapSize; },
-		function (v) { s.mapSize = v; _buildShadowGenerator(); _registerCastersAndBake(); }, false);
-
-	document.body.appendChild(panel);
 }
 
 // =====================================================================
@@ -386,12 +116,9 @@ var BAKE_RECT_MAX_PER_AXIS = 6;   // per-edge sample cap (start low)
 var BAKE_RECT_COS_OUTER = Math.cos(100 * Math.PI / 180);  // ~-0.174 — ~10% fill at grazing
 var BAKE_RECT_COS_INNER = Math.cos(45 * Math.PI / 180);   // ~0.707 — wide soft shoulder
 
-// Parse cone origins + aim directions from the F_ fixtures (same convention
-// as setupRoomLighting), expanded into the rect model's sample grid. Returns
-// { posArray, axisArray, lights, count }.
+// Parse cone origins + aim directions from the F_ fixtures, expanded into the
+// rect model's sample grid. Returns { lights, count }.
 function _collectConesFromFixtures(scene) {
-	var posArray = new Float32Array(BAKE_MAX_LIGHTS * 4);
-	var axisArray = new Float32Array(BAKE_MAX_LIGHTS * 4);
 	var lights = [];   // per-cone { pos, dir } for the shadow bake
 	var count = 0;
 
@@ -420,12 +147,10 @@ function _collectConesFromFixtures(scene) {
 		if (axis.length() < 0.01) continue;
 		axis.normalize();
 
-		// Emission direction. The runtime RectAreaLight does NOT emit along this
-		// name vector directly — setupRoomLighting orients a TransformNode from it
-		// (yaw = atan2(x,z), pitch = -atan2(-y, horiz)) and the light emits along the
-		// node's LOCAL -Z. So the baked cone must aim at that same local -Z, not the
-		// raw vector. Rebuild the identical rotation and read its -Z, so the bake
-		// matches the live light exactly with no handedness assumption.
+		// Emission direction. The panel emits along the LOCAL -Z of a frame oriented
+		// from the name vector (yaw = atan2(x,z), pitch = -atan2(-y, horiz)), not the
+		// raw vector. Build that rotation and read its -Z, so the aim is derived with
+		// no handedness assumption.
 		var horizLen = Math.sqrt(axis.x * axis.x + axis.z * axis.z);
 		var aimYaw = (horizLen < 0.01) ? 0 : Math.atan2(axis.x, axis.z);
 		var aimPitch = -Math.atan2(-axis.y, horizLen);
@@ -501,9 +226,6 @@ function _collectConesFromFixtures(scene) {
 				var sx = pn.pos.x + pn.aim.x * 0.2 + pn.U.d.x * du + pn.V.d.x * dv;
 				var sy = pn.pos.y + pn.aim.y * 0.2 + pn.U.d.y * du + pn.V.d.y * dv;
 				var sz = pn.pos.z + pn.aim.z * 0.2 + pn.U.d.z * du + pn.V.d.z * dv;
-				var b = count * 4;
-				posArray[b] = sx; posArray[b + 1] = sy; posArray[b + 2] = sz; posArray[b + 3] = 1.0;
-				axisArray[b] = pn.aim.x; axisArray[b + 1] = pn.aim.y; axisArray[b + 2] = pn.aim.z; axisArray[b + 3] = 0.0;
 				lights.push({ pos: new BABYLON.Vector3(sx, sy, sz), dir: pn.aim.clone(), scale: rectScale,
 					cosOuter: BAKE_RECT_COS_OUTER, cosInner: BAKE_RECT_COS_INNER });
 				count++;
@@ -511,7 +233,7 @@ function _collectConesFromFixtures(scene) {
 		}
 	}
 
-	return { posArray: posArray, axisArray: axisArray, lights: lights, count: count };
+	return { lights: lights, count: count };
 }
 
 // Parse an authored _<letter><number> suffix (e.g. _I10, _R6) from a name.
@@ -530,8 +252,6 @@ function _parseNameSuffix(name, letter) {
 // direction — both resolved by Babylon's glTF loader, so no manual handedness
 // math. Static, so the visibility volume bakes once at load.
 function _collectConesFromSpotLights(scene, nameFilter) {
-	var posArray = new Float32Array(BAKE_MAX_LIGHTS * 4);
-	var axisArray = new Float32Array(BAKE_MAX_LIGHTS * 4);
 	var lights = [];   // per-cone { pos, dir } for the shadow bake
 	var count = 0;
 
@@ -591,14 +311,11 @@ function _collectConesFromSpotLights(scene, nameFilter) {
 			}
 		}
 
-		var b = count * 4;
-		posArray[b] = pos.x; posArray[b + 1] = pos.y; posArray[b + 2] = pos.z; posArray[b + 3] = 1.0;
-		axisArray[b] = dir.x; axisArray[b + 1] = dir.y; axisArray[b + 2] = dir.z; axisArray[b + 3] = 0.0;
 		lights.push({ pos: pos.clone(), dir: dir.clone(), cosOuter: cosOuter, cosInner: cosInner, intensity: intensity, reach: reach, sun: isSun });
 		count++;
 	}
 
-	return { posArray: posArray, axisArray: axisArray, lights: lights, count: count };
+	return { lights: lights, count: count };
 }
 
 // =====================================================================
@@ -1122,6 +839,25 @@ function _ensureAOMaterials(scene) {
 	_ovgal_bake.aoMat = amat;
 }
 
+// A room surface the bake covers (shadow caster, AO receiver, lightmap target):
+// any visible mesh that isn't a template helper. Shared by every bake pass so the
+// skip list can't drift between them.
+function _isBakeableMesh(m) {
+	return m.isVisible && !m.name.match(/^Occupancy_/) && m.name !== 'door_title';
+}
+
+// Combined world-space AABB of a mesh list (each mesh's world bounding box unioned).
+function _computeRoomAABB(meshes) {
+	var min = new BABYLON.Vector3(1e9, 1e9, 1e9);
+	var max = new BABYLON.Vector3(-1e9, -1e9, -1e9);
+	meshes.forEach(function (m) {
+		var bb = m.getBoundingInfo().boundingBox;
+		min = BABYLON.Vector3.Minimize(min, bb.minimumWorld);
+		max = BABYLON.Vector3.Maximize(max, bb.maximumWorld);
+	});
+	return { min: min, max: max };
+}
+
 // Build (or rebuild) one depth map per light. Each is rendered once from the
 // light's POV with the depth material, then sampled in the bake. Independent of
 // the tuning sliders, so this only runs on first bake + resolution change.
@@ -1135,24 +871,17 @@ function _buildShadowMaps(scene) {
 
 	// Casters = the same room surfaces the bake covers (skip helpers). Keep them
 	// always-active so the light-POV render isn't culled by the user camera.
-	var casters = scene.meshes.filter(function (m) {
-		if (!m.isVisible) return false;
-		if (m.name.match(/^Occupancy_/) || m.name === 'door_title') return false;
-		return true;
-	});
+	var casters = scene.meshes.filter(_isBakeableMesh);
 	casters.forEach(function (m) { m.alwaysSelectAsActiveMesh = true; });
 
 	// Combined room AABB — a far light (e.g. a sun above a roof opening) sits well
 	// beyond the fixed 50 m far plane, so its casters would be clipped out of the
 	// depth map and every texel would read as occluded. Push each light's far plane
-	// out to cover the whole room from that light's distance.
-	var rMin = new BABYLON.Vector3(1e9, 1e9, 1e9);
-	var rMax = new BABYLON.Vector3(-1e9, -1e9, -1e9);
-	casters.forEach(function (m) {
-		var bb = m.getBoundingInfo().boundingBox;
-		rMin = BABYLON.Vector3.Minimize(rMin, bb.minimumWorld);
-		rMax = BABYLON.Vector3.Maximize(rMax, bb.maximumWorld);
-	});
+	// out to cover the whole room from that light's distance. Cached for _buildAOGrid,
+	// which runs right after over the same caster set.
+	var aabb = _computeRoomAABB(casters);
+	var rMin = aabb.min, rMax = aabb.max;
+	b.roomAABB = aabb;
 
 	var lh = !scene.useRightHandedSystem;
 
@@ -1260,20 +989,13 @@ function _buildAOGrid(scene) {
 	var b = _ovgal_bake;
 	if (b.aoGridTex) { b.aoGridTex.dispose(); b.aoGridTex = null; }
 
-	var casters = scene.meshes.filter(function (m) {
-		if (!m.isVisible) return false;
-		if (m.name.match(/^Occupancy_/) || m.name === 'door_title') return false;
-		return true;
-	});
+	var casters = scene.meshes.filter(_isBakeableMesh);
 
-	// Padded world AABB -> cubic voxel size from the longest axis.
-	var min = new BABYLON.Vector3(1e9, 1e9, 1e9);
-	var max = new BABYLON.Vector3(-1e9, -1e9, -1e9);
-	casters.forEach(function (m) {
-		var bb = m.getBoundingInfo().boundingBox;
-		min = BABYLON.Vector3.Minimize(min, bb.minimumWorld);
-		max = BABYLON.Vector3.Maximize(max, bb.maximumWorld);
-	});
+	// Padded world AABB -> cubic voxel size from the longest axis. Reuse the room
+	// AABB _buildShadowMaps just computed over the same caster set (falling back to a
+	// fresh compute if the grid is ever built standalone).
+	var aabb = b.roomAABB || _computeRoomAABB(casters);
+	var min = aabb.min, max = aabb.max;
 	var pad = 0.1;
 	min = new BABYLON.Vector3(min.x - pad, min.y - pad, min.z - pad);
 	max = new BABYLON.Vector3(max.x + pad, max.y + pad, max.z + pad);
@@ -1500,6 +1222,9 @@ function _runBake() {
 	var finalIndex = b.passes.length % 2;
 
 	b.baked.forEach(function (it) {
+		// The display material is frozen after each bake (static uniforms, zero
+		// per-frame rebind). Unfreeze to re-point its lightmap sampler, refreeze below.
+		it.view.unfreeze();
 		// This mesh's baked AO seeds the ambient on the first pass (k === 0).
 		m.setTexture("aoSampler", it.aoBuffer);
 		for (var k = 0; k < b.passes.length; k++) {
@@ -1534,8 +1259,11 @@ function _runBake() {
 			dst.render();
 		}
 		// Point the display view's lightmap at whichever buffer holds the final
-		// accumulation (ping-pong end depends on the light count's parity).
+		// accumulation (ping-pong end depends on the light count's parity). The buffer
+		// object is stable across rebakes — only its contents change — so freezing the
+		// material still shows live re-bakes (same texture reference, new pixels).
 		it.view.setTexture("lightSampler", it.buffers[finalIndex]);
+		it.view.freeze();
 	});
 }
 
@@ -1552,14 +1280,6 @@ function setupLightmapBake(scene) {
 		console.warn("Lightmap bake: no half-float render target support — aborting");
 		return;
 	}
-
-	// The bake represents the F_ fixtures as baked sub-lights below, so the live
-	// RectAreaLights setupRoomLighting just created must go — left enabled they
-	// double-light the scene (the hard, straight-edged rectangular floor pool).
-	// The sun_/splash_ spots are already setEnabled(false); this completes the
-	// zero-runtime-light bake design. Collection reads the fixture meshes, not
-	// the lights, so disposing first is safe.
-	_disposeRectAreaLights(scene);
 
 	// Authored sun_N / splash_N spots first, then F_ fixtures, then the template's
 	// marker spot. The sun_/splash_ prefix per light selects its model in the bake.
@@ -1594,8 +1314,6 @@ function setupLightmapBake(scene) {
 		window._bake = _ovgal_bake;
 		_refreshBakeAngles();
 	}
-	_ovgal_bake.posArray = cones.posArray;
-	_ovgal_bake.axisArray = cones.axisArray;
 	_ovgal_bake.lights = cones.lights;
 	_ovgal_bake.count = cones.count;
 	_ovgal_bake.scene = scene;
@@ -1618,8 +1336,7 @@ function setupLightmapBake(scene) {
 	// glowing under the baked view. Leaving them out keeps their original glow
 	// material, so they stay decorative once the runtime lights are gone.
 	var meshes = scene.meshes.filter(function (m) {
-		if (!m.isVisible) return false;
-		if (m.name.match(/^Occupancy_/) || m.name === 'door_title') return false;
+		if (!_isBakeableMesh(m)) return false;
 		if (m.material && /glow/i.test(m.material.name || '')) return false;
 		if (!m.isVerticesDataPresent || !m.isVerticesDataPresent(BABYLON.VertexBuffer.UV2Kind)) return false;
 		return true;

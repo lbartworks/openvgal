@@ -367,7 +367,6 @@
 						let temp_assetcontainer=await loadAsset(glb_file, scene);
 						temp_assetcontainer.addAllToScene();
 						setupRoomLighting(scene, config_file_content);
-						setupBakedShadows(scene);
 						setupLightmapBake(scene);
 						freezeGalleryMaterials();
 					} else {
@@ -403,11 +402,11 @@
 								BJS_materials["BJS_black_metal"] = await loadNodeMaterial('rBJS_black_metal', materials_folder + '/BJS_black_metal.json', scene);
 								console.log("material BJS_black_metal loaded");
 							}
-							// Room lighting setup first — rect lights must exist before materials are assigned to meshes
+							// Room lighting setup first (disables stray lights, reads ambient) before
+							// materials are assigned to meshes.
 							setupRoomLighting(scene, config_file_content);
 							populate_template(config_file_content, current_gallery, scene);
 							console.log("template populated");
-							setupBakedShadows(scene);
 							setupLightmapBake(scene);
 							freezeGalleryMaterials();
 					}
@@ -418,7 +417,6 @@
 					galleries[current_gallery]._wasAddedToScene=false;
 					galleries[current_gallery].addAllToScene();
 					setupRoomLighting(scene, config_file_content);
-					setupBakedShadows(scene);
 					// Re-run the bake on return: the AssetContainer preserves each mesh and
 					// its display material, but NOT the lightmap render-target contents (they
 					// come back blank), so the splash/sun must be recomputed. setupLightmapBake
