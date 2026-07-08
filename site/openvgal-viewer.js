@@ -442,9 +442,14 @@
 				if (startNode) {
 					startNode.computeWorldMatrix(true);
 					cam.position.copyFrom(startNode.getAbsolutePosition());
-					// Face the empty's local +Y axis (its world direction), keeping the
-					// look level so the camera doesn't tilt up/down from the empty.
-					const forward = startNode.getDirection(BABYLON.Axis.Y);
+					// Face the empty's local +X axis (its red arrow in Blender). X is the
+					// one axis Blender's glTF export leaves un-swapped (Y/Z get shuffled),
+					// so aiming the empty's X at a target in Blender aims the camera there
+					// with no handedness guesswork. getDirection resolves it through the
+					// node's world matrix, so the loader's frame conversion is applied to
+					// the axis and the scene alike. Flatten to keep the look level; unlike
+					// +Y this stays non-zero after flattening, so the aim always applies.
+					const forward = startNode.getDirection(BABYLON.Axis.X);
 					forward.y = 0;
 					if (forward.lengthSquared() > 1e-6) {
 						cam.setTarget(cam.position.add(forward));
