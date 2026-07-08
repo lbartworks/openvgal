@@ -850,13 +850,14 @@ function _isBakeableMesh(m) {
 	return m.isVisible && !m.name.match(/^Occupancy_/) && m.name !== 'door_title';
 }
 
-// Plaques are thin unlit label planes floating a few cm off the wall. As bake
+// Plaques are thin unlit label planes floating a few cm off the wall; T_ meshes are
+// the 3D destination labels floated in each door opening (text3D_builder). As bake
 // occluders they cast shadows (depth maps) and darken ambient (AO grid) onto the
 // wall around/behind them — the "ghost shadows". They carry no UV2 so they were
 // never bake targets anyway; exclude them from both occlusion passes so they stay
 // purely decorative.
 function _isBakeOccluder(m) {
-	return _isBakeableMesh(m) && !m.name.match(/^lbl_plaque_/);
+	return _isBakeableMesh(m) && !m.name.match(/^lbl_plaque_/) && !m.name.match(/^T_/);
 }
 
 // Combined world-space AABB of a mesh list (each mesh's world bounding box unioned).
