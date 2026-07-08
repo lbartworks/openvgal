@@ -184,7 +184,10 @@ function _collectConesFromFixtures(scene) {
 		// narrow side. Capped per axis and by the global light budget.
 		var nu = Math.min(BAKE_RECT_MAX_PER_AXIS, Math.max(1, Math.round(2 * U.h / BAKE_RECT_SPACING)));
 		var nv = Math.min(BAKE_RECT_MAX_PER_AXIS, Math.max(1, Math.round(2 * V.h / BAKE_RECT_SPACING)));
-		panels.push({ pos: pos, aim: aim, U: U, V: V, nu: nu, nv: nv });
+		// Authored per-fixture intensity (F_..._I{value}); null falls back to the
+		// global slider in the bake driver.
+		var intensity = _parseNameSuffix(fixture.name, "I");
+		panels.push({ pos: pos, aim: aim, U: U, V: V, nu: nu, nv: nv, intensity: intensity });
 	}
 
 	// Over budget: shrink the densest grid one sample at a time, so every panel
@@ -227,7 +230,8 @@ function _collectConesFromFixtures(scene) {
 				var sy = pn.pos.y + pn.aim.y * 0.2 + pn.U.d.y * du + pn.V.d.y * dv;
 				var sz = pn.pos.z + pn.aim.z * 0.2 + pn.U.d.z * du + pn.V.d.z * dv;
 				lights.push({ pos: new BABYLON.Vector3(sx, sy, sz), dir: pn.aim.clone(), scale: rectScale,
-					cosOuter: BAKE_RECT_COS_OUTER, cosInner: BAKE_RECT_COS_INNER });
+					cosOuter: BAKE_RECT_COS_OUTER, cosInner: BAKE_RECT_COS_INNER,
+					intensity: (typeof pn.intensity === 'number') ? pn.intensity : undefined });
 				count++;
 			}
 		}
