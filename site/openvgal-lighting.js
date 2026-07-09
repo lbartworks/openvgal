@@ -352,11 +352,18 @@ function _collectConesFromSpotLights(scene, nameFilter) {
 // =====================================================================
 var _ovgal_bake = null;
 
-// Fixed shadow frustum: wide enough to cover any tuned SPOT cone angle, so the
-// angle sliders never force a depth-map re-render (only the resolution slider
-// rebuilds). Sun/splash texels past this frustum fall back to the voxel-grid
-// march in the bake shader (sampleShadow -> voxelShadow).
+// Splash shadow frustum FLOOR. Each splash depth map is sized to its own authored
+// outer cone (fov = 2*outer + margin, see _buildShadowMaps), so a cone wider than
+// this grows the frustum to match; narrower cones just use this floor. Sun/splash
+// texels past the frustum fall back to the voxel-grid march in the bake shader
+// (sampleShadow -> voxelShadow), so widening the outer-angle slider rebuilds the
+// maps (_rebake(true)) rather than leaving the outer ring on the coarse fallback.
 var BAKE_SHADOW_FOV = 110 * Math.PI / 180;
+// Extra FOV past 2*outer so the 3x3 PCF taps at the cone edge stay inside the map
+// (same reasoning as BAKE_RECT_FACE_FOV's 120 for a 109.5 requirement), and a hard
+// cap where perspective texels degenerate near 180 (voxelShadow covers wider).
+var BAKE_SHADOW_FOV_MARGIN = 10 * Math.PI / 180;
+var BAKE_SHADOW_FOV_CAP = 150 * Math.PI / 180;
 
 // Rect sub-lights instead get FULL-coverage shadowing: up to 6 depth maps per
 // sub-light, one per world axis ("cube faces"), and one gated bake pass per map
@@ -986,9 +993,15 @@ function _buildShadowMaps(scene) {
 				: BABYLON.Matrix.OrthoOffCenterRH(vmin.x - mg, vmax.x + mg, vmin.y - mg, vmax.y + mg,
 					Math.max(BAKE_SHADOW_NEAR, -vmax.z - mg), -vmin.z + mg);
 		} else {
-			// Splash: perspective, far enough to cover the room from this light.
-			proj = lh ? BABYLON.Matrix.PerspectiveFovLH(BAKE_SHADOW_FOV, 1, BAKE_SHADOW_NEAR, _farFor(pos))
-				: BABYLON.Matrix.PerspectiveFovRH(BAKE_SHADOW_FOV, 1, BAKE_SHADOW_NEAR, _farFor(pos));
+			// Splash: perspective, far enough to cover the room from this light. FOV is
+			// sized to this light's authored outer cone so the whole lit disc stays inside
+			// the map (mirrors the rect branch's outer resolve, ~line 955), floored at
+			// BAKE_SHADOW_FOV and capped at BAKE_SHADOW_FOV_CAP.
+			var outer = Math.acos((typeof b.lights[k].cosOuter === 'number') ? b.lights[k].cosOuter : b.cosOuter);
+			var fov = Math.max(BAKE_SHADOW_FOV,
+				Math.min(2 * outer + BAKE_SHADOW_FOV_MARGIN, BAKE_SHADOW_FOV_CAP));
+			proj = lh ? BABYLON.Matrix.PerspectiveFovLH(fov, 1, BAKE_SHADOW_NEAR, _farFor(pos))
+				: BABYLON.Matrix.PerspectiveFovRH(fov, 1, BAKE_SHADOW_NEAR, _farFor(pos));
 		}
 		_addPass(k, pos, view.multiply(proj), b.shadowRes, -1, 0);
 	}
@@ -1457,7 +1470,10 @@ function _buildBakePanel() {
 		function (v) { b.innerDeg = v; _refreshBakeAngles(); _rebake(); });
 	addSlider("outer angle", 2, 90, 0.5,
 		function () { return b.outerDeg; },
-		function (v) { b.outerDeg = v; _refreshBakeAngles(); _rebake(); });
+		// Splash depth-map FOV is sized to the outer cone (see _buildShadowMaps), so
+		// widening the cone must rebuild the maps — otherwise the new outer ring lands
+		// on the coarse voxelShadow fallback.
+		function (v) { b.outerDeg = v; _refreshBakeAngles(); _rebake(true); });
 	addSlider("ambient", 0, 3, 0.05,
 		function () { return b.ambient; },
 		function (v) { b.ambient = v; _rebake(); });
