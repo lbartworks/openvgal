@@ -972,6 +972,10 @@ function _buildShadowMaps(scene) {
 
 		var view = _lookAt(pos, dir);
 		var proj;
+		// Normal-offset for the splash shadow (mirrors the rect-face fix, otherwise gated
+		// to rect sub-lights). Set in the splash branch below from this map's own texel
+		// size; stays 0 for the sun (parallel/ortho, no grazing texel-sharing seam).
+		var splashNormOff = 0;
 		if (b.lights[k].sun) {
 			// Sun: orthographic (parallel) projection tightly framed to the room in this
 			// light's VIEW space. Uniform texel density everywhere means the extreme
@@ -1002,8 +1006,13 @@ function _buildShadowMaps(scene) {
 				Math.min(2 * outer + BAKE_SHADOW_FOV_MARGIN, BAKE_SHADOW_FOV_CAP));
 			proj = lh ? BABYLON.Matrix.PerspectiveFovLH(fov, 1, BAKE_SHADOW_NEAR, _farFor(pos))
 				: BABYLON.Matrix.PerspectiveFovRH(fov, 1, BAKE_SHADOW_NEAR, _farFor(pos));
+			// Perspective texel world-size per meter of distance (same form as the rect
+			// branch's normOff, line ~955). sampleShadow multiplies by distance + grazing
+			// factor and caps at 2 cm, so this lifts the door front off the shared
+			// grazing-angle depth texel that self-shadows the recessed panel.
+			splashNormOff = 2 * Math.tan(fov / 2) / b.shadowRes;
 		}
-		_addPass(k, pos, view.multiply(proj), b.shadowRes, -1, 0);
+		_addPass(k, pos, view.multiply(proj), b.shadowRes, -1, splashNormOff);
 	}
 }
 
