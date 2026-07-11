@@ -91,7 +91,7 @@ function freezeGalleryMaterials() {
 // marker spot) into world-space { pos, dir } cones the bake accumulates,
 // one render pass per light. BAKE_MAX_LIGHTS caps how many a room may have.
 // =====================================================================
-var BAKE_MAX_LIGHTS = 60;
+var BAKE_MAX_LIGHTS = 100;
 
 // Rect (area) light model. Each F_ fixture panel is baked as a grid of point
 // sub-lights stratified across its rectangle, each at 1/samples intensity. The
@@ -99,8 +99,8 @@ var BAKE_MAX_LIGHTS = 60;
 // the splash pass + per-light depth map with no shader change. Samples per edge
 // scale with that edge's length (SPACING), so a long strip fills without a gap and
 // a short side isn't over-sampled; MAX_PER_AXIS + BAKE_MAX_LIGHTS cap the total.
-var BAKE_RECT_SPACING = 0.5;      // target meters between area-light samples
-var BAKE_RECT_MAX_PER_AXIS = 6;   // per-edge sample cap (start low)
+var BAKE_RECT_SPACING = 1.0;      // target meters between area-light samples
+var BAKE_RECT_MAX_PER_AXIS = 15;  // per-edge sample cap
 // Rect sub-lights emulate a Lambertian panel, not a spotlight. Two constraints:
 //  (1) a 90-degree "cone" is not a cone: its outer edge is the plane through
 //      the light with normal = aim, and that plane hits the floor/walls as a
