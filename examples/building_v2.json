@@ -2,7 +2,7 @@
   "root": {
     "parent": "none",
     "resource": "root.glb",
-    "template": "T_root.glb",
+    "template": "T_root_B.glb",
     "gallery1": {
       "resource": "gallery1.glb",
       "resource_type": "door"
@@ -31,7 +31,7 @@
   "gallery1": {
     "parent": "root",
     "resource": "gallery1.glb",
-    "template": "T_pannels.glb",
+    "template": "T_pannels_B.glb",
     "AdeliePenguin": {
       "resource": "/gallery1/AdeliePenguin.jpg",
       "resource_type": "image",
@@ -562,7 +562,7 @@
   "gallery3": {
     "parent": "root",
     "resource": "gallery3.glb",
-    "template": "T_nopannels.glb",
+    "template": "T_nopannels_B.glb",
     "CanyonRoadhouse": {
       "resource": "/gallery3/CanyonRoadhouse.jpg",
       "resource_type": "image",
@@ -904,7 +904,7 @@
   "gallery4": {
     "parent": "root",
     "resource": "gallery4.glb",
-    "template": "T_nopannels.glb",
+    "template": "T_nopannels_B.glb",
     "Askoki Group 2": {
       "resource": "/gallery4/Askoki Group 2.jpg",
       "resource_type": "image",
@@ -1309,7 +1309,7 @@
   "gallery5": {
     "parent": "root",
     "resource": "gallery5.glb",
-    "template": "T_nopannels.glb",
+    "template": "T_nopannels_B.glb",
     "Buenos Aires 2": {
       "resource": "/gallery5/Buenos Aires 2.jpg",
       "resource_type": "image",
@@ -1759,7 +1759,7 @@
   "gallery6": {
     "parent": "root",
     "resource": "gallery6.glb",
-    "template": "T_small.glb",
+    "template": "T_small_B.glb",
     "10_0.15_kiss2": {
       "resource": "/gallery6/10_0.15_kiss2.png",
       "resource_type": "image",
@@ -1939,7 +1939,7 @@
   "gallery2": {
     "parent": "root",
     "resource": "gallery2.glb",
-    "template": "T_nopannels.glb",
+    "template": "T_nopannels_B.glb",
     "Altiplano Descanso": {
       "resource": "/gallery2/Altiplano Descanso.jpg",
       "resource_type": "image",

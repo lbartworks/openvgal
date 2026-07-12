@@ -7,6 +7,28 @@ var _ovgal_lights = {
 	ambientDown: null
 };
 
+// ---------------------------------------------------------------------------
+// Bake tuning presets — the single source of truth for every value the debug
+// sliders expose. Once the sliders are removed these become the fixed bake
+// settings; edit them here. Per-light cone angle/color authored in the GLB
+// still override intensity/innerDeg/outerDeg/color at bake time (see _runBake);
+// these are the fallback used when nothing is authored.
+var BAKE_DEFAULTS = {
+	intensity: 0.65,     // spot brightness multiplier
+	maxDist: 12.0,       // light reach in meters ("reach" slider)
+	innerDeg: 12.0,      // cone inner angle (full brightness)
+	outerDeg: 48.5,      // cone outer angle (falloff to zero)
+	color: { r: 1.0, g: 0.97, b: 0.93 },
+	ambient: 1.0,        // multiplier on the baked-in hemispheric ambient (1 = match runtime)
+	shadowRes: 1024,     // per-light depth map resolution
+	shadowDarkness: 0.18,// 0 = black shadow, 1 = no shadow
+	shadowBias: 0.04,    // depth-compare bias in meters (acne vs peter-panning)
+	aoStrength: 0.36,    // 0 = no AO, 1 = full AO darkening of the ambient
+	aoRadius: 1.3,       // meters — only blockers within this reach darken
+	aoBias: 0.08,        // normal offset (meters) lifting the march off the surface
+	size: 512            // lightmap atlas resolution per mesh
+};
+
 /**
  * Initializes all lighting in the scene.
  * Call once after scene is created (before galleries load).
@@ -356,8 +378,8 @@ var _ovgal_bake = null;
 // outer cone (fov = 2*outer + margin, see _buildShadowMaps), so a cone wider than
 // this grows the frustum to match; narrower cones just use this floor. Sun/splash
 // texels past the frustum fall back to the voxel-grid march in the bake shader
-// (sampleShadow -> voxelShadow), so widening the outer-angle slider rebuilds the
-// maps (_rebake(true)) rather than leaving the outer ring on the coarse fallback.
+// (sampleShadow -> voxelShadow); the depth-map FOV is sized from the authored
+// cone so the lit ring stays inside the map rather than on the coarse fallback.
 var BAKE_SHADOW_FOV = 110 * Math.PI / 180;
 // Extra FOV past 2*outer so the 3x3 PCF taps at the cone edge stay inside the map
 // (same reasoning as BAKE_RECT_FACE_FOV's 120 for a 109.5 requirement), and a hard
@@ -1305,14 +1327,13 @@ function _runBake() {
 }
 
 /**
- * Bakes a startup UV2 lightmap from the scene's spot lights. No-op unless
- * ?bake=1. Call after meshes + materials are loaded (alongside the splash /
- * shadow setup), before material freeze.
+ * Bakes a startup UV2 lightmap from the scene's spot lights. Runs by default
+ * for every template gallery (the v4 _B contract disables the runtime lights,
+ * so the lightmap IS the lighting). Call after meshes + materials are loaded
+ * (alongside the splash / shadow setup), before material freeze.
  * @param {BABYLON.Scene} scene
  */
 function setupLightmapBake(scene) {
-	if (!new URLSearchParams(window.location.search).has('bake')) return;
-
 	if (!scene.getEngine().getCaps().textureHalfFloatRender) {
 		console.warn("Lightmap bake: no half-float render target support — aborting");
 		return;
@@ -1330,24 +1351,13 @@ function setupLightmapBake(scene) {
 	}
 
 	if (!_ovgal_bake) {
-		// One global setting shared by every light (defaults match the splash).
-		_ovgal_bake = {
-			intensity: 0.65,
-			maxDist: 12.0,
-			innerDeg: 12.0,
-			outerDeg: 48.5,
-			color: { r: 1.0, g: 0.96, b: 0.88 },
-			ambient: 1.0,        // multiplier on the baked-in hemispheric ambient (1 = match runtime)
-			shadowRes: 1024,     // per-light depth map resolution
-			shadowDarkness: 0.18, // 0 = black shadow, 1 = no shadow
-			shadowBias: 0.04,    // depth-compare bias in meters (acne vs peter-panning)
-			aoStrength: 0.36,    // 0 = no AO, 1 = full AO darkening of the ambient
-			aoRadius: 1.3,       // meters — only blockers within this reach darken
-			aoBias: 0.08,        // normal offset (meters) lifting the march off the surface
-			size: 512,
+		// Tuning presets from BAKE_DEFAULTS (top of file); runtime state added here.
+		// color is cloned so the shared constant is never mutated by a live edit.
+		_ovgal_bake = Object.assign({}, BAKE_DEFAULTS, {
+			color: Object.assign({}, BAKE_DEFAULTS.color),
 			visible: true,
 			baked: []
-		};
+		});
 		window._bake = _ovgal_bake;
 		_refreshBakeAngles();
 	}
@@ -1413,130 +1423,4 @@ function setupLightmapBake(scene) {
 	if (_ovgal_bake.baked.length === 0) {
 		console.warn("Lightmap bake: no meshes with a UV2 channel were found");
 	}
-
-	if (!_ovgal_bake.uiBuilt) {
-		_bindBakeToggle();
-		_buildBakePanel();
-		_ovgal_bake.uiBuilt = true;
-	}
-}
-
-// Re-commit the bake after a tuning change. Cheap path (default): just re-run the
-// accumulation passes. With rebuildShadows=true (resolution change) re-render the
-// depth maps first.
-function _rebake(rebuildShadows) {
-	if (!_ovgal_bake) return;
-	if (rebuildShadows) _buildShadowMaps(_ovgal_bake.scene);
-	_runBake();
-}
-
-// Re-commit AO. Radius/offset are runtime march params (not baked into the grid),
-// so an AO-slider change only re-runs the march + the bake — never the voxel grid.
-function _rebakeAO() {
-	if (!_ovgal_bake) return;
-	_runAO();
-	_runBake();
-}
-
-function _buildBakePanel() {
-	var b = _ovgal_bake;
-	var panel = document.createElement("div");
-	panel.style.cssText = "position:fixed;top:10px;right:10px;z-index:99999;"
-		+ "background:rgba(0,0,0,0.75);color:#fafafa;font:12px Inter,sans-serif;"
-		+ "padding:10px 12px;border-radius:8px;width:200px;user-select:none;";
-	panel.innerHTML = "<div style='margin-bottom:6px;font-weight:600;'>Lightmap bake &nbsp;<span style='color:#a1a1aa;font-weight:400;'>B=show/hide</span></div>";
-
-	// Each slider re-bakes on input (the bake is a committed render-once, not live).
-	function addSlider(label, min, max, step, get, set) {
-		var row = document.createElement("label");
-		row.style.cssText = "display:block;margin:6px 0;";
-		var val = document.createElement("span");
-		val.textContent = get().toFixed(2);
-		val.style.cssText = "float:right;color:#a5b4fc;";
-		var name = document.createElement("span");
-		name.textContent = label;
-		var slider = document.createElement("input");
-		slider.type = "range";
-		slider.min = min; slider.max = max; slider.step = step;
-		slider.value = get();
-		slider.style.cssText = "width:100%;margin-top:2px;";
-		slider.addEventListener("input", function () {
-			set(parseFloat(slider.value));
-			val.textContent = parseFloat(slider.value).toFixed(2);
-		});
-		row.appendChild(name); row.appendChild(val); row.appendChild(slider);
-		panel.appendChild(row);
-	}
-
-	addSlider("intensity", 0, 5, 0.05,
-		function () { return b.intensity; },
-		function (v) { b.intensity = v; _rebake(); });
-	addSlider("reach (m)", 1, 30, 0.5,
-		function () { return b.maxDist; },
-		function (v) { b.maxDist = v; _rebake(); });
-	addSlider("inner angle", 1, 45, 0.5,
-		function () { return b.innerDeg; },
-		function (v) { b.innerDeg = v; _refreshBakeAngles(); _rebake(); });
-	addSlider("outer angle", 2, 90, 0.5,
-		function () { return b.outerDeg; },
-		// Splash depth-map FOV is sized to the outer cone (see _buildShadowMaps), so
-		// widening the cone must rebuild the maps — otherwise the new outer ring lands
-		// on the coarse voxelShadow fallback.
-		function (v) { b.outerDeg = v; _refreshBakeAngles(); _rebake(true); });
-	addSlider("ambient", 0, 3, 0.05,
-		function () { return b.ambient; },
-		function (v) { b.ambient = v; _rebake(); });
-	addSlider("shadow darkness", 0, 1, 0.02,
-		function () { return b.shadowDarkness; },
-		function (v) { b.shadowDarkness = v; _rebake(); });
-	addSlider("shadow bias (m)", 0, 0.1, 0.005,
-		function () { return b.shadowBias; },
-		function (v) { b.shadowBias = v; _rebake(); });
-	addSlider("AO strength", 0, 1, 0.02,
-		function () { return b.aoStrength; },
-		function (v) { b.aoStrength = v; _rebake(); });          // strength: cheap, bake only
-	addSlider("AO radius (m)", 0.1, 3, 0.05,
-		function () { return b.aoRadius; },
-		function (v) { b.aoRadius = v; _rebakeAO(); });          // radius: re-accumulate AO
-	addSlider("AO offset (m)", 0, 0.3, 0.01,
-		function () { return b.aoBias; },
-		function (v) { b.aoBias = v; _rebakeAO(); });            // offset: re-run AO march
-
-	// Resolution rebuilds the depth maps (heavy), so it commits on release only.
-	var resRow = document.createElement("label");
-	resRow.style.cssText = "display:block;margin:6px 0;";
-	var resVal = document.createElement("span");
-	resVal.textContent = b.shadowRes.toFixed(0);
-	resVal.style.cssText = "float:right;color:#a5b4fc;";
-	var resName = document.createElement("span");
-	resName.textContent = "shadow res";
-	var resSlider = document.createElement("input");
-	resSlider.type = "range";
-	resSlider.min = 512; resSlider.max = 2048; resSlider.step = 256;
-	resSlider.value = b.shadowRes;
-	resSlider.style.cssText = "width:100%;margin-top:2px;";
-	resSlider.addEventListener("input", function () {
-		resVal.textContent = parseFloat(resSlider.value).toFixed(0);
-	});
-	resSlider.addEventListener("change", function () {
-		b.shadowRes = parseInt(resSlider.value, 10);
-		_rebake(true);   // rebuild depth maps at the new resolution
-	});
-	resRow.appendChild(resName); resRow.appendChild(resVal); resRow.appendChild(resSlider);
-	panel.appendChild(resRow);
-
-	document.body.appendChild(panel);
-}
-
-function _bindBakeToggle() {
-	window.addEventListener("keydown", function (e) {
-		if ((e.key === "b" || e.key === "B") && !e.ctrlKey && !e.altKey && !e.metaKey) {
-			e.preventDefault();
-			_ovgal_bake.visible = !_ovgal_bake.visible;
-			_ovgal_bake.baked.forEach(function (it) {
-				it.mesh.material = _ovgal_bake.visible ? it.view : it.orig;
-			});
-			console.log("Lightmap bake " + (_ovgal_bake.visible ? "shown" : "hidden"));
-		}
-	});
 }

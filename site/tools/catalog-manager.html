@@ -197,9 +197,9 @@
       selectionOrder: ['small', 'nopannels', 'pannels'],
       minSpacing: 0.5,
       styles: {
-        classic:    { name: 'Classic',    description: 'Mix of modern and classic materials',     thumbnail: 'classic_thumb.jpg',    root: 'T_root.glb',            glbs: { small: 'T_small.glb',            nopannels: 'T_nopannels.glb',            pannels: 'T_pannels.glb' } },
-        minimalist: { name: 'Minimalist', description: 'Clean lines, white walls, even lighting', thumbnail: 'minimalist_thumb.jpg', root: 'T_root_minimalist.glb', glbs: { small: 'T_small_minimalist.glb', nopannels: 'T_nopannels_minimalist.glb', pannels: 'T_pannels_minimalist.glb' } },
-        dark:       { name: 'Dark',       description: 'Dark walls, backlight type of frames',    thumbnail: 'dark_thumb.jpg',       root: 'T_root_dark.glb',       glbs: { small: 'T_small_dark.glb',       nopannels: 'T_nopannels_dark.glb',       pannels: 'T_pannels_dark.glb' } }
+        classic:    { name: 'Classic',    description: 'Mix of modern and classic materials',     thumbnail: 'classic_thumb.jpg',    root: 'T_root_B.glb',            glbs: { small: 'T_small_B.glb',            nopannels: 'T_nopannels_B.glb',            pannels: 'T_pannels_B.glb' } },
+        minimalist: { name: 'Minimalist', description: 'Clean lines, white walls, even lighting', thumbnail: 'minimalist_thumb.jpg', root: 'T_root_minimalist_B.glb', glbs: { small: 'T_small_minimalist_B.glb', nopannels: 'T_nopannels_minimalist_B.glb', pannels: 'T_pannels_minimalist_B.glb' } },
+        dark:       { name: 'Dark',       description: 'Dark walls, backlight type of frames',    thumbnail: 'dark_thumb.jpg',       root: 'T_root_dark_B.glb',       glbs: { small: 'T_small_dark_B.glb',       nopannels: 'T_nopannels_dark_B.glb',       pannels: 'T_pannels_dark_B.glb' } }
       }
     };
 
@@ -466,7 +466,7 @@
         [
           { key: 'name',      label: 'name',  placeholder: 'Display name' },
           { key: 'thumbnail', label: 'thumb', placeholder: styleId + '_thumb.jpg' },
-          { key: 'root',      label: 'root',  placeholder: 'T_root_' + styleId + '.glb' }
+          { key: 'root',      label: 'root',  placeholder: 'T_root_' + styleId + '_B.glb' }
         ].forEach(function(field) {
           var wrap = document.createElement('div');
           wrap.className = 'style-field';
@@ -559,7 +559,7 @@
           name: id.charAt(0).toUpperCase() + id.slice(1),
           description: '',
           thumbnail: id + '_thumb.jpg',
-          root: 'T_root_' + id + '.glb',
+          root: 'T_root_' + id + '_B.glb',
           glbs: {}
         };
         renderAll();

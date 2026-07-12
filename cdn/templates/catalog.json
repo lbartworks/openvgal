@@ -388,33 +388,11 @@
       "name": "Classic",
       "description": "Mix of modern and classic materials",
       "thumbnail": "classic_thumb.jpg",
-      "root": "T_root.glb",
+      "root": "T_root_B.glb",
       "glbs": {
-        "small": "T_small.glb",
-        "nopannels": "T_nopannels.glb",
-        "pannels": "T_pannels.glb"
-      }
-    },
-    "minimalist": {
-      "name": "Minimalist",
-      "description": "Clean lines, white walls, even lighting",
-      "thumbnail": "minimalist_thumb.jpg",
-      "root": "T_root_minimalist.glb",
-      "glbs": {
-        "small": "T_small_minimalist.glb",
-        "nopannels": "T_nopannels_minimalist.glb",
-        "pannels": "T_pannels_minimalist.glb"
-      }
-    },
-    "dark": {
-      "name": "Dark",
-      "description": "Dark walls, backlight type of frames",
-      "thumbnail": "dark_thumb.jpg",
-      "root": "T_root_dark.glb",
-      "glbs": {
-        "small": "T_small_dark.glb",
-        "nopannels": "T_nopannels_dark.glb",
-        "pannels": "T_pannels_dark.glb"
+        "small": "T_small_B.glb",
+        "nopannels": "T_nopannels_B.glb",
+        "pannels": "T_pannels_B.glb"
       }
     }
   }

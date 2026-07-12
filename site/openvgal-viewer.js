@@ -16,6 +16,10 @@
 	let style_file_content;
 	let fontContent;
 	var galleries=new Object();
+	// Per-gallery load mode ('template' | 'full'), recorded on first load so the
+	// cached-revisit branch knows whether to re-bake (template) or leave the
+	// self-contained GLB's authored lighting alone (full).
+	var galleryModes=new Object();
 	var scene=null;
 	var current_gallery;
 	var door_material, wall_material, floor_material, header_material;
@@ -102,6 +106,104 @@
 		xhr.open('HEAD', urlToFile, false);
 		xhr.send();
 		return xhr.status >= 200 && xhr.status < 300;
+	}
+
+	// v4 template contract, Check B. Returns null if the just-loaded template
+	// AssetContainer satisfies the bake contract, otherwise a short detail string
+	// naming the failing check (logged to the console). Two checks:
+	//   1. Every lightmap receiver carries UV2. A receiver mirrors the baker's own
+	//      filter (setupLightmapBake): a visible non-helper (not Occupancy_/door_title),
+	//      non-glow surface with real geometry. Doors (d_) and other UV2-less meshes are
+	//      not receivers, so they're not flagged — but a receiver missing UV2 means a
+	//      stale/corrupt _B export and is rejected.
+	//   2. Every scene light must be a recognized OpenVGAL light (a sun_/splash_ spot
+	//      or an ambient hemi). Presence is NOT required — a template may light purely
+	//      via F_ fixtures + runtime ambient — but any foreign/unrecognized light left
+	//      in by the author is rejected.
+	function validateBakedTemplate(container) {
+		var bakeable = (typeof _isBakeableMesh === 'function')
+			? _isBakeableMesh
+			: function () { return false; };
+
+		// Doors (d_) are bakeable geometry (occluders) but never lightmap receivers —
+		// they ship without UV2 by design, so exempt them from the UV2 requirement.
+		var doorRe = (typeof regul_exp_door !== 'undefined') ? regul_exp_door : /^d_/;
+
+		var missingUV2 = [];
+		container.meshes.forEach(function (m) {
+			if (!bakeable(m)) return;
+			if (doorRe.test(m.name)) return;
+			if (m.material && /glow/i.test(m.material.name || '')) return;
+			// Only real surfaces are receivers; geometry-less nodes (glTF __root__,
+			// empties) pass the name predicate but never get lightmapped.
+			if (!m.isVerticesDataPresent || !m.isVerticesDataPresent(BABYLON.VertexBuffer.PositionKind)) return;
+			if (!m.isVerticesDataPresent(BABYLON.VertexBuffer.UV2Kind)) {
+				missingUV2.push(m.name);
+			}
+		});
+		if (missingUV2.length > 0) {
+			return 'missing UV2 on lightmap receiver(s): ' + missingUV2.join(', ');
+		}
+
+		// Fixtures (F_) are meshes and ambient hemis are runtime-created, so the
+		// realistic content here is sun_/splash_ spots — but reject any light that
+		// isn't one of the recognized kinds (a stray light the author left in).
+		var foreignLights = container.lights.filter(function (l) {
+			return !/^(?:sun|splash)_\d+/.test(l.name) &&
+				l.name !== 'hemiLight_up' && l.name !== 'hemiLight_down';
+		}).map(function (l) { return l.name; });
+		if (foreignLights.length > 0) {
+			return 'unrecognized (non-OpenVGAL) light(s): ' + foreignLights.join(', ');
+		}
+
+		return null;
+	}
+
+	// Full-screen error overlay for a failed template load. kind is 'LEGACY'
+	// (gallery predates v4 — regenerate) or 'BAD_TEMPLATE' (stale/corrupt _B file
+	// — re-download / CDN). Detail already went to console.error; creators rarely
+	// have devtools open, so the overlay carries the short fix plus a console hint.
+	// Design system: #000 bg, Inter, zinc text, indigo accent, SVG icon (no emoji).
+	function showTemplateError(kind, glb_file) {
+		// Hide the loading spinner if it's up.
+		var loader = document.getElementById('loader') || document.getElementById('loaded');
+		if (loader) loader.style.display = 'none';
+
+		var copy = (kind === 'LEGACY')
+			? {
+				title: 'This gallery needs to be regenerated',
+				body: 'It was built with an older version of OpenVGAL that is no longer supported. Recreate it with the current generator at openvgal.com/create.'
+			}
+			: {
+				title: 'The gallery template could not be loaded',
+				body: 'The template file is stale or corrupt. Try re-downloading the gallery; if the problem persists it may be a temporary content-delivery issue.'
+			};
+
+		var existing = document.getElementById('ovgal-error-overlay');
+		if (existing) existing.remove();
+
+		var overlay = document.createElement('div');
+		overlay.id = 'ovgal-error-overlay';
+		overlay.setAttribute('style',
+			'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;' +
+			'display:flex;align-items:center;justify-content:center;padding:24px;' +
+			'background:#000;font-family:Inter,system-ui,sans-serif;');
+		overlay.innerHTML =
+			'<div style="max-width:440px;text-align:center;">' +
+				'<svg width="40" height="40" viewBox="0 0 24 24" fill="none" ' +
+					'stroke="#6366f1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" ' +
+					'style="margin-bottom:20px;">' +
+					'<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>' +
+					'<line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>' +
+				'</svg>' +
+				'<h1 style="color:#d4d4d8;font-size:20px;font-weight:600;line-height:1.4;margin:0 0 12px;">' +
+					copy.title + '</h1>' +
+				'<p style="color:#a1a1aa;font-size:14px;line-height:1.6;margin:0 0 20px;">' +
+					copy.body + '</p>' +
+				'<p style="color:#52525b;font-size:12px;line-height:1.5;margin:0;">' +
+					'Open the browser console (F12) for details.</p>' +
+			'</div>';
+		document.body.appendChild(overlay);
 	}
 
 	// Toggle plaque visibility at runtime (called from overlay.html switch)
@@ -308,19 +410,43 @@
 					//check if it is template glb or not
 					glb_file=config_file_content[current_gallery]["resource"];
 					if (doesFileExist(glb_location + glb_file)){
-						//full glb
+						//full glb — self-contained gallery, loaded exactly as authored.
+						//No _B/UV2/light validation and no baking: a self-contained GLB is
+						//expected to ship its lighting pre-baked into its own textures.
 						console.log("loading full glb for gallery " + current_gallery);
 						let temp_assetcontainer=await loadAsset(glb_file, scene);
 						temp_assetcontainer.addAllToScene();
-						setupRoomLighting(scene, config_file_content);
-						setupLightmapBake(scene);
-						freezeGalleryMaterials();
+						galleryModes[current_gallery]='full';
 					} else {
 							glb_file=config_file_content[current_gallery]["template"];
-							//template
+							//template — v4 contract. Check A: templates must be baked (_B).
+							//A legacy (non-_B) name means the gallery predates v4; fail hard
+							//with the LEGACY message (fix = regenerate the gallery).
+							if (!/_B\.glb$/.test(glb_file)){
+								console.error('[openvgal] LEGACY template rejected: "' + glb_file +
+									'" for gallery "' + current_gallery + '". v4 requires a baked (_B) template.');
+								showTemplateError('LEGACY', glb_file);
+								return;
+							}
 							console.log("Loading template glb for gallery " + current_gallery);
 							let temp_assetcontainer=await loadAsset(glb_file, scene);
+
+							//Check B: the loaded _B template must satisfy the bake contract
+							//(it's actually baked — has lightmap receivers — and carries no
+							//foreign lights) before we touch the scene. On failure, drop the
+							//loaded assets and abort with the BAD_TEMPLATE message (fix =
+							//re-download or CDN issue) — no populate, no bake, no half-rendered scene.
+							var contractDetail=validateBakedTemplate(temp_assetcontainer);
+							if (contractDetail){
+								console.error('[openvgal] BAD_TEMPLATE "' + glb_file + '" for gallery "' +
+									current_gallery + '": ' + contractDetail);
+								temp_assetcontainer.dispose();
+								showTemplateError('BAD_TEMPLATE', glb_file);
+								return;
+							}
+
 							temp_assetcontainer.addAllToScene();
+							galleryModes[current_gallery]='template';
 
 							// check BJS materials
 							const n_meshes=scene.meshes.length-1;
@@ -362,14 +488,18 @@
 				} else {
 					galleries[current_gallery]._wasAddedToScene=false;
 					galleries[current_gallery].addAllToScene();
-					setupRoomLighting(scene, config_file_content);
-					// Re-run the bake on return: the AssetContainer preserves each mesh and
-					// its display material, but NOT the lightmap render-target contents (they
-					// come back blank), so the splash/sun must be recomputed. setupLightmapBake
-					// reuses each mesh's stored buffers + real source material and only refills
-					// the lightmap — see _bakeMesh's reuse path.
-					setupLightmapBake(scene);
-					freezeGalleryMaterials();
+					// Only template galleries re-bake on return. Self-contained ('full')
+					// galleries ship their own baked lighting, so leave them untouched.
+					if (galleryModes[current_gallery]==='template'){
+						setupRoomLighting(scene, config_file_content);
+						// Re-run the bake on return: the AssetContainer preserves each mesh and
+						// its display material, but NOT the lightmap render-target contents (they
+						// come back blank), so the splash/sun must be recomputed. setupLightmapBake
+						// reuses each mesh's stored buffers + real source material and only refills
+						// the lightmap — see _bakeMesh's reuse path.
+						setupLightmapBake(scene);
+						freezeGalleryMaterials();
+					}
 
 					// Sync plaque visibility with toggle after restoring cached room
 					var _pt = document.getElementById('plaquesToggle');

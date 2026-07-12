@@ -1,6 +1,6 @@
 https://github.com/lbartworks/openvgal/assets/121262093/517b6b67-7a87-4f2c-8166-b5c9314ff9e9
 
-# OpenVGAL v3.4.7
+# OpenVGAL v4.0.0
 
 Open-source 3D virtual gallery platform built on [Babylon.js](https://www.babylonjs.com/). Create interactive WebGL art galleries from your images, download a ZIP, host it anywhere.
 
@@ -8,8 +8,11 @@ Open-source 3D virtual gallery platform built on [Babylon.js](https://www.babylo
 
 ![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)
 
+> [!IMPORTANT]
+> **v4 rebuilds the lighting.** Template galleries now bake lightmaps at load time, and only v4 baked templates are supported. Galleries generated before v4 must be regenerated with the current generator at **[openvgal.com/create](https://openvgal.com/create)** — the viewer shows a clear message if it loads an older gallery. Self-contained galleries (a complete GLB via the `resource` field) are unaffected: they render exactly as authored.
+
 > [!WARNING]
-> **Migrating from a pre-3.4 gallery?** v3.4 switched artwork `width` / `height` in `building_v2.json` from normalised units (longest edge = `1.00`) to real centimetres (default `120` cm). Older files render at ~2.5 cm in the 3.4 viewer. Drop your JSON into the **[pre-3.4 migration tool](https://openvgal.com/tools/migrate-pre34.html)** to get a rescaled copy back — runs locally in your browser, no upload.
+> **Migrating from a pre-3.4 gallery?** v3.4 switched artwork `width` / `height` in `building_v2.json` from normalised units (longest edge = `1.00`) to real centimetres (default `120` cm). Older files render at ~2.5 cm in the 3.4+ viewer. Drop your JSON into the **[pre-3.4 migration tool](https://openvgal.com/tools/migrate-pre34.html)** to get a rescaled copy back — runs locally in your browser, no upload.
 
 ---
 
@@ -17,7 +20,7 @@ Open-source 3D virtual gallery platform built on [Babylon.js](https://www.babylo
 
 OpenVGAL started in June 2022 as a personal project to give myself, and anyone, a way to build interactive 3D virtual galleries programmatically. No 3D modeling skills, no gallery design, no browser code to deal with. Just organize your images in folders and the code figures out the rest.
 
-Version 1 required Python and manual configuration. Version 2 brought executables and an Electron app to lower the barrier. Version 3 removes all of that. Everything happens in the browser now. You go to [openvgal.com/create](https://openvgal.com/create), drop your folders, click build, and get a self-contained ZIP that works on any web server. No installs, no dependencies, no accounts.
+Version 1 required Python and manual configuration. Version 2 brought executables and an Electron app to lower the barrier. Version 3 removed all of that — everything happens in the browser now. You go to [openvgal.com/create](https://openvgal.com/create), drop your folders, click build, and get a self-contained ZIP that works on any web server. No installs, no dependencies, no accounts. Version 4 brings baked lightmap lighting to every gallery: soft shadows and ambient light are computed in the browser when a room loads, so galleries look grounded and lit instead of flat.
 
 The philosophy has not changed: **you own your gallery**. The output is plain HTML + JS files. There is no lock-in, no subscription, no tracking. Put the files on any server and they just work.
 
@@ -48,6 +51,15 @@ Replace `materials/logo.png` in the ZIP with your own image. Use white artwork o
 
 ---
 
+## What's New in v4
+
+- **Baked lightmaps.** When a template gallery loads, the viewer bakes its lighting into per-surface maps: the template's spotlights and area-light fixtures, hemispheric ambient, and soft contact shadows are computed once into a dedicated lightmap channel, and the materials are frozen. The result is softer, more grounded lighting than the previous real-time fixtures — and once baked, the runtime lights are switched off entirely. The fixture bulbs stay in the scene as decorative objects; the bake is the lighting.
+- **Baked templates only.** Room templates now carry a dedicated lightmap UV channel. On load the viewer checks each template — the lightmap channel is present on every surface, and every light is a recognized gallery light — and refuses to render a stale or corrupt template rather than showing a broken room. This is the only supported template path in v4.
+- **Regenerate older galleries.** Galleries generated before v4 use pre-bake templates and are no longer supported. Re-create them with the current generator at [openvgal.com/create](https://openvgal.com/create); the viewer shows a clear message if it loads an old gallery, so nothing renders half-broken.
+- **Self-contained galleries pass through untouched.** A gallery loaded from a complete GLB (the `resource` field) is rendered exactly as authored, with no runtime baking — so lighting you baked in Blender and shipped inside the GLB is preserved as-is.
+
+---
+
 ## What's New in v3
 
 - **Occupancy-driven layout.** Wall and panel placement is now defined by `Occupancy_*` planes inside each template GLB. The generator probes them once, packs artworks across the strips with width-aware density balancing, and walks `selectionOrder` (smallest → largest) to overflow into additional rooms automatically. Adding a new room shape is a Blender + `catalog.json` change — no JS edit required.
@@ -73,7 +85,7 @@ The Python CLI still works and is available in [GitHub Releases](https://github.
 
 ## How It Works
 
-OpenVGAL uses a `building_v2.json` file to describe interconnected gallery rooms. Each room references a GLB template and contains items (artworks or doors to other rooms). The viewer loads templates, applies PBR node materials, places artwork textures at calculated positions, and handles navigation between rooms via door meshes.
+OpenVGAL uses a `building_v2.json` file to describe interconnected gallery rooms. Each room references a GLB template and contains items (artworks or doors to other rooms). The viewer loads templates, applies PBR node materials, places artwork textures at calculated positions, bakes the room's lighting into per-surface lightmaps, and handles navigation between rooms via door meshes.
 
 The placement of artworks is driven by `Occupancy_*` planes baked into each template GLB — one plane per wall or panel side, defining the available strip's centre, normal, and width. The generator reads them from `cdn/templates/catalog.json` (or probes the GLB at runtime as a fallback), then packs artworks across strips with width-aware density balancing and overflows into additional rooms when the largest shape can't fit the remainder.
 
@@ -147,6 +159,12 @@ Note: the `file://` protocol will not work in Chrome due to cross-origin iframe 
 ---
 
 ## Changelog
+
+**v4.0.0 (July 2026)**
+- Baked lightmap lighting: template galleries bake per-surface lightmaps at load time — spotlights and fixture area lights, hemispheric ambient, and soft shadows — then freeze materials for performance. Fixtures become decorative; the bake is the lighting
+- Baked templates are the only supported template path; the viewer validates each template on load (lightmap channel present, only recognized gallery lights) and shows a clear in-viewer error for stale/corrupt templates instead of rendering a broken room
+- Galleries generated before v4 must be regenerated at [openvgal.com/create](https://openvgal.com/create); the viewer detects and reports legacy galleries rather than half-loading them
+- Self-contained galleries (full GLB via `resource`) load exactly as authored with no re-baking — ship your own Blender-baked lighting
 
 **v3.4.7 (June 2026)**
 - Cinematic visit: fixed camera misalignment — the destination look-at is now computed from the artwork's arrival position (via a save/restore of camera pose), so legs land squarely in front of each artwork instead of accumulating a side-view drift
@@ -237,7 +255,7 @@ Note: the `file://` protocol will not work in Chrome due to cross-origin iframe 
 Yes. MIT license. No restrictions on how you use the generated galleries.
 
 **Can I add shadows or baked lighting?**
-The best approach is to design halls in Blender with baked textures and load them as full GLB files (using the `resource` field in `building_v2.json`). Lightmap support is planned but not yet implemented.
+Yes — as of v4 template galleries bake their own lighting. When a room loads, the viewer computes soft shadows, ambient, and the template's light fixtures into per-surface lightmaps and freezes the result, so you get grounded, shadowed lighting with no setup. If you want fully custom baked lighting, you can still design halls in Blender, bake your own textures, and load them as complete GLB files via the `resource` field in `building_v2.json` — the viewer renders those exactly as authored without re-baking.
 
 **Does it work on mobile?**
 Yes. Touch devices are detected automatically. Navigation uses touch controls instead of keyboard/mouse.
@@ -253,7 +271,7 @@ It depends on which mode you used. The standard generator produces a fully self-
 ## TODO
 
 - [ ] Support for VR devices
-- [ ] Support for lightmaps ([early experiments](https://www.youtube.com/watch?v=mZzMPlagnQk))
+- [x] Support for lightmaps — baked at load time for template galleries (v4) ([early experiments](https://www.youtube.com/watch?v=mZzMPlagnQk))
 - [ ] Alternative hall templates beyond rectangular halls
 - [x] Code to detect overlapping artwork or erroneous configurations (v3.4)
 - [ ] Logo upload in the generator (currently: replace `materials/logo.png` manually)
