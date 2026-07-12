@@ -237,60 +237,6 @@
 				})();
 			}
 
-			// --- ACES tonemapping (experimental). Enable with ?tone=1; press T toggles live ---
-			if (new URLSearchParams(window.location.search).has('tone')) {
-				const ip = scene.imageProcessingConfiguration;
-				const TONE = BABYLON.ImageProcessingConfiguration.TONEMAPPING_ACES;
-				ip.toneMappingType = TONE;
-				ip.exposure = 1.0;     // overall brightness scale before the curve
-				ip.contrast = 1.0;     // S-curve contrast applied after tonemapping
-				ip.toneMappingEnabled = true;
-				let toneOn = true;
-				window.addEventListener("keydown", function (e) {
-					if ((e.key === "t" || e.key === "T") && !e.ctrlKey && !e.altKey && !e.metaKey) {
-						e.preventDefault();
-						toneOn = !toneOn;
-						ip.toneMappingEnabled = toneOn;
-						console.log("ACES tonemapping " + (toneOn ? "on" : "off"));
-					}
-				});
-				console.log("ACES tonemapping enabled");
-
-				// Live tuning panel (only with ?tone=1)
-				(function () {
-					const panel = document.createElement("div");
-					panel.style.cssText = "position:fixed;top:10px;right:10px;z-index:99999;"
-						+ "background:rgba(0,0,0,0.75);color:#fafafa;font:12px Inter,sans-serif;"
-						+ "padding:10px 12px;border-radius:8px;width:200px;user-select:none;";
-					panel.innerHTML = "<div style='margin-bottom:6px;font-weight:600;'>Tonemap &nbsp;<span style='color:#a1a1aa;font-weight:400;'>T=on/off</span></div>";
-					const knobs = [
-						{ prop: "exposure", min: 0.2, max: 3, step: 0.05 },
-						{ prop: "contrast", min: 0.5, max: 2, step: 0.05 },
-					];
-					knobs.forEach(function (k) {
-						const row = document.createElement("label");
-						row.style.cssText = "display:block;margin:6px 0;";
-						const val = document.createElement("span");
-						val.textContent = ip[k.prop].toFixed(2);
-						val.style.cssText = "float:right;color:#a5b4fc;";
-						const name = document.createElement("span");
-						name.textContent = k.prop;
-						const slider = document.createElement("input");
-						slider.type = "range";
-						slider.min = k.min; slider.max = k.max; slider.step = k.step;
-						slider.value = ip[k.prop];
-						slider.style.cssText = "width:100%;margin-top:2px;";
-						slider.addEventListener("input", function () {
-							ip[k.prop] = parseFloat(slider.value);
-							val.textContent = ip[k.prop].toFixed(2);
-						});
-						row.appendChild(name); row.appendChild(val); row.appendChild(slider);
-						panel.appendChild(row);
-					});
-					document.body.appendChild(panel);
-				})();
-			}
-
 			// Ctrl+Shift+D toggles the Babylon.js Inspector
 			window.addEventListener("keydown", function (e) {
 				if (e.ctrlKey && e.shiftKey && e.key === "D") {
