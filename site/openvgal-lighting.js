@@ -26,7 +26,7 @@ var BAKE_DEFAULTS = {
 	aoStrength: 0.36,    // 0 = no AO, 1 = full AO darkening of the ambient
 	aoRadius: 1.3,       // meters — only blockers within this reach darken
 	aoBias: 0.08,        // normal offset (meters) lifting the march off the surface
-	size: 512            // lightmap atlas resolution per mesh
+	size: 1024           // lightmap atlas resolution per mesh
 };
 
 /**
@@ -282,8 +282,12 @@ function _collectConesFromSpotLights(scene, nameFilter) {
 	var count = 0;
 
 	var spots = scene.lights.filter(function (l) {
+		// Match on the parent NODE name (the Blender object) — the single source
+		// of truth — not l.name (the KHR light DATA-BLOCK name), which authors
+		// rarely rename in lockstep. Falls back to l.name when there's no parent.
+		var authoredName = (l.parent && l.parent.name) ? l.parent.name : l.name;
 		return l.getClassName && l.getClassName() === "SpotLight"
-			&& (!nameFilter || nameFilter.test(l.name));
+			&& (!nameFilter || nameFilter.test(authoredName));
 	});
 	for (var i = 0; i < spots.length && count < BAKE_MAX_LIGHTS; i++) {
 		var spot = spots[i];

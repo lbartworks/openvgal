@@ -148,10 +148,15 @@
 		// Fixtures (F_) are meshes and ambient hemis are runtime-created, so the
 		// realistic content here is sun_/splash_ spots — but reject any light that
 		// isn't one of the recognized kinds (a stray light the author left in).
+		// Name resolves from the parent NODE (the Blender object) — the single
+		// source of truth, same as the bake collector — because the glTF loader
+		// names the runtime light after the KHR light DATA-BLOCK (obj.data.name),
+		// which authors rarely rename in lockstep with the object.
 		var foreignLights = container.lights.filter(function (l) {
-			return !/^(?:sun|splash)_\d+/.test(l.name) &&
-				l.name !== 'hemiLight_up' && l.name !== 'hemiLight_down';
-		}).map(function (l) { return l.name; });
+			var name = (l.parent && l.parent.name) ? l.parent.name : l.name;
+			return !/^(?:sun|splash)_\d+/.test(name) &&
+				name !== 'hemiLight_up' && name !== 'hemiLight_down';
+		}).map(function (l) { return (l.parent && l.parent.name) ? l.parent.name : l.name; });
 		if (foreignLights.length > 0) {
 			return 'unrecognized (non-OpenVGAL) light(s): ' + foreignLights.join(', ');
 		}
