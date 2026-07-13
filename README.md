@@ -2,17 +2,14 @@ https://github.com/lbartworks/openvgal/assets/121262093/517b6b67-7a87-4f2c-8166-
 
 # OpenVGAL v4.0.0
 
-Open-source 3D virtual gallery platform built on [Babylon.js](https://www.babylonjs.com/). Create interactive WebGL art galleries from your images, download a ZIP, host it anywhere.
+Open-source 3D virtual gallery platform built on [Babylon.js](https://www.babylonjs.com/). Create interactive WebGL art galleries from your images, download a ZIP, host it anywhere. Version 4 is a massive upgrade with more realistic light and updated templates leaveraging the new light system.
 
 **Website:** [openvgal.com](https://openvgal.com) &nbsp;|&nbsp; **Clone of this repository:** [demo.openvgal.com](https://demo.openvgal.com) &nbsp;|&nbsp; **Create a gallery:** [openvgal.com/create](https://openvgal.com/create) &nbsp;|&nbsp; **Live demo:** [nostromophoto.com/virtual](https://nostromophoto.com/virtual/virtual.html)
 
 ![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)
 
 > [!IMPORTANT]
-> **v4 rebuilds the lighting.** Template galleries now bake lightmaps at load time, and only v4 baked templates are supported. Galleries generated before v4 must be regenerated with the current generator at **[openvgal.com/create](https://openvgal.com/create)** — the viewer shows a clear message if it loads an older gallery. Self-contained galleries (a complete GLB via the `resource` field) are unaffected: they render exactly as authored.
-
-> [!WARNING]
-> **Migrating from a pre-3.4 gallery?** v3.4 switched artwork `width` / `height` in `building_v2.json` from normalised units (longest edge = `1.00`) to real centimetres (default `120` cm). Older files render at ~2.5 cm in the 3.4+ viewer. Drop your JSON into the **[pre-3.4 migration tool](https://openvgal.com/tools/migrate-pre34.html)** to get a rescaled copy back — runs locally in your browser, no upload.
+> **v4 introduces some non-backwards compatibility changes.** While the main structure of the spaces (the .json file) has not been modified in v4, there are many important changes in the templates with v4. The upgrade is quality is massive and it did not make sense to keep the backwards compatibility. Change always comes with a tag
 
 ---
 
@@ -20,9 +17,9 @@ Open-source 3D virtual gallery platform built on [Babylon.js](https://www.babylo
 
 OpenVGAL started in June 2022 as a personal project to give myself, and anyone, a way to build interactive 3D virtual galleries programmatically. No 3D modeling skills, no gallery design, no browser code to deal with. Just organize your images in folders and the code figures out the rest.
 
-Version 1 required Python and manual configuration. Version 2 brought executables and an Electron app to lower the barrier. Version 3 removed all of that — everything happens in the browser now. You go to [openvgal.com/create](https://openvgal.com/create), drop your folders, click build, and get a self-contained ZIP that works on any web server. No installs, no dependencies, no accounts. Version 4 brings baked lightmap lighting to every gallery: soft shadows and ambient light are computed in the browser when a room loads, so galleries look grounded and lit instead of flat.
+Looking back the changes in 4 years are massive. Version 1 required Python and manual configuration. Version 2 brought executables and an Electron app to lower the barrier. Version 3 removed all of that — everything happens in the browser now. You go to [openvgal.com/create](https://openvgal.com/create), drop your folders, click build, and get a self-contained ZIP that works on any web server. No installs, no dependencies, no accounts. Version 4 brings a completely new light system, shadows and ambient occlusion, circumventing the limitations of Babylon JS while keeping efficiency and speed as a priority. OpenVGal intends to run on non-gaming hardware. Lightmaps are baked at runtime transparently to the user, this is a very experimental approach that other BabylonJS users may like.
 
-The philosophy has not changed: **you own your gallery**. The output is plain HTML + JS files. There is no lock-in, no subscription, no tracking. Put the files on any server and they just work.
+For the rest, the philosophy has not changed: **you own your gallery**. The output is plain HTML + JS files. There is no lock-in, no subscription, no tracking. Put the files on any server and they just work.
 
 ---
 
@@ -37,9 +34,7 @@ The philosophy has not changed: **you own your gallery**. The output is plain HT
 
 That's it. The ZIP contains everything: images, 3D room templates, PBR materials, the viewer, and configuration. Works in any subfolder, no configuration needed.
 
-### CDN-first mode
 
-If you prefer smaller ZIPs and automatic updates, use [openvgal.com/create?cdn=1](https://openvgal.com/create/index.html?cdn=1). The ZIP only includes your images and configuration. Templates, materials, and viewer code load from `cdn.openvgal.com` at runtime. You can also import an existing gallery and add new rooms without regenerating everything.
 
 ### Customize before download
 
@@ -56,7 +51,7 @@ Replace `materials/logo.png` in the ZIP with your own image. Use white artwork o
 - **Baked lightmaps.** When a template gallery loads, the viewer bakes its lighting into per-surface maps: the template's spotlights and area-light fixtures, hemispheric ambient, and soft contact shadows are computed once into a dedicated lightmap channel, and the materials are frozen. The result is softer, more grounded lighting than the previous real-time fixtures — and once baked, the runtime lights are switched off entirely. The fixture bulbs stay in the scene as decorative objects; the bake is the lighting.
 - **Baked templates only.** Room templates now carry a dedicated lightmap UV channel. On load the viewer checks each template — the lightmap channel is present on every surface, and every light is a recognized gallery light — and refuses to render a stale or corrupt template rather than showing a broken room. This is the only supported template path in v4.
 - **Regenerate older galleries.** Galleries generated before v4 use pre-bake templates and are no longer supported. Re-create them with the current generator at [openvgal.com/create](https://openvgal.com/create); the viewer shows a clear message if it loads an old gallery, so nothing renders half-broken.
-- **Self-contained galleries pass through untouched.** A gallery loaded from a complete GLB (the `resource` field) is rendered exactly as authored, with no runtime baking — so lighting you baked in Blender and shipped inside the GLB is preserved as-is.
+- **Self-contained galleries pass through untouched.** A gallery loaded from a complete GLB (the `resource` field) is rendered exactly as authored, with no runtime baking — so lighting you baked in Blender and shipped inside the GLB is preserved as-is. This feature is not tested but if you find bugs let me know.
 
 ---
 
@@ -87,9 +82,9 @@ The Python CLI still works and is available in [GitHub Releases](https://github.
 
 OpenVGAL uses a `building_v2.json` file to describe interconnected gallery rooms. Each room references a GLB template and contains items (artworks or doors to other rooms). The viewer loads templates, applies PBR node materials, places artwork textures at calculated positions, bakes the room's lighting into per-surface lightmaps, and handles navigation between rooms via door meshes.
 
-The placement of artworks is driven by `Occupancy_*` planes baked into each template GLB — one plane per wall or panel side, defining the available strip's centre, normal, and width. The generator reads them from `cdn/templates/catalog.json` (or probes the GLB at runtime as a fallback), then packs artworks across strips with width-aware density balancing and overflows into additional rooms when the largest shape can't fit the remainder.
+The placement of artworks is driven by `Occupancy_*` planes baked into each template GLB — one plane per wall or panel side, defining the available strip's centre, normal, and width. This means you only need to barely identify where images can be placed and the automatic algorithm will figure out the rest.
 
-The browser generator at `/create` automates all of this: it takes your image folders, runs the layout algorithm, generates the JSON, fetches templates and materials from the CDN, and packages everything into a deployable ZIP. A CDN-first mode at `/create?cdn=1` produces lighter ZIPs that load shared assets from `cdn.openvgal.com` at runtime.
+The browser generator at `/create` automates all of this: it takes your image folders, runs the layout algorithm, generates the JSON, fetches templates and materials from the CDN, and packages everything into a deployable ZIP. 
 
 For a deeper dive into the JSON format, the layout algorithm, the material system, and how to create custom templates, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -100,8 +95,7 @@ For a deeper dive into the JSON format, the layout algorithm, the material syste
 | Directory | Deploys to | Description |
 |-----------|-----------|-------------|
 | `site/` | openvgal.com | Landing page + 3D viewer + generator + editors |
-| `cdn/` | cdn.openvgal.com | GLB templates + `catalog.json` + node materials + core scripts |
-| `python/` | GitHub Releases | Legacy CLI for gallery generation |
+| `cdn/` | cdn.openvgal.com | (to be deprecated) GLB templates + `catalog.json` + node materials + core scripts |
 | `examples/` | Not deployed | Sample galleries for testing |
 | `reference/` | Not deployed | Technical reference docs (mesh naming, runtime flow, template authoring) |
 
@@ -132,9 +126,6 @@ Static assets served with CORS headers. CI builds `core/` at deploy time from `s
 - `core/` -- (built by CI, not in repo) Viewer scripts, overlay, icons, Babylon.js
 - `_headers` -- CORS configuration
 
-### python/
-
-Legacy CLI tool. Generates `building_v2.json` from image folders and a CSV file. Being replaced by the browser generator.
 
 ---
 
@@ -163,8 +154,7 @@ Note: the `file://` protocol will not work in Chrome due to cross-origin iframe 
 **v4.0.0 (July 2026)**
 - Baked lightmap lighting: template galleries bake per-surface lightmaps at load time — spotlights and fixture area lights, hemispheric ambient, and soft shadows — then freeze materials for performance. Fixtures become decorative; the bake is the lighting
 - Baked templates are the only supported template path; the viewer validates each template on load (lightmap channel present, only recognized gallery lights) and shows a clear in-viewer error for stale/corrupt templates instead of rendering a broken room
-- Galleries generated before v4 must be regenerated at [openvgal.com/create](https://openvgal.com/create); the viewer detects and reports legacy galleries rather than half-loading them
-- Self-contained galleries (full GLB via `resource`) load exactly as authored with no re-baking — ship your own Blender-baked lighting
+
 
 **v3.4.7 (June 2026)**
 - Cinematic visit: fixed camera misalignment — the destination look-at is now computed from the artwork's arrival position (via a save/restore of camera pose), so legs land squarely in front of each artwork instead of accumulating a side-view drift

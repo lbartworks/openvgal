@@ -1,6 +1,4 @@
-python/.ipynb_checkpoints/
-python/VR_gallery.exe
-python/VR_gallery.spec
+python/
 server/__pycache__/
 server/routes/__pycache__/
 node_modules/

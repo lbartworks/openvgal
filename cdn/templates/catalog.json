@@ -1,380 +1,13 @@
 {
   "shapes": {
     "small": {
-      "occupancies": [
-        {
-          "name": "Occupancy_0_0",
-          "center": [
-            14.804,
-            2.032,
-            -0.023
-          ],
-          "normal": [
-            -1,
-            0,
-            0
-          ],
-          "width": 29.051
-        },
-        {
-          "name": "Occupancy_1_0",
-          "center": [
-            -14.797,
-            2.032,
-            -0.023
-          ],
-          "normal": [
-            1,
-            0,
-            0
-          ],
-          "width": 29.051
-        },
-        {
-          "name": "Occupancy_2_0",
-          "center": [
-            8.021,
-            2.032,
-            14.841
-          ],
-          "normal": [
-            0,
-            0,
-            -1
-          ],
-          "width": 13.018
-        },
-        {
-          "name": "Occupancy_2_1",
-          "center": [
-            -8.078,
-            2.032,
-            14.841
-          ],
-          "normal": [
-            0,
-            0,
-            -1
-          ],
-          "width": 13.018
-        },
-        {
-          "name": "Occupancy_3_0",
-          "center": [
-            8.021,
-            2.032,
-            -14.838
-          ],
-          "normal": [
-            0,
-            0,
-            1
-          ],
-          "width": 13.018
-        },
-        {
-          "name": "Occupancy_3_1",
-          "center": [
-            -8.078,
-            2.032,
-            -14.838
-          ],
-          "normal": [
-            0,
-            0,
-            1
-          ],
-          "width": 13.018
-        }
-      ]
+      "occupancies": []
     },
     "nopannels": {
-      "occupancies": [
-        {
-          "name": "Occupancy_0_0",
-          "center": [
-            15.046,
-            3.142,
-            0
-          ],
-          "normal": [
-            -1,
-            0,
-            0
-          ],
-          "width": 59.041
-        },
-        {
-          "name": "Occupancy_1_0",
-          "center": [
-            -14.97,
-            3.142,
-            0
-          ],
-          "normal": [
-            1,
-            0,
-            0
-          ],
-          "width": 59.041
-        },
-        {
-          "name": "Occupancy_2_0",
-          "center": [
-            -7.901,
-            2.631,
-            -29.759
-          ],
-          "normal": [
-            0,
-            0,
-            1
-          ],
-          "width": 13.124
-        },
-        {
-          "name": "Occupancy_2_1",
-          "center": [
-            8.058,
-            2.631,
-            -29.759
-          ],
-          "normal": [
-            0,
-            0,
-            1
-          ],
-          "width": 13.124
-        },
-        {
-          "name": "Occupancy_3_0",
-          "center": [
-            7.929,
-            2.631,
-            29.803
-          ],
-          "normal": [
-            0,
-            0,
-            -1
-          ],
-          "width": 13.031
-        },
-        {
-          "name": "Occupancy_3_1",
-          "center": [
-            -7.851,
-            2.631,
-            29.803
-          ],
-          "normal": [
-            0,
-            0,
-            -1
-          ],
-          "width": 13.031
-        }
-      ]
+      "occupancies": []
     },
     "pannels": {
-      "occupancies": [
-        {
-          "name": "Occupancy_0_0",
-          "center": [
-            15.046,
-            3.142,
-            0
-          ],
-          "normal": [
-            -1,
-            0,
-            0
-          ],
-          "width": 59.041
-        },
-        {
-          "name": "Occupancy_0_1",
-          "center": [
-            6.32,
-            1.801,
-            -14.841
-          ],
-          "normal": [
-            1,
-            0,
-            0
-          ],
-          "width": 14.267
-        },
-        {
-          "name": "Occupancy_0_2",
-          "center": [
-            6.32,
-            1.801,
-            15.012
-          ],
-          "normal": [
-            1,
-            0,
-            0
-          ],
-          "width": 14.267
-        },
-        {
-          "name": "Occupancy_0_3",
-          "center": [
-            -5.708,
-            1.801,
-            -14.841
-          ],
-          "normal": [
-            1,
-            0,
-            0
-          ],
-          "width": 14.267
-        },
-        {
-          "name": "Occupancy_0_4",
-          "center": [
-            -5.708,
-            1.801,
-            15.012
-          ],
-          "normal": [
-            1,
-            0,
-            0
-          ],
-          "width": 14.267
-        },
-        {
-          "name": "Occupancy_1_0",
-          "center": [
-            -14.97,
-            3.142,
-            0
-          ],
-          "normal": [
-            1,
-            0,
-            0
-          ],
-          "width": 59.041
-        },
-        {
-          "name": "Occupancy_1_1",
-          "center": [
-            5.667,
-            1.801,
-            -14.841
-          ],
-          "normal": [
-            -1,
-            0,
-            0
-          ],
-          "width": 14.267
-        },
-        {
-          "name": "Occupancy_1_2",
-          "center": [
-            5.667,
-            1.801,
-            15.012
-          ],
-          "normal": [
-            -1,
-            0,
-            0
-          ],
-          "width": 14.267
-        },
-        {
-          "name": "Occupancy_1_3",
-          "center": [
-            -6.361,
-            1.801,
-            -14.841
-          ],
-          "normal": [
-            -1,
-            0,
-            0
-          ],
-          "width": 14.267
-        },
-        {
-          "name": "Occupancy_1_4",
-          "center": [
-            -6.361,
-            1.801,
-            15.012
-          ],
-          "normal": [
-            -1,
-            0,
-            0
-          ],
-          "width": 14.267
-        },
-        {
-          "name": "Occupancy_2_0",
-          "center": [
-            -7.901,
-            2.631,
-            -29.759
-          ],
-          "normal": [
-            0,
-            0,
-            1
-          ],
-          "width": 13.124
-        },
-        {
-          "name": "Occupancy_2_1",
-          "center": [
-            8.058,
-            2.631,
-            -29.759
-          ],
-          "normal": [
-            0,
-            0,
-            1
-          ],
-          "width": 13.124
-        },
-        {
-          "name": "Occupancy_3_0",
-          "center": [
-            7.929,
-            2.631,
-            29.803
-          ],
-          "normal": [
-            0,
-            0,
-            -1
-          ],
-          "width": 13.031
-        },
-        {
-          "name": "Occupancy_3_1",
-          "center": [
-            -7.851,
-            2.631,
-            29.803
-          ],
-          "normal": [
-            0,
-            0,
-            -1
-          ],
-          "width": 13.031
-        }
-      ]
+      "occupancies": []
     }
   },
   "selectionOrder": [
@@ -389,6 +22,28 @@
       "description": "Mix of modern and classic materials",
       "thumbnail": "classic_thumb.jpg",
       "root": "T_root_B.glb",
+      "glbs": {
+        "small": "T_small_B.glb",
+        "nopannels": "T_nopannels_B.glb",
+        "pannels": "T_pannels_B.glb"
+      }
+    },
+    "dark": {
+      "name": "Dark",
+      "description": "Dark walls, backlight type of frames",
+      "thumbnail": "dark_thumb.jpg",
+      "root": "T_root_dark_B.glb",
+      "glbs": {
+        "small": "T_small_dark_B.glb",
+        "nopannels": "T_nopannels_dark_B.glb",
+        "pannels": "T_pannels_dark_B.glb"
+      }
+    },
+    "modern": {
+      "name": "Modern",
+      "description": "",
+      "thumbnail": "modern_thumb.jpg",
+      "root": "T_root_modern_B.glb",
       "glbs": {
         "small": "T_small_B.glb",
         "nopannels": "T_nopannels_B.glb",
