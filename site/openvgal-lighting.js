@@ -1090,22 +1090,28 @@ function _buildAOGrid(scene) {
 	}
 
 	var step = vs * 0.5;
+	var tmp = new BABYLON.Vector3();
 	casters.forEach(function (m) {
 		var positions = m.getVerticesData(BABYLON.VertexBuffer.PositionKind);
 		var indices = m.getIndices();
 		if (!positions || !indices) return;
 		m.computeWorldMatrix(true);
 		var wm = m.getWorldMatrix();
+		// Transform each unique vertex to world space ONCE into a flat scratch array,
+		// instead of re-transforming (and allocating a Vector3 for) every shared vertex
+		// once per incident triangle. The triangle loop below then reads plain scalars —
+		// no per-triangle allocation, no redundant matrix math on the main thread.
+		var W = new Float64Array(positions.length);
+		for (var vp = 0; vp < positions.length; vp += 3) {
+			BABYLON.Vector3.TransformCoordinatesFromFloatsToRef(
+				positions[vp], positions[vp + 1], positions[vp + 2], wm, tmp);
+			W[vp] = tmp.x; W[vp + 1] = tmp.y; W[vp + 2] = tmp.z;
+		}
 		for (var t = 0; t < indices.length; t += 3) {
 			var i0 = indices[t] * 3, i1 = indices[t + 1] * 3, i2 = indices[t + 2] * 3;
-			var v0 = BABYLON.Vector3.TransformCoordinates(
-				new BABYLON.Vector3(positions[i0], positions[i0 + 1], positions[i0 + 2]), wm);
-			var v1 = BABYLON.Vector3.TransformCoordinates(
-				new BABYLON.Vector3(positions[i1], positions[i1 + 1], positions[i1 + 2]), wm);
-			var v2 = BABYLON.Vector3.TransformCoordinates(
-				new BABYLON.Vector3(positions[i2], positions[i2 + 1], positions[i2 + 2]), wm);
-			var ax = v1.x - v0.x, ay = v1.y - v0.y, az = v1.z - v0.z;
-			var bx = v2.x - v0.x, by = v2.y - v0.y, bz = v2.z - v0.z;
+			var v0x = W[i0], v0y = W[i0 + 1], v0z = W[i0 + 2];
+			var ax = W[i1] - v0x, ay = W[i1 + 1] - v0y, az = W[i1 + 2] - v0z;
+			var bx = W[i2] - v0x, by = W[i2 + 1] - v0y, bz = W[i2 + 2] - v0z;
 			var la = Math.sqrt(ax * ax + ay * ay + az * az);
 			var lb = Math.sqrt(bx * bx + by * by + bz * bz);
 			var ns = Math.min(2048, Math.max(1, Math.ceil(Math.max(la, lb) / step)));
@@ -1114,9 +1120,9 @@ function _buildAOGrid(scene) {
 				for (var jj = 0; jj <= ns - ii; jj++) {
 					var u = ii * inv, w2 = jj * inv;
 					mark(
-						Math.floor((v0.x + ax * u + bx * w2 - min.x) / vs),
-						Math.floor((v0.y + ay * u + by * w2 - min.y) / vs),
-						Math.floor((v0.z + az * u + bz * w2 - min.z) / vs));
+						Math.floor((v0x + ax * u + bx * w2 - min.x) / vs),
+						Math.floor((v0y + ay * u + by * w2 - min.y) / vs),
+						Math.floor((v0z + az * u + bz * w2 - min.z) / vs));
 				}
 			}
 		}
