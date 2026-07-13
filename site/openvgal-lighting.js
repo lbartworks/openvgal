@@ -1253,14 +1253,15 @@ function _bakeMesh(scene, mesh) {
 	b.baked.push({ mesh: mesh, buffers: buffers, aoBuffer: aoBuffer, orig: orig, view: view });
 }
 
-// Imperative bake driver: for each mesh, accumulate the lights via ping-pong.
-// Pass k reads buffer k%2, writes buffer (k+1)%2 = previous + cone(light k) *
-// shadow(light k); the first pass seeds with the hemi ambient instead of a read.
-// Re-running is cheap (no depth re-render), so the tuning sliders call this.
-function _runBake() {
+// Bind the per-light-invariant uniforms shared by every mesh's bake. Returns
+// false when there's nothing to bake (no lights / no passes), so callers can
+// skip the mesh loop. Split out from _runBake so the startup path can pace the
+// per-mesh work across frames (see setupLightmapBake) while slider re-bakes stay
+// synchronous.
+function _runBakeSetup() {
 	var b = _ovgal_bake;
 	var m = b.material;
-	if (b.count === 0) return;
+	if (b.count === 0) return false;
 
 	// Shared (per-light-invariant) uniforms. bakeGlobals.z (intensity) is re-set
 	// per light inside the loop so an authored _I<value> suffix can override it.
@@ -1281,53 +1282,79 @@ function _runBake() {
 		m.setTexture("aoGrid", b.aoGridTex);
 	}
 
-	if (!b.passes || b.passes.length === 0) return;
-	var finalIndex = b.passes.length % 2;
+	return !!(b.passes && b.passes.length > 0);
+}
 
-	b.baked.forEach(function (it) {
-		// The display material is frozen after each bake (static uniforms, zero
-		// per-frame rebind). Unfreeze to re-point its lightmap sampler, refreeze below.
-		it.view.unfreeze();
-		// This mesh's baked AO seeds the ambient on the first pass (k === 0).
-		m.setTexture("aoSampler", it.aoBuffer);
-		for (var k = 0; k < b.passes.length; k++) {
-			var src = it.buffers[k % 2];
-			var dst = it.buffers[(k + 1) % 2];
-			var ps = b.passes[k];
-			var lk = b.lights[ps.light];
-			var lp = lk.pos, ld = lk.dir;
-			// Per-light cone from the GLB when authored, else the global sliders.
-			// smoothstep(cosOuter, cosInner, ang) needs cosInner > cosOuter (inner
-			// angle narrower than outer); clamp so a wide slider inner can't invert
-			// a narrow GLB cone.
-			var cosOuter = (typeof lk.cosOuter === 'number') ? lk.cosOuter : b.cosOuter;
-			var cosInner = (typeof lk.cosInner === 'number') ? lk.cosInner : b.cosInner;
-			if (cosInner <= cosOuter) cosInner = Math.min(1.0, cosOuter + 0.02);
-			// Per-light intensity (_I<value>) and reach (_R<value>) from the GLB name
-			// when authored, else the global sliders. A sun (name prefix sun_) ignores
-			// reach + cone and lights with parallel rays; bakeGlobals.x carries the flag.
-			// Rect sub-lights carry scale = 1/samples so the panel's samples sum to
-			// one light; the multiply keeps the slider (b.intensity) live across rebakes.
-			var inten = ((typeof lk.intensity === 'number') ? lk.intensity : b.intensity) * (lk.scale || 1.0);
-			var reach = (typeof lk.reach === 'number') ? lk.reach : b.maxDist;
-			m.setVector4("bakeGlobals", new BABYLON.Vector4(lk.sun ? 1.0 : 0.0, 0.0, inten, reach));
-			m.setVector4("bakeLight", new BABYLON.Vector4(lp.x, lp.y, lp.z, cosInner));
-			m.setVector4("bakeAxis0", new BABYLON.Vector4(ld.x, ld.y, ld.z, cosOuter));
-			m.setMatrix("lightMatrix", ps.vp);
-			m.setTexture("shadowSampler", b.shadowMaps[k]);
-			m.setVector4("faceParams", new BABYLON.Vector4(ps.faceId, ps.normOff, 0, 0));
-			m.setTexture("prevTex", src);
-			m.setVector4("shadowParams",
-				new BABYLON.Vector4(b.shadowDarkness, b.shadowBias, k === 0 ? 1 : 0, ps.texel));
-			dst.render();
-		}
-		// Point the display view's lightmap at whichever buffer holds the final
-		// accumulation (ping-pong end depends on the light count's parity). The buffer
-		// object is stable across rebakes — only its contents change — so freezing the
-		// material still shows live re-bakes (same texture reference, new pixels).
-		it.view.setTexture("lightSampler", it.buffers[finalIndex]);
-		it.view.freeze();
-	});
+// Bind pass k's per-light uniforms — all mesh-independent, so in the interleaved
+// startup bake this is set once per pass and reused across every mesh.
+function _bindBakePass(k) {
+	var b = _ovgal_bake;
+	var m = b.material;
+	var ps = b.passes[k];
+	var lk = b.lights[ps.light];
+	var lp = lk.pos, ld = lk.dir;
+	// Per-light cone from the GLB when authored, else the global sliders.
+	// smoothstep(cosOuter, cosInner, ang) needs cosInner > cosOuter (inner
+	// angle narrower than outer); clamp so a wide slider inner can't invert
+	// a narrow GLB cone.
+	var cosOuter = (typeof lk.cosOuter === 'number') ? lk.cosOuter : b.cosOuter;
+	var cosInner = (typeof lk.cosInner === 'number') ? lk.cosInner : b.cosInner;
+	if (cosInner <= cosOuter) cosInner = Math.min(1.0, cosOuter + 0.02);
+	// Per-light intensity (_I<value>) and reach (_R<value>) from the GLB name
+	// when authored, else the global sliders. A sun (name prefix sun_) ignores
+	// reach + cone and lights with parallel rays; bakeGlobals.x carries the flag.
+	// Rect sub-lights carry scale = 1/samples so the panel's samples sum to
+	// one light; the multiply keeps the slider (b.intensity) live across rebakes.
+	var inten = ((typeof lk.intensity === 'number') ? lk.intensity : b.intensity) * (lk.scale || 1.0);
+	var reach = (typeof lk.reach === 'number') ? lk.reach : b.maxDist;
+	m.setVector4("bakeGlobals", new BABYLON.Vector4(lk.sun ? 1.0 : 0.0, 0.0, inten, reach));
+	m.setVector4("bakeLight", new BABYLON.Vector4(lp.x, lp.y, lp.z, cosInner));
+	m.setVector4("bakeAxis0", new BABYLON.Vector4(ld.x, ld.y, ld.z, cosOuter));
+	m.setMatrix("lightMatrix", ps.vp);
+	m.setTexture("shadowSampler", b.shadowMaps[k]);
+	m.setVector4("faceParams", new BABYLON.Vector4(ps.faceId, ps.normOff, 0, 0));
+	m.setVector4("shadowParams",
+		new BABYLON.Vector4(b.shadowDarkness, b.shadowBias, k === 0 ? 1 : 0, ps.texel));
+}
+
+// Render pass k into one mesh's ping-pong buffers. Assumes _bindBakePass(k) already
+// bound the light uniforms. aoSampler + prevTex are the only mesh-dependent binds,
+// so they're (re)set here — cheap, and required when passes interleave across meshes.
+function _renderBakePassForMesh(it, k) {
+	var m = _ovgal_bake.material;
+	// This mesh's baked AO seeds the ambient on the first pass (k === 0).
+	m.setTexture("aoSampler", it.aoBuffer);
+	m.setTexture("prevTex", it.buffers[k % 2]);
+	it.buffers[(k + 1) % 2].render();
+}
+
+// Point a mesh's display view at whichever buffer holds the final accumulation
+// (ping-pong end depends on the pass count's parity). The buffer object is stable
+// across rebakes — only its contents change — so freezing still shows live re-bakes.
+function _commitBakeView(it) {
+	it.view.setTexture("lightSampler", it.buffers[_ovgal_bake.passes.length % 2]);
+	it.view.freeze();
+}
+
+// Accumulate every light into one mesh's ping-pong buffers, then commit its view.
+// Assumes _runBakeSetup already bound the shared uniforms.
+function _runBakeMesh(it) {
+	// The display material is frozen after each bake (static uniforms, zero
+	// per-frame rebind). Unfreeze to re-point its lightmap sampler, refreeze below.
+	it.view.unfreeze();
+	for (var k = 0; k < _ovgal_bake.passes.length; k++) {
+		_bindBakePass(k);
+		_renderBakePassForMesh(it, k);
+	}
+	_commitBakeView(it);
+}
+
+// Imperative bake driver — synchronous, one shot over every mesh. Used by the
+// slider re-bakes (cheap: no depth re-render). The startup bake paces the same
+// work across frames instead; see setupLightmapBake.
+function _runBake() {
+	if (!_runBakeSetup()) return;
+	_ovgal_bake.baked.forEach(_runBakeMesh);
 }
 
 /**
@@ -1337,9 +1364,21 @@ function _runBake() {
  * (alongside the splash / shadow setup), before material freeze.
  * @param {BABYLON.Scene} scene
  */
-function setupLightmapBake(scene) {
+function setupLightmapBake(scene, onComplete, onProgress) {
+	// Fired once the bake has committed (or on any early abort), so the caller can
+	// close its "Setting up lights" progress. Runs exactly once per invocation.
+	var done = (function () {
+		var called = false;
+		return function () { if (!called && typeof onComplete === 'function') { called = true; onComplete(); } };
+	})();
+	// 0..100 progress for the "Setting up lights" bar. No-op when unwired (slider
+	// re-bakes, tests). Callers set the bar, we yield a frame so it actually paints
+	// before the next (main-thread-blocking) phase runs.
+	function report(pct) { if (typeof onProgress === 'function') onProgress(pct); }
+
 	if (!scene.getEngine().getCaps().textureHalfFloatRender) {
 		console.warn("Lightmap bake: no half-float render target support — aborting");
+		done();
 		return;
 	}
 
@@ -1351,6 +1390,7 @@ function setupLightmapBake(scene) {
 	if (cones.count === 0) { cones = _collectConesFromSpotLights(scene); source = "template spot light"; }
 	if (cones.count === 0) {
 		console.warn("Lightmap bake: no spot lights / F_ fixtures in scene — nothing to bake");
+		done();
 		return;
 	}
 
@@ -1401,23 +1441,79 @@ function setupLightmapBake(scene) {
 	// material effect isn't ready yet, leaving the buffers empty. Slider-driven
 	// re-bakes run later (effects already compiled), so they call _runBake direct.
 	if (_ovgal_bake.baked.length > 0) {
+		// Yield until the browser has painted, so a progress update issued just before
+		// a main-thread-blocking phase is actually visible while that phase runs.
+		// Double rAF straddles a paint; setTimeout is the fallback if rAF is missing.
+		var paintYield = function () {
+			return new Promise(function (res) {
+				if (typeof requestAnimationFrame === 'function') {
+					requestAnimationFrame(function () { requestAnimationFrame(res); });
+				} else {
+					setTimeout(res, 0);
+				}
+			});
+		};
+
 		scene.onAfterRenderObservable.addOnce(function () {
 			var anyMesh = _ovgal_bake.baked[0].mesh;
 			Promise.all([
 				_ovgal_bake.depthMat.forceCompilationAsync(anyMesh),
 				_ovgal_bake.aoMat.forceCompilationAsync(anyMesh),
 				_ovgal_bake.material.forceCompilationAsync(anyMesh)
-			]).then(function () {
+			]).then(async function () {
+				// Paced mode (loader visible — both first load and revisit) spreads the
+				// bake across frames so the "Setting up lights" bar animates. Each setup
+				// phase blocks the main thread, so bump the bar and let it paint
+				// (paintYield) BEFORE entering the phase. Unpaced mode (slider re-bakes)
+				// runs synchronously.
+				var paced = (typeof onProgress === 'function');
+
+				if (paced) { report(45); await paintYield(); }
 				_buildShadowMaps(scene);
+				if (paced) { report(60); await paintYield(); }
 				_buildAOGrid(scene);
+				if (paced) { report(74); await paintYield(); }
 				_runAO();
-				_runBake();
+				if (paced) { report(82); await paintYield(); }
+
+				if (paced && _runBakeSetup()) {
+					// The bake cost is (meshes × light-passes), and a room can be heavy in
+					// either — a few big meshes with many lights, or many small meshes.
+					// Interleave passes across meshes and pace by ELAPSED TIME, so the bar
+					// advances smoothly in both cases instead of freezing on one slow unit
+					// (the earlier per-mesh chunking stalled at ~99% on many-light rooms).
+					var list = _ovgal_bake.baked;
+					var P = _ovgal_bake.passes.length;
+					var total = P * list.length;
+					var unit_ = 0;
+					list.forEach(function (it) { it.view.unfreeze(); });
+					var last_ = performance.now();
+					for (var k = 0; k < P; k++) {
+						_bindBakePass(k);
+						for (var j = 0; j < list.length; j++) {
+							_renderBakePassForMesh(list[j], k);
+							unit_++;
+							// ~120 ms of work per visible step: smooth bar, ~15% overhead.
+							if (performance.now() - last_ > 120) {
+								report(82 + Math.round(17 * unit_ / total));   // 82 -> 99
+								await paintYield();
+								last_ = performance.now();
+							}
+						}
+					}
+					list.forEach(_commitBakeView);
+				} else {
+					_runBake();
+				}
+
 				var g = _ovgal_bake.aoGrid;
 				console.log("Lightmap bake: committed " + _ovgal_bake.shadowMaps.length
 					+ " shadow map(s), AO grid " + g.Nx + "x" + g.Ny + "x" + g.Nz
 					+ " (voxel " + g.vs.toFixed(3) + "m)");
+				done();
 			}).catch(function (e) {
 				console.warn("Lightmap bake: shader compile failed", e);
+				done();
 			});
 		});
 	}
@@ -1426,5 +1522,6 @@ function setupLightmapBake(scene) {
 		+ cones.count + " spot(s) (" + source + ")");
 	if (_ovgal_bake.baked.length === 0) {
 		console.warn("Lightmap bake: no meshes with a UV2 channel were found");
+		done();
 	}
 }

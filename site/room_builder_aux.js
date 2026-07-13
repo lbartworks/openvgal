@@ -246,7 +246,7 @@ function populate_template(config_file, room_name,scene){
 	let i=3
 	for (var item of dict_items){
 		//get location
-		let location=JSON.parse(gallery[item]["location"])
+		let location=JSON.parse(gallery[item]["location"]);
 
 		//get material
 		let items_material=new BABYLON.StandardMaterial("item_mat_"+ item);
@@ -290,7 +290,7 @@ function populate_template(config_file, room_name,scene){
 			return() => {
 				percentage_artwork=percentage_artwork + j;
 				if (Math.round(percentage_artwork) >= 100){
-					reset_loadbar();
+					markArtworksDone();
 				}
 			};
 		})(100/num_items));
@@ -306,7 +306,7 @@ function populate_template(config_file, room_name,scene){
 		let shadowMesh=scene.getMeshByName("shadows");
 		if (shadowMesh) shadowMesh.alwaysSelectAsActiveMesh=true;
 	} else {
-		reset_loadbar();
+		markArtworksDone();
 	}
 
 	// Set plaque visibility from toggle state (one node parents every plaque)
@@ -368,7 +368,7 @@ function populate_template(config_file, room_name,scene){
 function reset_loadbar(){
 	percentage_materials=0;
 	percentage_template=0;
-	percentage_artwork=0;	
+	percentage_artwork=0;
 	document.getElementById("loader").style.display = "none";
 	document.getElementById("loader").id= "loaded";
 	document.getElementById("percentLoaded_template").textContent = `${percentage_template}%`;
@@ -377,5 +377,64 @@ function reset_loadbar(){
 	document.getElementById("loadingBar_materials").style.width =`${percentage_materials}%`;
 	document.getElementById("percentLoaded_artwork").textContent = `${percentage_artwork}%`;
 	document.getElementById("loadingBar_artwork").style.width =`${percentage_artwork}%`;
+	setLightsProgress(0);
+}
+
+// Load-phase coordinator for template galleries. Artworks and the lightmap bake
+// finish asynchronously and independently, so the loader must stay up until BOTH
+// are done — otherwise the "Setting up lights" bar is hidden before (or without)
+// the bake completing. Non-template paths never call beginTemplateLoad, so
+// markArtworksDone falls back to hiding the loader immediately, as before.
+var _loadPhase = { artworks: false, lights: false, active: false };
+
+function beginTemplateLoad(){
+	_loadPhase = { artworks: false, lights: false, active: true };
+	setLightsProgress(0);
+}
+
+function setLightsProgress(p){
+	var bar = document.getElementById("loadingBar_lights");
+	var txt = document.getElementById("percentLoaded_lights");
+	if (bar) bar.style.width = `${p}%`;
+	if (txt) txt.textContent = `${p}%`;
+}
+
+function markArtworksDone(){
+	if (!_loadPhase.active){ reset_loadbar(); return; }
+	_loadPhase.artworks = true;
+	_maybeFinishLoad();
+}
+
+function markLightsDone(){
+	setLightsProgress(100);
+	_loadPhase.lights = true;
+	_maybeFinishLoad();
+}
+
+function _maybeFinishLoad(){
+	if (_loadPhase.active && _loadPhase.artworks && _loadPhase.lights){
+		_loadPhase.active = false;
+		reset_loadbar();
+	}
+}
+
+// Re-show the loader for a cached-room re-entry, where the only work is the
+// lightmap re-bake (the AssetContainer restores meshes/textures, but the lightmap
+// render targets come back blank). Template/materials/artworks are already loaded,
+// so those bars read 100%; only "Setting up lights" fills. Arms the coordinator
+// with artworks pre-marked done, so markLightsDone alone closes the loader.
+function showLoaderForRebake(){
+	var el = document.getElementById("loaded") || document.getElementById("loader");
+	if (el){ el.id = "loader"; el.style.display = "flex"; }
+	[["template", "percentLoaded_template", "loadingBar_template"],
+	 ["materials", "percentLoaded_materials", "loadingBar_materials"],
+	 ["artwork", "percentLoaded_artwork", "loadingBar_artwork"]].forEach(function(ids){
+		var t = document.getElementById(ids[1]);
+		var bar = document.getElementById(ids[2]);
+		if (t) t.textContent = "100%";
+		if (bar) bar.style.width = "100%";
+	});
+	beginTemplateLoad();   // arms the coordinator, resets the lights bar to 0
+	markArtworksDone();    // nothing to load on re-entry — wait only for the bake
 }
 

@@ -482,9 +482,15 @@
 							// Room lighting setup first (disables stray lights, reads ambient) before
 							// materials are assigned to meshes.
 							setupRoomLighting(scene, config_file_content);
+							// Loader stays up until BOTH artworks and the lightmap bake finish
+							// (both async); markArtworksDone / markLightsDone coordinate the close.
+							if (typeof beginTemplateLoad === 'function') beginTemplateLoad();
 							populate_template(config_file_content, current_gallery, scene);
 							console.log("template populated");
-							setupLightmapBake(scene);
+							if (typeof setLightsProgress === 'function') setLightsProgress(30);
+							setupLightmapBake(scene,
+								(typeof markLightsDone === 'function') ? markLightsDone : undefined,
+								(typeof setLightsProgress === 'function') ? setLightsProgress : undefined);
 							freezeGalleryMaterials();
 					}
 
@@ -502,7 +508,13 @@
 						// come back blank), so the splash/sun must be recomputed. setupLightmapBake
 						// reuses each mesh's stored buffers + real source material and only refills
 						// the lightmap — see _bakeMesh's reuse path.
-						setupLightmapBake(scene);
+						// The re-bake is the only work on re-entry and can take seconds on heavy
+						// rooms, so show the loader with the paced "Setting up lights" bar rather
+						// than freezing the returning scene silently.
+						if (typeof showLoaderForRebake === 'function') showLoaderForRebake();
+						setupLightmapBake(scene,
+							(typeof markLightsDone === 'function') ? markLightsDone : undefined,
+							(typeof setLightsProgress === 'function') ? setLightsProgress : undefined);
 						freezeGalleryMaterials();
 					}
 
