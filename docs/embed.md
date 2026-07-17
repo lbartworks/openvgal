@@ -17,6 +17,10 @@ When `?embed=1` is present:
   `openvgal:export-request`; the child builds it and posts the blob back via
   `openvgal:zip-ready`. The host provides the real download.
 - The page does not open the `ready.html` confirmation tab.
+- The step-3 **Preview** overlay requests fullscreen on itself (the host iframe
+  must `allow="fullscreen"`), because the parent-driven iframe height makes an
+  in-page fixed overlay taller than the visible screen. Exiting fullscreen
+  (Esc or Close Preview) tears the preview down.
 
 Embed mode always builds the **cloud** flavor (ADR-0008): a kernel-only ZIP of
 `building_v2.json` + the user images at `room/filename` (no leading slash, no

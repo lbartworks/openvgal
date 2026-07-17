@@ -242,13 +242,24 @@ var GalleryPage = (function() {
       closeBtn.style.cssText = 'position:absolute;top:12px;right:12px;z-index:10000;padding:8px 20px;background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:6px;cursor:pointer;font-size:14px;font-family:Inter,sans-serif;transition:background 0.2s;';
       closeBtn.onmouseover = function() { closeBtn.style.background = 'rgba(255,255,255,0.2)'; };
       closeBtn.onmouseout = function() { closeBtn.style.background = 'rgba(255,255,255,0.1)'; };
-      closeBtn.onclick = function() {
+      function cleanup() {
+        document.removeEventListener('fullscreenchange', onFullscreenChange);
         overlay.remove();
         if (window.openvgal_blobUrls) {
           Object.values(window.openvgal_blobUrls).forEach(function(url) {
             try { URL.revokeObjectURL(url); } catch (e) {}
           });
           window.openvgal_blobUrls = null;
+        }
+      }
+      function onFullscreenChange() {
+        if (document.fullscreenElement !== overlay) cleanup();
+      }
+      closeBtn.onclick = function() {
+        if (document.fullscreenElement === overlay) {
+          document.exitFullscreen();
+        } else {
+          cleanup();
         }
       };
 
@@ -259,6 +270,17 @@ var GalleryPage = (function() {
       overlay.appendChild(closeBtn);
       overlay.appendChild(iframe);
       document.body.appendChild(overlay);
+
+      // In embed mode the iframe viewport is as tall as the builder's full
+      // content (parent-driven resize), so a fixed overlay renders a huge
+      // frame the user only sees a crop of. Go fullscreen instead; the host
+      // iframe grants allow="fullscreen". Listener is attached only after
+      // fullscreen engages so a rejected request leaves plain-overlay behavior.
+      if (document.body.classList.contains('embed-mode') && overlay.requestFullscreen) {
+        overlay.requestFullscreen().then(function() {
+          document.addEventListener('fullscreenchange', onFullscreenChange);
+        }).catch(function() {});
+      }
     });
   }
 
