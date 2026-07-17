@@ -17,7 +17,8 @@ function _isImage(entry) {
 }
 
 function _isGalleryRoom(key, value) {
-  if (key === 'Technical' || key === 'root') return false;
+  // root#N are overflow hub rooms (no artwork), not editable galleries.
+  if (key === 'Technical' || /^root(#\d+)?$/.test(key)) return false;
   return value && typeof value === 'object' && value.parent;
 }
 

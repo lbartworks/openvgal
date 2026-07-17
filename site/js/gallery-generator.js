@@ -19,6 +19,13 @@ const DEFAULTS = {
   itemHeight: 2    // babylon m, eye-level Y for item centers
 };
 
+// Fallback door-slot count for the root hub template, used only when the
+// catalog has no rootDoors for the style and the GLB probe fails. With more
+// top-level galleries than slots, extra hubs (root#1, root#2, …) are chained:
+// root keeps (doors-1) galleries plus a door to root#1; each extra hub holds
+// (doors-2) plus doors to prev/next.
+const DEFAULT_DOORS_ROOT = 10;
+
 // === Catalog loader (cached per cdn base) ===
 let _catalogPromise = null;
 let _catalogPromiseBase = null;
@@ -259,6 +266,28 @@ async function _ensureBabylonLoaded(scriptBase) {
   return _babylonLoadPromise;
 }
 
+// Count door meshes (viewer convention: names starting with d_, see
+// declarations.js regul_exp_door) in a template GLB. Cached by URL.
+const _doorCountCache = {};
+
+async function countDoorsInGLB(templateUrl, scriptBase) {
+  if (_doorCountCache[templateUrl] != null) return _doorCountCache[templateUrl];
+  await _ensureBabylonLoaded(scriptBase);
+
+  const engine = new BABYLON.NullEngine();
+  const scene = new BABYLON.Scene(engine);
+  try {
+    const lastSlash = templateUrl.lastIndexOf('/');
+    await BABYLON.SceneLoader.AppendAsync(templateUrl.slice(0, lastSlash + 1), templateUrl.slice(lastSlash + 1), scene);
+    const count = scene.meshes.filter(function(m) { return /^d_/.test(m.name); }).length;
+    _doorCountCache[templateUrl] = count;
+    return count;
+  } finally {
+    scene.dispose();
+    engine.dispose();
+  }
+}
+
 async function extractOccupanciesFromGLB(templateUrl, scriptBase) {
   if (_occupancyCache[templateUrl]) return _occupancyCache[templateUrl];
   await _ensureBabylonLoaded(scriptBase);
@@ -401,6 +430,49 @@ async function buildGalleryJSON(galleries, onProgress, styleConfig, options) {
     template: catalog.styles[styleKey].root
   };
 
+  const topLevelCount = galleries.filter(function(g) {
+    return filterImageFiles(g.files).length > 0;
+  }).length;
+
+  // Resolve the root template's door-slot count: catalog first, GLB probe as
+  // fallback. Only needed when overflow chaining could trigger.
+  let doorsRoot = DEFAULT_DOORS_ROOT;
+  if (topLevelCount > 2) {
+    const styleEntry = catalog.styles[styleKey];
+    if (styleEntry.rootDoors > 0) {
+      doorsRoot = styleEntry.rootDoors;
+    } else {
+      try {
+        const probed = await countDoorsInGLB(cdnBase + '/templates/' + styleEntry.root, scriptBase);
+        if (probed > 0) doorsRoot = probed;
+      } catch (e) {
+        console.warn('Root door probe failed, assuming ' + DEFAULT_DOORS_ROOT + ' doors: ' + e.message);
+      }
+    }
+    if (doorsRoot < 3 && topLevelCount > doorsRoot) {
+      // Chaining needs parent + next + at least one gallery per hub.
+      console.warn('Root template has only ' + doorsRoot + ' doors; hub chaining needs 3. Assuming 3.');
+      doorsRoot = 3;
+    }
+  }
+  let topIdx = 0;
+
+  // Hub for the next top-level gallery; creates overflow hub entries on demand.
+  function nextHubParent() {
+    topIdx++;
+    if (topLevelCount <= doorsRoot || topIdx <= doorsRoot - 1) return 'root';
+    const j = Math.ceil((topIdx - (doorsRoot - 1)) / (doorsRoot - 2));
+    const hubName = 'root#' + j;
+    if (!building[hubName]) {
+      building[hubName] = {
+        parent: j === 1 ? 'root' : 'root#' + (j - 1),
+        resource: 'root.glb',
+        template: catalog.styles[styleKey].root
+      };
+    }
+    return hubName;
+  }
+
   const totalImages = galleries.reduce(function(sum, g) { return sum + g.files.length; }, 0);
   let processedImages = 0;
 
@@ -436,7 +508,7 @@ async function buildGalleryJSON(galleries, onProgress, styleConfig, options) {
 
     const rooms = await packIntoRooms(items, catalog, styleKey, null, cdnBase, scriptBase);
 
-    let lastParent = 'root';
+    let lastParent = nextHubParent();
     rooms.forEach(function(room, subIdx) {
       const galleryName = subIdx === 0 ? galleryDisplayName : galleryDisplayName + '#' + subIdx;
       building[galleryName] = {
@@ -572,6 +644,7 @@ if (typeof module !== 'undefined' && module.exports) {
     groupFilesByFolder,
     getImageDimensions,
     extractOccupanciesFromGLB,
+    countDoorsInGLB,
     downloadJSON,
     SCENE_M_PER_CM,
     DEFAULT_LONGEST_CM,
