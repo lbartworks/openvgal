@@ -418,23 +418,3 @@ function _maybeFinishLoad(){
 	}
 }
 
-// Re-show the loader for a cached-room re-entry, where the only work is the
-// lightmap re-bake (the AssetContainer restores meshes/textures, but the lightmap
-// render targets come back blank). Template/materials/artworks are already loaded,
-// so those bars read 100%; only "Setting up lights" fills. Arms the coordinator
-// with artworks pre-marked done, so markLightsDone alone closes the loader.
-function showLoaderForRebake(){
-	var el = document.getElementById("loaded") || document.getElementById("loader");
-	if (el){ el.id = "loader"; el.style.display = "flex"; }
-	[["template", "percentLoaded_template", "loadingBar_template"],
-	 ["materials", "percentLoaded_materials", "loadingBar_materials"],
-	 ["artwork", "percentLoaded_artwork", "loadingBar_artwork"]].forEach(function(ids){
-		var t = document.getElementById(ids[1]);
-		var bar = document.getElementById(ids[2]);
-		if (t) t.textContent = "100%";
-		if (bar) bar.style.width = "100%";
-	});
-	beginTemplateLoad();   // arms the coordinator, resets the lights bar to 0
-	markArtworksDone();    // nothing to load on re-entry — wait only for the bake
-}
-

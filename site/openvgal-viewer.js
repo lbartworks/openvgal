@@ -15,11 +15,6 @@
 	let config_file_content;
 	let style_file_content;
 	let fontContent;
-	var galleries=new Object();
-	// Per-gallery load mode ('template' | 'full'), recorded on first load so the
-	// cached-revisit branch knows whether to re-bake (template) or leave the
-	// self-contained GLB's authored lighting alone (full).
-	var galleryModes=new Object();
 	var scene=null;
 	var current_gallery;
 	var door_material, wall_material, floor_material, header_material;
@@ -363,17 +358,12 @@
 		let galleryManager=async function (evt){
 				console.log(evt);
 
-				// Revoke previous blob URLs to free memory (preview mode)
-				if (window._previewBlobUrls && window._previewBlobUrls.length > 0) {
-					window._previewBlobUrls.forEach(url => URL.revokeObjectURL(url));
-					window._previewBlobUrls = [];
-				}
-
 				//only in the first run
 				if ('first' in evt){
 					console.log('First gallery booting');
 				} else {
-					//move elements away from scene unless previously cached
+					//dispose the outgoing gallery — rooms are not cached in memory;
+					//a revisit reloads from the (browser-cached) files and re-bakes
 
 					var keepAssets = new BABYLON.KeepAssets();
 					keepAssets.cameras.push(scene.cameras[0]);
@@ -383,22 +373,23 @@
 							keepAssets.lights.push(l);
 						}
 					});
+					//Babylon auto-registers its shared BRDF lookup texture in
+					//scene.textures; disposing it leaves a dangling ref that makes
+					//every PBR-based node material wait forever (invisible, no error)
+					if (scene.environmentBRDFTexture) keepAssets.textures.push(scene.environmentBRDFTexture);
 
 
-					for (const material in BJS_materials){
-						keepAssets.materials.push(BJS_materials[material]);
-					}
+					let outgoing=new BABYLON.AssetContainer(scene);
+					outgoing.moveAllFromScene(keepAssets);
+					outgoing.dispose();
 
-
-					if (galleries[current_gallery]==undefined) {
-						galleries[current_gallery]=new BABYLON.AssetContainer(scene);
-						galleries[current_gallery].moveAllFromScene(keepAssets);
-					} else {
-						//if cached simply drop them
-						//let temp_assetcontainer=new BABYLON.AssetContainer(scene);
-						//temp_assetcontainer.moveAllFromScene(keepAssets);
-						galleries[current_gallery].removeFromScene();
-					}
+					//the dispose destroyed the BJS node materials (frozen materials with
+					//disposed lights/effects silently stop rendering) and the bake's
+					//cached ShaderMaterials (their _ensure* guards would reuse disposed
+					//refs and hang the next bake). Clear both caches so the next room
+					//reloads and rebuilds them from scratch.
+					BJS_materials = {};
+					if (typeof resetLightmapBakeCache === 'function') resetLightmapBakeCache();
 				}
 
 
@@ -410,8 +401,7 @@
 				//hide info box
 				if (typeof hideInfoBox === 'function') hideInfoBox();
 
-				//the new gallery assets are loaded unless they are already in memory
-				if (galleries[current_gallery]==undefined){
+				//the new gallery is always loaded fresh — the previous one was disposed
 					//check if it is template glb or not
 					glb_file=config_file_content[current_gallery]["resource"];
 					if (doesFileExist(glb_location + glb_file)){
@@ -421,7 +411,6 @@
 						console.log("loading full glb for gallery " + current_gallery);
 						let temp_assetcontainer=await loadAsset(glb_file, scene);
 						temp_assetcontainer.addAllToScene();
-						galleryModes[current_gallery]='full';
 					} else {
 							glb_file=config_file_content[current_gallery]["template"];
 							//template — v4 contract. Check A: templates must be baked (_B).
@@ -451,7 +440,6 @@
 							}
 
 							temp_assetcontainer.addAllToScene();
-							galleryModes[current_gallery]='template';
 
 							// check BJS materials
 							const n_meshes=scene.meshes.length-1;
@@ -493,36 +481,6 @@
 								(typeof setLightsProgress === 'function') ? setLightsProgress : undefined);
 							freezeGalleryMaterials();
 					}
-
-
-
-				} else {
-					galleries[current_gallery]._wasAddedToScene=false;
-					galleries[current_gallery].addAllToScene();
-					// Only template galleries re-bake on return. Self-contained ('full')
-					// galleries ship their own baked lighting, so leave them untouched.
-					if (galleryModes[current_gallery]==='template'){
-						setupRoomLighting(scene, config_file_content);
-						// Re-run the bake on return: the AssetContainer preserves each mesh and
-						// its display material, but NOT the lightmap render-target contents (they
-						// come back blank), so the splash/sun must be recomputed. setupLightmapBake
-						// reuses each mesh's stored buffers + real source material and only refills
-						// the lightmap — see _bakeMesh's reuse path.
-						// The re-bake is the only work on re-entry and can take seconds on heavy
-						// rooms, so show the loader with the paced "Setting up lights" bar rather
-						// than freezing the returning scene silently.
-						if (typeof showLoaderForRebake === 'function') showLoaderForRebake();
-						setupLightmapBake(scene,
-							(typeof markLightsDone === 'function') ? markLightsDone : undefined,
-							(typeof setLightsProgress === 'function') ? setLightsProgress : undefined);
-						freezeGalleryMaterials();
-					}
-
-					// Sync plaque visibility with toggle after restoring cached room
-					var _pt = document.getElementById('plaquesToggle');
-					var _plaquesRoot = scene.getTransformNodeByName('plaques_root');
-					if (_pt && _plaquesRoot) _plaquesRoot.setEnabled(_pt.checked);
-				}
 
 
 

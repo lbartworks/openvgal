@@ -15,7 +15,7 @@
     "nopannels",
     "pannels"
   ],
-  "minSpacing": 0.5,
+  "minSpacing": 0.8,
   "styles": {
     "classic": {
       "name": "Classic",

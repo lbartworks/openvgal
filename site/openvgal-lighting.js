@@ -107,6 +107,17 @@ function freezeGalleryMaterials() {
 	}
 }
 
+/**
+ * Drops the bake's cached state. Call after disposing a room's AssetContainer:
+ * the dispose destroys the bake's ShaderMaterials (they live in scene.materials),
+ * and the _ensure* guards would otherwise keep handing out the disposed objects.
+ * Everything is rebuilt from BAKE_DEFAULTS on the next setupLightmapBake.
+ */
+function resetLightmapBakeCache() {
+	_ovgal_bake = null;
+	window._bake = null;
+}
+
 // =====================================================================
 // Spot-light cone collectors — shared by the lightmap bake. Resolve the
 // authored spot markers (splash_N glTF spots, F_ fixtures, or a template
