@@ -567,6 +567,12 @@
 
 		}
 
+		// Expose the in-scene gallery swap so the navigation map can reuse it
+		// instead of doing a full page reload (a reload spins up a second
+		// Babylon engine/WebGL context and peaks memory while the old document
+		// is still resident). The map builds a door-style synthetic event.
+		window.galleryManager = galleryManager;
+
 		// MAIN CODE /////////////////////////////////////
 		//read font
 		let fontfile=await fetch("https://assets.babylonjs.com/fonts/Droid Sans_Regular.json");

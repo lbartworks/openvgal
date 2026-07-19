@@ -521,6 +521,26 @@
     }
 
     function navigateToGallery(name) {
+        // Already here — nothing to swap.
+        if (name === current_gallery) { toggleMap(); return; }
+
+        // Prefer the in-scene swap (openvgal-viewer.js). A full page reload
+        // spins up a second Babylon engine/WebGL context while the old
+        // document is still resident, which spikes memory; galleryManager
+        // instead disposes only the outgoing gallery and reuses the engine.
+        if (typeof window.galleryManager === 'function') {
+            document.getElementById('map-modal').style.display = 'none';
+            // Keep the URL shareable/refresh-safe without triggering a reload.
+            var p = new URLSearchParams(window.location.search);
+            p.set('gallery', name);
+            history.replaceState(null, '', window.location.pathname + '?' + p.toString());
+            // Door-style synthetic event: galleryManager strips the d_ prefix
+            // and _<n> tail to recover the gallery name (same as the boot event).
+            window.galleryManager({ source: { name: 'd_' + name + '_1' } });
+            return;
+        }
+
+        // Fallback: full reload if the in-scene swap isn't available.
         var params = new URLSearchParams(window.location.search);
         params.set('gallery', name);
         window.location.search = params.toString();
