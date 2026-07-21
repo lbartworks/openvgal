@@ -206,11 +206,14 @@ var GalleryPage = (function() {
 
   // Open the post-save "ready" page. Must run inside the click handler call
   // stack to survive mobile popup blockers — callers should not defer behind await.
+  // Opening before the ZIP exists means it can turn out to be a lie, so the
+  // handle is returned: callers must close it if packaging then fails.
+  // Returns null when the popup was blocked.
   function openReadyPage(json) {
     var firstRoom = json ? Object.keys(json).filter(function(k) {
       return k !== 'Technical' && k !== 'root';
     })[0] : '';
-    window.open('../ready.html?name=' + encodeURIComponent(firstRoom || ''), '_blank');
+    return window.open('../ready.html?name=' + encodeURIComponent(firstRoom || ''), '_blank');
   }
 
   // Wire the preview button: build blob URLs for the file map, mount a

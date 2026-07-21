@@ -979,7 +979,7 @@
       // browsers don't treat it as a deferred popup. Keeps tab order: download
       // triggers right after, ZIP creation continues asynchronously.
       // In embed mode the parent owns the post-zip UX, so we skip it.
-      if (!EMBED_MODE) GalleryPage.openReadyPage(generatedJSON);
+      var readyWindow = EMBED_MODE ? null : GalleryPage.openReadyPage(generatedJSON);
 
       downloadZipBtn.disabled = true;
       zipProgressContainer.style.display = 'block';
@@ -994,6 +994,13 @@
           zipProgressText.textContent = message;
         });
       } catch (error) {
+        // The ready page was opened optimistically and is now claiming success
+        // for a gallery that never downloaded. Retract it and pull focus back
+        // here, where the error is shown.
+        if (readyWindow) {
+          try { readyWindow.close(); } catch (e) {}
+          try { window.focus(); } catch (e) {}
+        }
         console.error('ZIP creation failed:', error);
         zipProgressText.textContent = 'Error: ' + error.message;
       }
@@ -1028,9 +1035,14 @@
     // ========================================================================
 
     // Materials fetched from the CDN for the self-contained (full) pack.
+    // This mirrors cdn/materials/ in full — every JSON and every texture, not
+    // just the ones currently referenced. Curating the list by hand let styles
+    // ship without their material, so the pack takes the whole folder instead.
+    // When a file is added to cdn/materials/, add it here too.
     var PACK_MATERIALS = [
       'materials/BJS_PBRmidgrey.json',
       'materials/BJS_PBRwhite.json',
+      'materials/BJS_asphalt1k.json',
       'materials/BJS_black_metal.json',
       'materials/BJS_blackrubber1k.json',
       'materials/BJS_chrome.json',
@@ -1040,20 +1052,33 @@
       'materials/BJS_glow.json',
       'materials/BJS_glow_masked.json',
       'materials/BJS_marble1k.json',
+      'materials/BJS_plaster1k.json',
       'materials/BJS_rough_cream.json',
       'materials/BJS_rust.json',
       'materials/BJS_white.json',
       'materials/BJS_wood.json',
       'materials/logo.png',
       'materials/shadow.png',
-      // Texture folders (only what the materials above reference)
+      // Texture folders
+      'materials/asphalt1k/Asphalt031_1K-JPG_Color.jpg',
       'materials/blackrubber1k/Rubber001_1K-JPG_Color.jpg',
       'materials/creme1k/Concrete048_1K-JPG_Color.jpg',
       'materials/marble1k/Marble019_1K-JPG_Color.jpg',
+      'materials/plaster1k/Plaster001_1K-JPG_Color.jpg',
+      'materials/rust2/Rust006.png',
       'materials/rust2/Rust006_1K-JPG_Color.jpg',
+      'materials/rust2/Rust006_1K-JPG_Displacement.jpg',
+      'materials/rust2/Rust006_1K-JPG_Metalness.jpg',
+      'materials/rust2/Rust006_1K-JPG_NormalDX.jpg',
       'materials/rust2/Rust006_1K-JPG_NormalGL.jpg',
+      'materials/rust2/Rust006_1K-JPG_Roughness.jpg',
+      'materials/wood_floor/WoodFloor051_2K_AmbientOcclusion.jpg',
       'materials/wood_floor/WoodFloor051_2K_Color.jpg',
-      'materials/wood_floor/WoodFloor051_2K_NormalGL.jpg'
+      'materials/wood_floor/WoodFloor051_2K_Displacement.jpg',
+      'materials/wood_floor/WoodFloor051_2K_NormalDX.jpg',
+      'materials/wood_floor/WoodFloor051_2K_NormalGL.jpg',
+      'materials/wood_floor/WoodFloor051_2K_Roughness.jpg',
+      'materials/wood_floor/WoodFloor051_PREVIEW.jpg'
     ];
 
     // Viewer/engine files fetched from current origin (one level up from /create/).
@@ -1185,22 +1210,32 @@
         'Generated with OpenVGAL Generator (CDN-first mode)\n';
     }
 
+    // fetch() only rejects on network failure — a 404 resolves with ok=false and
+    // a perfectly readable body, so blindly calling .blob() packs the error page
+    // under the asset's name and nothing ever throws. Always go through this.
+    async function packFetch(url) {
+      var response = await fetch(url);
+      if (!response.ok) throw new Error('HTTP ' + response.status + ' for ' + url);
+      return response;
+    }
+
     // Build steps. Each takes the shared ctx and reports one tick per file via
     // ctx.tick. The kernel steps (`manifest`, `images`) emit identical bytes and
     // paths in every flavor; the rest are family bundle/reference helpers.
+    // A step that cannot obtain a required asset calls ctx.fail — buildPack
+    // aborts rather than delivering a ZIP with holes in it.
     var PACK_STEP_IMPL = {
       // engine + templates (bundle): 3D room templates fetched from the CDN.
       templates: async function(ctx) {
         for (var i = 0; i < ctx.templates.length; i++) {
           var file = ctx.templates[i];
           try {
-            var response = await fetch(CDN_BASE + '/' + file);
+            var response = await packFetch(CDN_BASE + '/' + file);
             var blob = await response.blob();
             ctx.zip.file(file, blob);
             ctx.tick('Fetched ' + file);
           } catch (e) {
-            console.warn('Failed to fetch ' + file + ':', e);
-            ctx.tick('Skipped ' + file);
+            ctx.fail(file, e);
           }
         }
       },
@@ -1209,13 +1244,12 @@
         for (var i = 0; i < ctx.materials.length; i++) {
           var file = ctx.materials[i];
           try {
-            var response = await fetch(CDN_BASE + '/' + file);
+            var response = await packFetch(CDN_BASE + '/' + file);
             var blob = await response.blob();
             ctx.zip.file(file, blob);
             ctx.tick('Fetched ' + file);
           } catch (e) {
-            console.warn('Failed to fetch ' + file + ':', e);
-            ctx.tick('Skipped ' + file);
+            ctx.fail(file, e);
           }
         }
       },
@@ -1224,7 +1258,7 @@
         for (var i = 0; i < ctx.viewer.length; i++) {
           var file = ctx.viewer[i];
           try {
-            var response = await fetch(file);
+            var response = await packFetch(file);
             var zipPath = file.replace(/^\.\.\//, '');
             var isBinary = /\.(png|jpg|jpeg|gif|webp|glb)$/i.test(file);
 
@@ -1244,9 +1278,7 @@
             }
             ctx.tick('Fetched ' + zipPath);
           } catch (e) {
-            var zp = file.replace(/^\.\.\//, '');
-            console.warn('Failed to fetch ' + zp + ':', e);
-            ctx.tick('Skipped ' + zp);
+            ctx.fail(file.replace(/^\.\.\//, ''), e);
           }
         }
       },
@@ -1271,8 +1303,7 @@
             ctx.zip.file(zipPath, imgFile);
             ctx.tick('Added ' + zipPath);
           } catch (e) {
-            console.warn('Failed to add image ' + path + ':', e);
-            ctx.tick('Skipped ' + path);
+            ctx.fail(path, e);
           }
         }
       },
@@ -1341,11 +1372,19 @@
         materials: PACK_MATERIALS,
         viewer: PACK_VIEWER_FILES,
         done: 0,
-        total: 0
+        total: 0,
+        failures: []
       };
       ctx.tick = function(message) {
         ctx.done++;
         onProgress(Math.round((ctx.done / ctx.total) * 100), message);
+      };
+      // Record a missing asset and keep going, so one run reports every hole
+      // rather than making the user rebuild to discover them one at a time.
+      ctx.fail = function(file, error) {
+        console.error('Pack failed to include ' + file + ':', error);
+        ctx.failures.push(file);
+        ctx.tick('MISSING ' + file);
       };
 
       var steps = packSteps(flavor);
@@ -1354,6 +1393,21 @@
       onProgress(0, packInitialMessage(flavor));
       for (var i = 0; i < steps.length; i++) {
         await PACK_STEP_IMPL[steps[i]](ctx);
+      }
+
+      // An incomplete gallery fails at view time with no clue why, so refuse to
+      // hand one over. Better a loud error here than a broken ZIP on a server.
+      if (ctx.failures.length) {
+        console.error('Pack aborted. Missing files:\n' + ctx.failures.join('\n'));
+        var shown = ctx.failures.slice(0, 3).join(', ');
+        var more = ctx.failures.length > 3
+          ? ' and ' + (ctx.failures.length - 3) + ' more'
+          : '';
+        throw new Error(
+          'Gallery NOT downloaded — could not fetch ' + ctx.failures.length +
+          ' required file' + (ctx.failures.length === 1 ? '' : 's') + ' (' +
+          shown + more + '). See console for the full list, then retry.'
+        );
       }
 
       onProgress(100, 'Creating ZIP file...');
