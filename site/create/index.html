@@ -761,6 +761,7 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="../js/gallery-settings.js"></script>
+  <script src="../js/pack-definition.js"></script>
   <script src="../js/style-picker.js"></script>
   <script src="../js/gallery-generator.js"></script>
   <script src="../js/gallery-page.js"></script>
@@ -901,7 +902,12 @@
             GallerySettings.load(parsed.Technical);
             if (parsed.root && parsed.root.template) {
               var inferredStyle = StylePicker.inferStyleFromTemplate(parsed.root.template);
-              StylePicker.selectStyle(inferredStyle);
+              if (inferredStyle) {
+                StylePicker.selectStyle(inferredStyle);
+              } else {
+                console.warn('Import: no catalog style has root template "' +
+                  parsed.root.template + '"; keeping the current selection.');
+              }
             }
             var roomCount = Object.keys(parsed).filter(function(k) { return k !== 'Technical' && k !== 'root'; }).length;
             importSummary.textContent = roomCount + ' room' + (roomCount !== 1 ? 's' : '') + ' imported';
@@ -1011,204 +1017,18 @@
     downloadZipBtn.addEventListener('click', buildAndDeliverZip);
 
     // ========================================================================
-    // Unified pack builder — one kernel, three flavors (ADR-0008).
+    // Unified pack builder — one kernel, three flavors (ADR-0008/ADR-0013).
     //
-    // The KERNEL is building_v2.json plus the user images, each image named
-    // `room/filename` (the manifest path with its leading slash stripped).
-    // Identical bytes and paths in every flavor — this is the cross-repo
-    // storage contract the backend keys on ({artist}/{hall}/{room}/{filename}).
-    //
-    // A FLAVOR is a per-asset-family choice of bundle-or-reference. The only
-    // thing that branches is the ordered `steps` list each flavor runs; the
-    // kernel and family step helpers are shared:
+    // WHAT a pack contains lives in js/pack-definition.js (deployed to
+    // cdn.openvgal.com/core/js/), so this page and openvgal-site read the same
+    // lists and cannot drift. Everything below is only the zip delivery: fetch
+    // each described entry, put its bytes in the archive, report progress.
     //
     //   flavor  images   engine+templates  materials   delivery
     //   full    bundled  bundled           bundled     self-contained download
     //   cdn     bundled  referenced(CDN)   referenced  thin-client download
     //   cloud   bundled  referenced        referenced  postMessage to parent
-    //
-    // "Referenced" means the runtime resolves that family from a remote prefix
-    // instead of from inside the pack; the image bytes always ride along in the
-    // kernel (full/cdn serve them locally, the cloud backend stores them). The
-    // step lists are arranged so the produced full/cdn ZIPs stay byte-for-byte
-    // identical to the previous hand-written builders (same entries, same order).
     // ========================================================================
-
-    // Materials fetched from the CDN for the self-contained (full) pack.
-    // This mirrors cdn/materials/ in full — every JSON and every texture, not
-    // just the ones currently referenced. Curating the list by hand let styles
-    // ship without their material, so the pack takes the whole folder instead.
-    // When a file is added to cdn/materials/, add it here too.
-    var PACK_MATERIALS = [
-      'materials/BJS_PBRmidgrey.json',
-      'materials/BJS_PBRwhite.json',
-      'materials/BJS_asphalt1k.json',
-      'materials/BJS_black_metal.json',
-      'materials/BJS_blackrubber1k.json',
-      'materials/BJS_chrome.json',
-      'materials/BJS_creme1k.json',
-      'materials/BJS_default_floor.json',
-      'materials/BJS_default_wall.json',
-      'materials/BJS_glow.json',
-      'materials/BJS_glow_masked.json',
-      'materials/BJS_marble1k.json',
-      'materials/BJS_plaster1k.json',
-      'materials/BJS_rough_cream.json',
-      'materials/BJS_rust.json',
-      'materials/BJS_white.json',
-      'materials/BJS_wood.json',
-      'materials/logo.png',
-      'materials/shadow.png',
-      // Texture folders
-      'materials/asphalt1k/Asphalt031_1K-JPG_Color.jpg',
-      'materials/blackrubber1k/Rubber001_1K-JPG_Color.jpg',
-      'materials/creme1k/Concrete048_1K-JPG_Color.jpg',
-      'materials/marble1k/Marble019_1K-JPG_Color.jpg',
-      'materials/plaster1k/Plaster001_1K-JPG_Color.jpg',
-      'materials/rust2/Rust006.png',
-      'materials/rust2/Rust006_1K-JPG_Color.jpg',
-      'materials/rust2/Rust006_1K-JPG_Displacement.jpg',
-      'materials/rust2/Rust006_1K-JPG_Metalness.jpg',
-      'materials/rust2/Rust006_1K-JPG_NormalDX.jpg',
-      'materials/rust2/Rust006_1K-JPG_NormalGL.jpg',
-      'materials/rust2/Rust006_1K-JPG_Roughness.jpg',
-      'materials/wood_floor/WoodFloor051_2K_AmbientOcclusion.jpg',
-      'materials/wood_floor/WoodFloor051_2K_Color.jpg',
-      'materials/wood_floor/WoodFloor051_2K_Displacement.jpg',
-      'materials/wood_floor/WoodFloor051_2K_NormalDX.jpg',
-      'materials/wood_floor/WoodFloor051_2K_NormalGL.jpg',
-      'materials/wood_floor/WoodFloor051_2K_Roughness.jpg',
-      'materials/wood_floor/WoodFloor051_PREVIEW.jpg'
-    ];
-
-    // Viewer/engine files fetched from current origin (one level up from /create/).
-    var PACK_VIEWER_FILES = [
-      '../viewer.html',
-      '../openvgal-viewer.js',
-      '../openvgal-lighting.js',
-      '../room_builder_aux.js',
-      '../overlay.js',
-      '../overlay.html',
-      '../overlay.css',
-      '../babylon.js',
-      '../babylonjs.loaders.min.js',
-      '../icons/keyboard_move.png',
-      '../icons/keyboard_pan.png',
-      '../icons/touch_move.png',
-      '../icons/touch_pan.png'
-    ];
-
-    // Deployment declarations.js for the self-contained pack (local resolution).
-    var PACK_DECLARATIONS_JS = [
-      '// OpenVGAL Viewer Configuration',
-      '// Generated by OpenVGAL Generator',
-      '//',
-      "// Deployment path: '.' means relative to viewer.html — works in any subfolder.",
-      '// Examples:',
-      "//   Root:      https://example.com/          -> keep '.'",
-      "//   Subfolder: https://example.com/gallery/  -> keep '.'",
-      "//   Custom:    set to '/my/path' if assets are served from a different location",
-      "var openvgal_location = '.';",
-      '',
-      "var glb_location = openvgal_location + '/templates/';",
-      "var config_file_name = openvgal_location + '/building_v2.json';",
-      "var materials_folder = openvgal_location + '/materials';",
-      "var hallspics_prefix = openvgal_location + '';",
-      'window.resolveImageUrl = function(path) { return hallspics_prefix + path; };',
-      '',
-      '// Program constants',
-      'var regul_exp_door = /^d_/;',
-      'var regul_exp_tail = /_[0-9]*$/;',
-      'var regul_exp_artworks = /_\\d{1,3}$/;',
-      'var frame_material = "BJS_white";',
-      ''
-    ].join('\n');
-
-    // Templates depend on the selected style (or a fallback set).
-    function packTemplateList() {
-      var selectedStyle = StylePicker.getSelected();
-      if (selectedStyle && selectedStyle.config) {
-        var list = ['templates/' + selectedStyle.config.root];
-        var glbs = selectedStyle.config.glbs || {};
-        Object.keys(glbs).forEach(function(shape) {
-          list.push('templates/' + glbs[shape]);
-        });
-        return list;
-      }
-      return [
-        'templates/T_root_B.glb',
-        'templates/T_small_B.glb',
-        'templates/T_pannels_B.glb',
-        'templates/T_nopannels_B.glb'
-      ];
-    }
-
-    function packReadmeFull(config) {
-      var galleryFolders = Object.keys(config).filter(function(k) { return k !== 'Technical' && k !== 'root'; });
-      return '# OpenVGAL Virtual Gallery\n\n' +
-        'Your virtual 3D art gallery is ready to deploy!\n\n' +
-        '## Quick Start\n\n' +
-        '1. Extract this ZIP to your web server folder\n' +
-        '2. Open viewer.html in a browser (or serve with any web server)\n\n' +
-        'Your images are already included in the ZIP under these folders:\n' +
-        galleryFolders.map(function(k) { return '- ' + k + '/'; }).join('\n') + '\n\n' +
-        '## Folder Structure\n\n```\nyour-gallery/\n' +
-        '├── viewer.html         # Main viewer\n' +
-        '├── building_v2.json    # Gallery configuration\n' +
-        '├── declarations.js     # Path configuration\n' +
-        '├── templates/          # 3D room templates\n' +
-        '├── materials/          # Textures and materials\n' +
-        galleryFolders.map(function(k) { return '├── ' + k + '/               # Your images'; }).join('\n') + '\n' +
-        '├── overlay.js          # UI overlay\n' +
-        '├── overlay.css         # UI styles\n' +
-        '└── babylon.js          # 3D engine\n```\n\n' +
-        '## Deploying to a Subfolder\n\n' +
-        'This gallery works in any subfolder — just extract and serve. All paths are\n' +
-        'relative to viewer.html, so no configuration needed. For example:\n' +
-        '- https://example.com/ (root)\n' +
-        '- https://example.com/gallery/ (subfolder)\n' +
-        '- https://example.com/art/my-gallery/ (nested subfolder)\n\n' +
-        'If you need to customize paths, edit `declarations.js`.\n\n' +
-        '## Custom Logo\n\n' +
-        'Replace `materials/logo.png` with your own image.\n' +
-        'Use white artwork on a black background (the white areas will glow).\n' +
-        'Recommended size: 1024x512 px, PNG format.\n\n' +
-        '## Need Help?\n\n' +
-        'Visit https://openvgal.com for documentation and support.\n\n' +
-        'Generated with OpenVGAL Generator\n';
-    }
-
-    function packReadmeCdn(config) {
-      var galleryFolders = Object.keys(config).filter(function(k) { return k !== 'Technical' && k !== 'root'; });
-      return '# OpenVGAL Virtual Gallery (CDN-first)\n\n' +
-        'Your virtual 3D art gallery is ready to deploy!\n\n' +
-        '## Quick Start\n\n' +
-        '1. Extract this ZIP to your web server folder\n' +
-        '2. Open `index.html` in a browser\n\n' +
-        '## How it works\n\n' +
-        'This gallery uses **CDN-first deployment**. All viewer code (babylon.js,\n' +
-        'templates, materials, overlay) loads from `cdn.openvgal.com`. Your deployment\n' +
-        'only contains content and configuration:\n\n' +
-        '```\nyour-gallery/\n' +
-        '  index.html          <- viewer (loads scripts from CDN)\n' +
-        '  building_v2.json    <- gallery configuration\n' +
-        galleryFolders.map(function(k) { return '  ' + k + '/               <- your images'; }).join('\n') + '\n```\n\n' +
-        '## Updating\n\n' +
-        'Code updates happen automatically via CDN. To update your gallery content,\n' +
-        'just replace `building_v2.json` and your image folders.\n\n' +
-        '## Customization\n\n' +
-        '- **Custom logo**: Add `materials/logo.png` next to index.html. White artwork\n' +
-        '  on black background, 1024x512 px recommended. The viewer checks for a local\n' +
-        '  logo first, then falls back to the CDN default.\n' +
-        '- **Custom overlay**: Add `overlay.js` next to index.html to override the\n' +
-        '  default CDN overlay behavior.\n\n' +
-        '## Need the self-contained version?\n\n' +
-        'Visit https://openvgal.com/create/ for a ZIP that includes all code and\n' +
-        'works offline (no CDN dependency).\n\n' +
-        '## Need Help?\n\n' +
-        'Visit https://openvgal.com for documentation and support.\n\n' +
-        'Generated with OpenVGAL Generator (CDN-first mode)\n';
-    }
 
     // fetch() only rejects on network failure — a 404 resolves with ok=false and
     // a perfectly readable body, so blindly calling .blob() packs the error page
@@ -1217,135 +1037,6 @@
       var response = await fetch(url);
       if (!response.ok) throw new Error('HTTP ' + response.status + ' for ' + url);
       return response;
-    }
-
-    // Build steps. Each takes the shared ctx and reports one tick per file via
-    // ctx.tick. The kernel steps (`manifest`, `images`) emit identical bytes and
-    // paths in every flavor; the rest are family bundle/reference helpers.
-    // A step that cannot obtain a required asset calls ctx.fail — buildPack
-    // aborts rather than delivering a ZIP with holes in it.
-    var PACK_STEP_IMPL = {
-      // engine + templates (bundle): 3D room templates fetched from the CDN.
-      templates: async function(ctx) {
-        for (var i = 0; i < ctx.templates.length; i++) {
-          var file = ctx.templates[i];
-          try {
-            var response = await packFetch(CDN_BASE + '/' + file);
-            var blob = await response.blob();
-            ctx.zip.file(file, blob);
-            ctx.tick('Fetched ' + file);
-          } catch (e) {
-            ctx.fail(file, e);
-          }
-        }
-      },
-      // materials (bundle): textures + material JSONs fetched from the CDN.
-      materials: async function(ctx) {
-        for (var i = 0; i < ctx.materials.length; i++) {
-          var file = ctx.materials[i];
-          try {
-            var response = await packFetch(CDN_BASE + '/' + file);
-            var blob = await response.blob();
-            ctx.zip.file(file, blob);
-            ctx.tick('Fetched ' + file);
-          } catch (e) {
-            ctx.fail(file, e);
-          }
-        }
-      },
-      // engine + templates (bundle): viewer code fetched from current origin.
-      viewer: async function(ctx) {
-        for (var i = 0; i < ctx.viewer.length; i++) {
-          var file = ctx.viewer[i];
-          try {
-            var response = await packFetch(file);
-            var zipPath = file.replace(/^\.\.\//, '');
-            var isBinary = /\.(png|jpg|jpeg|gif|webp|glb)$/i.test(file);
-
-            if (isBinary) {
-              var blob = await response.blob();
-              ctx.zip.file(zipPath, blob);
-            } else {
-              var content = await response.text();
-              // Modify viewer.html to set correct paths
-              if (zipPath === 'viewer.html') {
-                content = content.replace(
-                  /window\.openvgal_location = '[^']*';/,
-                  "window.openvgal_location = '.';"
-                );
-              }
-              ctx.zip.file(zipPath, content);
-            }
-            ctx.tick('Fetched ' + zipPath);
-          } catch (e) {
-            ctx.fail(file.replace(/^\.\.\//, ''), e);
-          }
-        }
-      },
-      // engine + templates (reference): thin loader that pulls the viewer from CDN.
-      cdnIndex: async function(ctx) {
-        ctx.zip.file('index.html', generateCdnIndexHtml());
-        ctx.tick('Created index.html');
-      },
-      // engine + templates (bundle): path config wiring local resolution.
-      declarations: async function(ctx) {
-        ctx.zip.file('declarations.js', PACK_DECLARATIONS_JS);
-        ctx.tick('Created declarations.js');
-      },
-      // KERNEL: user images, each named room/filename (leading slash stripped).
-      images: async function(ctx) {
-        for (var i = 0; i < ctx.imageEntries.length; i++) {
-          var path = ctx.imageEntries[i][0];
-          var imgFile = ctx.imageEntries[i][1];
-          try {
-            // "/room/filename" -> "room/filename" (no leading slash, no images/).
-            var zipPath = path.replace(/^\//, '');
-            ctx.zip.file(zipPath, imgFile);
-            ctx.tick('Added ' + zipPath);
-          } catch (e) {
-            ctx.fail(path, e);
-          }
-        }
-      },
-      // KERNEL: the manifest.
-      manifest: async function(ctx) {
-        ctx.zip.file('building_v2.json', JSON.stringify(ctx.config, null, 2));
-        ctx.tick('Added building_v2.json');
-      },
-      readmeFull: async function(ctx) {
-        ctx.zip.file('README.md', packReadmeFull(ctx.config));
-        ctx.tick('Added README.md');
-      },
-      readmeCdn: async function(ctx) {
-        ctx.zip.file('README.md', packReadmeCdn(ctx.config));
-        ctx.tick('Added README.md');
-      }
-    };
-
-    // Per-flavor ordered step list. cdn splits update (JSON + images only) from
-    // a fresh thin-client pack. cloud is the kernel alone — every family
-    // referenced, nothing else bundled.
-    function packSteps(flavor) {
-      if (flavor === 'full') {
-        return ['templates', 'materials', 'viewer', 'images', 'declarations', 'manifest', 'readmeFull'];
-      }
-      if (flavor === 'cloud') {
-        return ['manifest', 'images'];
-      }
-      // cdn
-      return importedJSON
-        ? ['manifest', 'images']
-        : ['cdnIndex', 'manifest', 'images', 'readmeCdn'];
-    }
-
-    function packStepCount(step, ctx) {
-      switch (step) {
-        case 'templates': return ctx.templates.length;
-        case 'materials': return ctx.materials.length;
-        case 'viewer':    return ctx.viewer.length;
-        case 'images':    return ctx.imageEntries.length;
-        default:          return 1; // single-file steps
-      }
     }
 
     function packFilename(flavor) {
@@ -1360,52 +1051,67 @@
       return 'Generating package...';
     }
 
+    // Build a pack by walking the entries OpenVGALPack describes for this
+    // flavor. The definition says what goes in and where it comes from; this
+    // loop only moves bytes. An entry that cannot be obtained is recorded and
+    // the run continues, so one attempt reports every hole.
     async function buildPack(config, flavor, onProgress) {
       var zip = new JSZip();
       var fileMap = window.openvgal_fileMap || {};
+      var selectedStyle = StylePicker.getSelected();
 
-      var ctx = {
-        zip: zip,
+      var entries = OpenVGALPack.describe(flavor, {
         config: config,
-        imageEntries: Object.entries(fileMap),
-        templates: packTemplateList(),
-        materials: PACK_MATERIALS,
-        viewer: PACK_VIEWER_FILES,
-        done: 0,
-        total: 0,
-        failures: []
-      };
-      ctx.tick = function(message) {
-        ctx.done++;
-        onProgress(Math.round((ctx.done / ctx.total) * 100), message);
-      };
-      // Record a missing asset and keep going, so one run reports every hole
-      // rather than making the user rebuild to discover them one at a time.
-      ctx.fail = function(file, error) {
-        console.error('Pack failed to include ' + file + ':', error);
-        ctx.failures.push(file);
-        ctx.tick('MISSING ' + file);
-      };
+        imagePaths: Object.keys(fileMap),
+        // The picker's selection is a hint; without it the style is derived
+        // from the manifest against the catalog, and an unresolvable one throws.
+        catalog: StylePicker.getCatalog(),
+        styleConfig: selectedStyle ? selectedStyle.config : null,
+        cdnBase: CDN_BASE,
+        viewerBase: '../',
+        update: !!importedJSON
+      });
 
-      var steps = packSteps(flavor);
-      ctx.total = steps.reduce(function(sum, s) { return sum + packStepCount(s, ctx); }, 0);
+      var done = 0;
+      var failures = [];
+      function tick(message) {
+        done++;
+        onProgress(Math.round((done / entries.length) * 100), message);
+      }
 
       onProgress(0, packInitialMessage(flavor));
-      for (var i = 0; i < steps.length; i++) {
-        await PACK_STEP_IMPL[steps[i]](ctx);
+      for (var i = 0; i < entries.length; i++) {
+        var entry = entries[i];
+        try {
+          if (entry.kind === 'inline') {
+            zip.file(entry.path, entry.content);
+          } else if (entry.kind === 'image') {
+            zip.file(entry.path, fileMap[entry.source]);
+          } else if (entry.binary) {
+            zip.file(entry.path, await (await packFetch(entry.url)).blob());
+          } else {
+            var text = await (await packFetch(entry.url)).text();
+            zip.file(entry.path, entry.transform ? entry.transform(text) : text);
+          }
+          tick(entry.label);
+        } catch (e) {
+          console.error('Pack failed to include ' + entry.path + ':', e);
+          failures.push(entry.path);
+          tick('MISSING ' + entry.path);
+        }
       }
 
       // An incomplete gallery fails at view time with no clue why, so refuse to
       // hand one over. Better a loud error here than a broken ZIP on a server.
-      if (ctx.failures.length) {
-        console.error('Pack aborted. Missing files:\n' + ctx.failures.join('\n'));
-        var shown = ctx.failures.slice(0, 3).join(', ');
-        var more = ctx.failures.length > 3
-          ? ' and ' + (ctx.failures.length - 3) + ' more'
+      if (failures.length) {
+        console.error('Pack aborted. Missing files:\n' + failures.join('\n'));
+        var shown = failures.slice(0, 3).join(', ');
+        var more = failures.length > 3
+          ? ' and ' + (failures.length - 3) + ' more'
           : '';
         throw new Error(
-          'Gallery NOT downloaded — could not fetch ' + ctx.failures.length +
-          ' required file' + (ctx.failures.length === 1 ? '' : 's') + ' (' +
+          'Gallery NOT downloaded — could not fetch ' + failures.length +
+          ' required file' + (failures.length === 1 ? '' : 's') + ' (' +
           shown + more + '). See console for the full list, then retry.'
         );
       }
@@ -1420,24 +1126,7 @@
       deliverZip(blob, packFilename(flavor), config, onProgress);
     }
 
-    // --- Thin-client loader + extend-existing-gallery (used by the cdn flavor) ---
-
-    function generateCdnIndexHtml() {
-      // Thin loader that fetches viewer.html from CDN at runtime.
-      // The page origin stays local so building_v2.json and images resolve locally.
-      return '<!DOCTYPE html>\n' +
-        '<html><head><meta charset="utf-8"></head>\n' +
-        '<body style="margin:0;background:#000;color:#a1a1aa;font-family:Inter,system-ui,sans-serif;' +
-        'display:flex;align-items:center;justify-content:center;height:100vh">\n' +
-        '<p id="cdn-status">Loading gallery...</p>\n' +
-        '<script>\n' +
-        'fetch("' + CDN_BASE + '/core/viewer.html")\n' +
-        '  .then(function(r) { if (!r.ok) throw new Error(r.status); return r.text(); })\n' +
-        '  .then(function(html) { document.open(); document.write(html); document.close(); })\n' +
-        '  .catch(function(e) { document.getElementById("cdn-status").textContent = "Failed to load viewer from CDN: " + e.message; });\n' +
-        '<\/script>\n' +
-        '</body></html>';
-    }
+    // --- Extend an existing gallery (used by the cdn flavor) ---
 
     // Extend an existing building_v2.json with new gallery rooms.
     // Preserves all existing rooms, doors, and metadata.

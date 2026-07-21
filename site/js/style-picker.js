@@ -322,15 +322,13 @@ var StylePicker = (function() {
     }
   }
 
+  // Thin wrapper over the pack definition's derivation, which is the single
+  // implementation (it must also run headlessly, with no picker mounted).
+  // Returns null when the template matches no style — a wrong-but-plausible
+  // 'classic' would silently give the gallery another style's rooms.
   function inferStyleFromTemplate(templateName) {
-    if (!_styles) return 'classic';
-    var keys = Object.keys(_styles);
-    for (var i = 0; i < keys.length; i++) {
-      if (_styles[keys[i]].root === templateName) {
-        return keys[i];
-      }
-    }
-    return 'classic';
+    if (typeof OpenVGALPack === 'undefined') return null;
+    return OpenVGALPack.styleKeyFromTemplate(_catalog, templateName);
   }
 
   return {
