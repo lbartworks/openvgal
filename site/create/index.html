@@ -1021,6 +1021,18 @@
         await buildPack(generatedJSON, flavor, function(progress, message) {
           zipProgressFill.style.width = progress + '%';
           zipProgressText.textContent = message;
+          // In embed mode the parent can't see the on-page bar, so mirror the
+          // number out as an advisory message (docs/embed.md). Additive — the
+          // bar above keeps driving as it does standalone.
+          if (EMBED_MODE) {
+            try {
+              window.parent.postMessage({
+                type: 'openvgal:export-progress',
+                percent: progress,
+                message: message
+              }, '*');
+            } catch (_) {}
+          }
         });
       } catch (error) {
         // The ready page was opened optimistically and is now claiming success
@@ -1095,11 +1107,15 @@
         update: !!importedJSON
       });
 
+      // Reserve the final slice of the 0-100 range for generateAsync (below),
+      // so the per-entry ticks and the generate step climb monotonically instead
+      // of the entries hitting 100 and generate having nowhere left to report.
+      var PACK_SPLIT = 90;
       var done = 0;
       var failures = [];
       function tick(message) {
         done++;
-        onProgress(Math.round((done / entries.length) * 100), message);
+        onProgress(Math.round((done / entries.length) * PACK_SPLIT), message);
       }
 
       onProgress(0, packInitialMessage(flavor));
@@ -1109,7 +1125,11 @@
           if (entry.kind === 'inline') {
             zip.file(entry.path, entry.content);
           } else if (entry.kind === 'image') {
-            zip.file(entry.path, fileMap[entry.source]);
+            // The artist's photos are already-compressed JPEG/PNG — deflating
+            // them costs nearly all of the packaging time for almost no saving,
+            // so store them verbatim. Everything else keeps the archive-level
+            // DEFLATE default set in generateAsync below.
+            zip.file(entry.path, fileMap[entry.source], { compression: 'STORE' });
           } else if (entry.binary) {
             zip.file(entry.path, await (await packFetch(entry.url)).blob());
           } else {
@@ -1139,11 +1159,18 @@
         );
       }
 
-      onProgress(100, 'Creating ZIP file...');
+      onProgress(PACK_SPLIT, 'Creating ZIP file...');
       var blob = await zip.generateAsync({
         type: 'blob',
         compression: 'DEFLATE',
         compressionOptions: { level: 6 }
+      }, function(metadata) {
+        // metadata.percent runs 0-100 across generation; map it into the
+        // reserved tail so the reported number rises and never steps back.
+        onProgress(
+          PACK_SPLIT + Math.round((metadata.percent / 100) * (100 - PACK_SPLIT)),
+          'Creating ZIP file...'
+        );
       });
 
       deliverZip(blob, packFilename(flavor), config, onProgress);

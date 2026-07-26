@@ -56,7 +56,10 @@ unchanged.
    its save group.
 6. **User clicks a Save action.** The parent posts `openvgal:export-request` to
    the child.
-7. **Child builds the ZIP and posts `openvgal:zip-ready`** with the blob and
+7. **Child posts zero or more `openvgal:export-progress`** as it packages, then
+   exactly one `openvgal:zip-ready`. Progress is advisory — a host may ignore it
+   and render its own indeterminate state.
+8. **Child builds the ZIP and posts `openvgal:zip-ready`** with the blob and
    metadata. The parent uploads it (draft) or downloads it (local copy). One
    `zip-ready` per `export-request`.
 
@@ -101,6 +104,22 @@ hugs the builder's content (no `100dvh` band, no empty panel).
 Sent when the builder reaches step 3 — a gallery now exists to export. This,
 not `zip-ready`, is the signal that the parent should reveal/enable its save
 group. Re-sent if the user rebuilds.
+
+#### `openvgal:export-progress`
+
+```js
+{
+  type: 'openvgal:export-progress',
+  percent: number,  // 0-100, monotonic within one export
+  message: string   // human-readable phase label, e.g. 'Creating ZIP file...'
+}
+```
+
+Posted zero or more times between an `openvgal:export-request` and its
+`openvgal:zip-ready`, as the child packages the gallery. `percent` runs 0-100
+and never decreases within a single export. This message is **advisory** — a
+host may ignore it and show its own indeterminate state; the authoritative
+end-of-export signal is `openvgal:zip-ready`.
 
 #### `openvgal:zip-ready`
 
