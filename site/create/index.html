@@ -397,6 +397,22 @@
     }
     .import-info svg { width: 14px; height: 14px; flex-shrink: 0; }
     .import-summary { flex: 1; }
+
+    .resolution-notice {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+      margin-top: 0.75rem;
+      padding: 0.55rem 0.75rem;
+      background: color-mix(in oklab, #d97706 12%, transparent);
+      border: 1px solid color-mix(in oklab, #d97706 34%, transparent);
+      border-radius: 8px;
+      font-size: 0.8rem;
+      line-height: 1.45;
+      color: #8a4b0a;
+    }
+    .resolution-notice svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; }
+    .resolution-notice strong { font-weight: 600; }
     .import-clear {
       background: none;
       border: none;
@@ -671,6 +687,8 @@
           No rooms added yet
         </div>
       </div>
+
+      <div class="resolution-notice" id="resolutionNotice" style="display: none;"></div>
     </div>
 
     <!-- Gallery Settings -->
@@ -846,6 +864,10 @@
     let generatedJSON = null;
     let importedJSON = null; // CDN mode only
 
+    // Advisory resolution guard: warn when an image's longest side exceeds this.
+    const RESOLUTION_WARN_PX = 1600;
+    const fileMaxSide = new WeakMap(); // File -> longest pixel side (cached decode)
+
     // DOM Elements
     const importBtn = document.getElementById('importBtn');
     const importInput = document.getElementById('importInput');
@@ -870,6 +892,7 @@
     const zipProgressContainer = document.getElementById('zipProgressContainer');
     const zipProgressFill = document.getElementById('zipProgressFill');
     const zipProgressText = document.getElementById('zipProgressText');
+    const resolutionNotice = document.getElementById('resolutionNotice');
 
     GalleryPage.setupDropZone({
       dropZone: document.getElementById('dropZone'),
@@ -1338,8 +1361,56 @@
       GalleryPage.clearStaleResultUI(resultSection);
     }
 
+    // Decode any not-yet-measured images (cached per File) and show/hide the
+    // resolution advisory based on how many exceed RESOLUTION_WARN_PX. Removing
+    // a room recomputes the count from the files still present.
+    async function checkImageResolutions() {
+      for (var gi = 0; gi < galleries.length; gi++) {
+        var files = galleries[gi].files;
+        for (var fi = 0; fi < files.length; fi++) {
+          var f = files[fi];
+          if (fileMaxSide.has(f)) continue;
+          fileMaxSide.set(f, 0); // reserve to avoid a concurrent re-decode
+          try {
+            var d = await getImageDimensions(f);
+            fileMaxSide.set(f, Math.max(d.width, d.height));
+          } catch (e) {
+            fileMaxSide.set(f, 0); // undecodable (e.g. TIFF) — don't warn
+          }
+        }
+      }
+      var count = 0;
+      for (var g = 0; g < galleries.length; g++) {
+        var gf = galleries[g].files;
+        for (var i = 0; i < gf.length; i++) {
+          if ((fileMaxSide.get(gf[i]) || 0) > RESOLUTION_WARN_PX) count++;
+        }
+      }
+      renderResolutionNotice(count);
+    }
+
+    function renderResolutionNotice(count) {
+      if (!resolutionNotice) return;
+      if (count === 0) {
+        resolutionNotice.style.display = 'none';
+        resolutionNotice.innerHTML = '';
+        return;
+      }
+      var noun = count === 1 ? 'image is' : 'images are';
+      resolutionNotice.innerHTML =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+        '<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>' +
+        '<line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' +
+        '<span><strong>' + count + ' ' + noun + ' larger than ' + RESOLUTION_WARN_PX + ' px</strong> ' +
+        'on the longest side. Around ' + RESOLUTION_WARN_PX + ' px is plenty for on-screen viewing — larger ' +
+        'files make your gallery slower to load with little to no visual gain. Start smaller and increase ' +
+        'only if the quality isn\'t enough.</span>';
+      resolutionNotice.style.display = 'flex';
+    }
+
     function updateGalleryList() {
       markResultStaleIfGenerated();
+      checkImageResolutions(); // async, fire-and-forget; reads galleries directly
       var items = galleryList.querySelectorAll('.gallery-item, .import-divider');
       items.forEach(function(item) { item.remove(); });
 
