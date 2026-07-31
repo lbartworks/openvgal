@@ -92,6 +92,7 @@
     .style-field { display: flex; flex-direction: column; gap: 0.15rem; margin-bottom: 0.3rem; }
     .style-field-label { font-size: 0.6rem; color: #52525b; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500; }
     .style-field input { font-size: 0.72rem; padding: 0.32rem 0.5rem; }
+    .style-field input.missing { border-color: rgba(252,211,77,0.35); }
 
     .glb-cell { min-width: 200px; }
     .glb-cell-row { display: flex; align-items: center; gap: 0.45rem; }
@@ -143,7 +144,7 @@
         </div>
         <div class="drop" id="glbDrop">
           <div class="lbl">Drop a .glb file</div>
-          <div class="sublbl">Probes Occupancy_* meshes for a shape</div>
+          <div class="sublbl">Occupancy_* strips for a shape, or d_* doors for a root</div>
           <input type="file" id="glbInput" accept=".glb,model/gltf-binary">
         </div>
       </div>
@@ -197,9 +198,9 @@
       selectionOrder: ['small', 'nopannels', 'pannels'],
       minSpacing: 0.5,
       styles: {
-        classic:    { name: 'Classic',    description: 'Mix of modern and classic materials',     thumbnail: 'classic_thumb.jpg',    root: 'T_root_B.glb',            glbs: { small: 'T_small_B.glb',            nopannels: 'T_nopannels_B.glb',            pannels: 'T_pannels_B.glb' } },
-        minimalist: { name: 'Minimalist', description: 'Clean lines, white walls, even lighting', thumbnail: 'minimalist_thumb.jpg', root: 'T_root_minimalist_B.glb', glbs: { small: 'T_small_minimalist_B.glb', nopannels: 'T_nopannels_minimalist_B.glb', pannels: 'T_pannels_minimalist_B.glb' } },
-        dark:       { name: 'Dark',       description: 'Dark walls, backlight type of frames',    thumbnail: 'dark_thumb.jpg',       root: 'T_root_dark_B.glb',       glbs: { small: 'T_small_dark_B.glb',       nopannels: 'T_nopannels_dark_B.glb',       pannels: 'T_pannels_dark_B.glb' } }
+        classic:    { name: 'Classic',    description: 'Mix of modern and classic materials',     thumbnail: 'classic_thumb.jpg',    root: 'T_root_B.glb',            rootDoors: 10, glbs: { small: 'T_small_B.glb',            nopannels: 'T_nopannels_B.glb',            pannels: 'T_pannels_B.glb' } },
+        minimalist: { name: 'Minimalist', description: 'Clean lines, white walls, even lighting', thumbnail: 'minimalist_thumb.jpg', root: 'T_root_minimalist_B.glb',                glbs: { small: 'T_small_minimalist_B.glb', nopannels: 'T_nopannels_minimalist_B.glb', pannels: 'T_pannels_minimalist_B.glb' } },
+        dark:       { name: 'Dark',       description: 'Dark walls, backlight type of frames',    thumbnail: 'dark_thumb.jpg',       root: 'T_root_dark_B.glb',       rootDoors: 10, glbs: { small: 'T_small_dark_B.glb',       nopannels: 'T_nopannels_dark_B.glb',       pannels: 'T_pannels_dark_B.glb' } }
       }
     };
 
@@ -228,7 +229,8 @@
       dom.probeLog.scrollTop = dom.probeLog.scrollHeight;
     }
 
-    // === GLB probe — mirrors site/js/gallery-generator.js extractOccupanciesFromGLB ===
+    // === GLB probe — mirrors site/js/gallery-generator.js extractOccupanciesFromGLB
+    // and countDoorsInGLB; one scene load answers both. ===
     async function probeGLB(file) {
       if (typeof BABYLON === 'undefined' || typeof BABYLON.GLTFFileLoader === 'undefined') {
         throw new Error('Babylon.js not loaded — serve this page via local HTTP server from repo root.');
@@ -239,6 +241,9 @@
         var url = URL.createObjectURL(file);
         await BABYLON.SceneLoader.AppendAsync('', url, scene, null, '.glb');
         URL.revokeObjectURL(url);
+
+        // Door slots — same rule as declarations.js regul_exp_door.
+        var doorCount = scene.meshes.filter(function(m) { return /^d_/.test(m.name); }).length;
 
         var meshes = scene.meshes.filter(function(m) { return /^Occupancy_\d+/i.test(m.name); });
         meshes.sort(function(a, b) {
@@ -292,7 +297,7 @@
             width: round(width)
           });
         }
-        return result;
+        return { occupancies: result, doorCount: doorCount };
       } finally {
         scene.dispose();
         engine.dispose();
@@ -309,10 +314,35 @@
       return null;
     }
 
+    // Styles that name this filename as their hub template.
+    function stylesUsingRoot(fileName) {
+      return Object.keys(catalog.styles).filter(function(sid) {
+        return (catalog.styles[sid].root || '') === fileName;
+      });
+    }
+
     async function handleGLB(file) {
       log('Probing ' + file.name + '...');
       try {
-        var occupancies = await probeGLB(file);
+        var probe = await probeGLB(file);
+        var occupancies = probe.occupancies;
+
+        // Root GLB: record its door budget on every style that points at it.
+        var rootStyles = stylesUsingRoot(file.name);
+        if (rootStyles.length > 0) {
+          if (probe.doorCount === 0) {
+            log('No d_* door meshes in ' + file.name + ' — rootDoors not set', 'warn');
+          } else {
+            rootStyles.forEach(function(sid) { catalog.styles[sid].rootDoors = probe.doorCount; });
+            log('Found ' + probe.doorCount + ' doors in ' + file.name + ' → rootDoors for ' + rootStyles.join(', '), 'ok');
+            renderAll();
+          }
+          if (occupancies.length === 0) return;
+        } else if (probe.doorCount > 0 && occupancies.length === 0) {
+          log(file.name + ' has ' + probe.doorCount + ' doors but no style names it as root — set the style\'s root field first', 'warn');
+          return;
+        }
+
         if (occupancies.length === 0) {
           log('No Occupancy_* meshes found in ' + file.name, 'warn');
           return;
@@ -466,7 +496,8 @@
         [
           { key: 'name',      label: 'name',  placeholder: 'Display name' },
           { key: 'thumbnail', label: 'thumb', placeholder: styleId + '_thumb.jpg' },
-          { key: 'root',      label: 'root',  placeholder: 'T_root_' + styleId + '_B.glb' }
+          { key: 'root',      label: 'root',  placeholder: 'T_root_' + styleId + '_B.glb' },
+          { key: 'rootDoors', label: 'root doors', placeholder: 'drop the root GLB', numeric: true }
         ].forEach(function(field) {
           var wrap = document.createElement('div');
           wrap.className = 'style-field';
@@ -476,9 +507,16 @@
           var input = document.createElement('input');
           input.type = 'text';
           input.placeholder = field.placeholder;
-          input.value = style[field.key] || '';
+          input.value = style[field.key] != null ? String(style[field.key]) : '';
+          if (field.numeric && !(style[field.key] > 0)) input.classList.add('missing');
           input.addEventListener('input', function() {
-            style[field.key] = input.value;
+            if (field.numeric) {
+              var n = parseInt(input.value, 10);
+              if (n > 0) style[field.key] = n; else delete style[field.key];
+              input.classList.toggle('missing', !(style[field.key] > 0));
+            } else {
+              style[field.key] = input.value;
+            }
             updatePreview();
           });
           wrap.appendChild(lbl);
@@ -591,6 +629,21 @@
       };
     }
 
+    // A style without rootDoors falls back to a runtime GLB probe, or worse to a
+    // hardcoded guess — so block the export path on it rather than shipping it.
+    function confirmExport() {
+      var missing = Object.keys(catalog.styles).filter(function(sid) {
+        return !(catalog.styles[sid].rootDoors > 0);
+      });
+      if (missing.length === 0) return true;
+      log('Missing rootDoors: ' + missing.join(', '), 'warn');
+      return confirm(
+        'These styles have no rootDoors: ' + missing.join(', ') + '.\n\n' +
+        'Drop each style\'s root GLB to fill it in. Without it the generator probes the ' +
+        'GLB at build time, or assumes 10 doors if that fails.\n\nExport anyway?'
+      );
+    }
+
     function updatePreview() {
       syncControlsToCatalog();
       if (dom.preview.style.display !== 'none') {
@@ -648,6 +701,7 @@
 
     dom.downloadBtn.addEventListener('click', function() {
       syncControlsToCatalog();
+      if (!confirmExport()) return;
       var json = JSON.stringify(buildOutput(), null, 2);
       var blob = new Blob([json], { type: 'application/json' });
       var url = URL.createObjectURL(blob);
@@ -659,6 +713,7 @@
 
     dom.copyBtn.addEventListener('click', function() {
       syncControlsToCatalog();
+      if (!confirmExport()) return;
       navigator.clipboard.writeText(JSON.stringify(buildOutput(), null, 2)).then(function() {
         dom.copyBtn.textContent = 'Copied';
         setTimeout(function() { dom.copyBtn.textContent = 'Copy JSON'; }, 1200);

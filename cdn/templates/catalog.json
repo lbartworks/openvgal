@@ -22,6 +22,7 @@
       "description": "Mix of modern and classic materials",
       "thumbnail": "classic_thumb.jpg",
       "root": "T_root_B.glb",
+      "rootDoors": 10,
       "glbs": {
         "small": "T_small_B.glb",
         "nopannels": "T_nopannels_B.glb",
@@ -33,6 +34,7 @@
       "description": "Dark walls, backlight type of frames",
       "thumbnail": "dark_thumb.jpg",
       "root": "T_root_dark_B.glb",
+      "rootDoors": 10,
       "glbs": {
         "small": "T_small_dark_B.glb",
         "nopannels": "T_nopannels_dark_B.glb",
@@ -44,6 +46,7 @@
       "description": "",
       "thumbnail": "modern_thumb.jpg",
       "root": "T_root_modern_B.glb",
+      "rootDoors": 6,
       "glbs": {
         "small": "T_small_B.glb",
         "nopannels": "T_nopannels_B.glb",
