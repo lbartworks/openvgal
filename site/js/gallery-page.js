@@ -6,7 +6,7 @@
  * drop-zone, gallery list, preview overlay, and stats logic stay in this
  * module so both modes share one implementation.
  *
- * Depends on filterImageFiles / groupFilesByFolder from gallery-generator.js.
+ * Depends on screenImageFiles / groupFilesByFolder from gallery-generator.js.
  */
 var GalleryPage = (function() {
 
@@ -42,6 +42,23 @@ var GalleryPage = (function() {
     return results;
   }
 
+  // Screen one folder group into `galleries`. Returns the names the content
+  // check refused, for the caller to surface.
+  async function _addGroup(group, galleries) {
+    var exists = galleries.some(function(g) { return g.path === group.path; });
+    if (exists) return [];
+    var screened = await screenImageFiles(group.files);
+    if (screened.accepted.length > 0) {
+      galleries.push({
+        name: group.name,
+        folderName: group.name,
+        path: group.path,
+        files: screened.accepted
+      });
+    }
+    return screened.rejected;
+  }
+
   async function _addDroppedFolder(dirEntry, galleries) {
     var allFiles = await _readAllFiles(dirEntry, dirEntry.name);
     var groups = {};
@@ -53,21 +70,11 @@ var GalleryPage = (function() {
       groups[item.folderPath].files.push(item.file);
     }
     var keys = Object.keys(groups);
+    var rejected = [];
     for (var k = 0; k < keys.length; k++) {
-      var group = groups[keys[k]];
-      var imageFiles = filterImageFiles(group.files);
-      if (imageFiles.length > 0) {
-        var exists = galleries.some(function(g) { return g.path === group.path; });
-        if (!exists) {
-          galleries.push({
-            name: group.name,
-            folderName: group.name,
-            path: group.path,
-            files: imageFiles
-          });
-        }
-      }
+      rejected.push.apply(rejected, await _addGroup(groups[keys[k]], galleries));
     }
+    return rejected;
   }
 
   // Wire drag-and-drop on dropZone, browse-button click, and folderInput change.
@@ -78,6 +85,8 @@ var GalleryPage = (function() {
     var addFolderBtn = opts.addFolderBtn;
     var galleries  = opts.galleries;
     var onChange   = opts.onChange || function() {};
+    // Called with the filenames rejected by the content check, once per batch.
+    var onReject   = opts.onReject || function() {};
 
     dropZone.addEventListener('dragover', function(e) {
       e.preventDefault();
@@ -96,10 +105,12 @@ var GalleryPage = (function() {
         var entry = items[i].webkitGetAsEntry();
         if (entry && entry.isDirectory) entries.push(entry);
       }
+      var rejected = [];
       for (var i = 0; i < entries.length; i++) {
-        await _addDroppedFolder(entries[i], galleries);
+        rejected.push.apply(rejected, await _addDroppedFolder(entries[i], galleries));
       }
       onChange();
+      if (rejected.length > 0) onReject(rejected);
     });
     dropZone.addEventListener('click', function() { folderInput.click(); });
 
@@ -107,26 +118,18 @@ var GalleryPage = (function() {
       addFolderBtn.addEventListener('click', function() { folderInput.click(); });
     }
 
-    folderInput.addEventListener('change', function(e) {
+    folderInput.addEventListener('change', async function(e) {
+      // Copy the list before awaiting — clearing the input below invalidates it.
       var files = Array.from(e.target.files);
+      folderInput.value = '';
       if (files.length === 0) return;
       var grouped = groupFilesByFolder(files);
-      grouped.forEach(function(group) {
-        var imageFiles = filterImageFiles(group.files);
-        if (imageFiles.length > 0) {
-          var exists = galleries.some(function(g) { return g.path === group.path; });
-          if (!exists) {
-            galleries.push({
-              name: group.name,
-              folderName: group.name,
-              path: group.path,
-              files: imageFiles
-            });
-          }
-        }
-      });
+      var rejected = [];
+      for (var i = 0; i < grouped.length; i++) {
+        rejected.push.apply(rejected, await _addGroup(grouped[i], galleries));
+      }
       onChange();
-      folderInput.value = '';
+      if (rejected.length > 0) onReject(rejected);
     });
   }
 

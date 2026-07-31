@@ -413,6 +413,20 @@
     }
     .resolution-notice svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; }
     .resolution-notice strong { font-weight: 600; }
+    .resolution-notice.rejected-notice {
+      background: color-mix(in oklab, #c0392b 12%, transparent);
+      border-color: color-mix(in oklab, #c0392b 34%, transparent);
+      color: #8c2620;
+    }
+    /* Every rejected name is listed; a long list scrolls rather than pushing
+       the rest of the page down. */
+    .rejected-notice ul {
+      margin: 0.4rem 0 0;
+      padding-left: 1.1rem;
+      max-height: 9rem;
+      overflow-y: auto;
+    }
+    .rejected-notice li { word-break: break-all; }
     .import-clear {
       background: none;
       border: none;
@@ -689,6 +703,7 @@
       </div>
 
       <div class="resolution-notice" id="resolutionNotice" style="display: none;"></div>
+      <div class="resolution-notice rejected-notice" id="rejectedNotice" style="display: none;"></div>
     </div>
 
     <!-- Gallery Settings -->
@@ -868,6 +883,15 @@
     const RESOLUTION_WARN_PX = 1600;
     const fileMaxSide = new WeakMap(); // File -> longest pixel side (cached decode)
 
+    // Names refused by the content check, accumulated across folder picks. These
+    // files never entered `galleries`, so removing a room doesn't affect them.
+    let rejectedFiles = [];
+
+    const WARN_SVG =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+      '<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>' +
+      '<line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+
     // DOM Elements
     const importBtn = document.getElementById('importBtn');
     const importInput = document.getElementById('importInput');
@@ -893,13 +917,18 @@
     const zipProgressFill = document.getElementById('zipProgressFill');
     const zipProgressText = document.getElementById('zipProgressText');
     const resolutionNotice = document.getElementById('resolutionNotice');
+    const rejectedNotice = document.getElementById('rejectedNotice');
 
     GalleryPage.setupDropZone({
       dropZone: document.getElementById('dropZone'),
       folderInput: folderInput,
       addFolderBtn: addFolderBtn,
       galleries: galleries,
-      onChange: function() { updateGalleryList(); }
+      onChange: function() { updateGalleryList(); },
+      onReject: function(names) {
+        rejectedFiles = rejectedFiles.concat(names);
+        renderRejectedNotice();
+      }
     });
 
     // --- CDN mode: import existing building_v2.json ---
@@ -977,8 +1006,10 @@
           generatedJSON = await buildGalleryJSON(galleries, progressCB, styleConfig);
         }
 
-        // Build file map for preview blob URLs
-        window.openvgal_fileMap = buildFileMap(galleries);
+        // Preview blob URLs and the ZIP's image list both come from here. Pass
+        // the manifest so the pack carries exactly what the layout placed —
+        // anything the builder dropped must not ship in the archive either.
+        window.openvgal_fileMap = buildFileMap(galleries, generatedJSON);
 
         // Show results
         showResults();
@@ -1402,7 +1433,7 @@
             var d = await getImageDimensions(f);
             fileMaxSide.set(f, Math.max(d.width, d.height));
           } catch (e) {
-            fileMaxSide.set(f, 0); // undecodable (e.g. TIFF) — don't warn
+            fileMaxSide.set(f, 0); // screening should have caught this — don't warn
           }
         }
       }
@@ -1425,14 +1456,41 @@
       }
       var noun = count === 1 ? 'image is' : 'images are';
       resolutionNotice.innerHTML =
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
-        '<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>' +
-        '<line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' +
+        WARN_SVG +
         '<span><strong>' + count + ' ' + noun + ' larger than ' + RESOLUTION_WARN_PX + ' px</strong> ' +
         'on the longest side. Around ' + RESOLUTION_WARN_PX + ' px is plenty for on-screen viewing — larger ' +
         'files make your gallery slower to load with little to no visual gain. Start smaller and increase ' +
         'only if the quality isn\'t enough.</span>';
       resolutionNotice.style.display = 'flex';
+    }
+
+    // Files the content check refused: not a JPEG/PNG/WebP container, whatever
+    // the extension claimed. Named one by one — in a folder of hundreds a
+    // generic "some files were skipped" leaves the user nothing to act on.
+    function renderRejectedNotice() {
+      if (!rejectedNotice) return;
+      rejectedNotice.innerHTML = '';
+      if (rejectedFiles.length === 0) {
+        rejectedNotice.style.display = 'none';
+        return;
+      }
+      var noun = rejectedFiles.length === 1 ? 'file was' : 'files were';
+      var span = document.createElement('span');
+      var head = document.createElement('strong');
+      head.textContent = rejectedFiles.length + ' ' + noun + ' skipped';
+      span.appendChild(head);
+      span.appendChild(document.createTextNode(
+        ' — not a JPEG, PNG or WebP image. Convert them and add the folder again.'));
+      var list = document.createElement('ul');
+      rejectedFiles.forEach(function(name) {
+        var li = document.createElement('li');
+        li.textContent = name; // filenames are user data — never innerHTML
+        list.appendChild(li);
+      });
+      span.appendChild(list);
+      rejectedNotice.innerHTML = WARN_SVG;
+      rejectedNotice.appendChild(span);
+      rejectedNotice.style.display = 'flex';
     }
 
     function updateGalleryList() {

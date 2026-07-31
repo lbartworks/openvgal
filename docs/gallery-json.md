@@ -103,7 +103,7 @@ A door connects the current hall to another hall. The `resource` names the desti
 | `vector` | `[x, y]` normal — the vector to indicate from what direction should be visible. |
 | `metadata` | Hover/plaque text. Title and subtitle are split on `\n`. |
 
-Supported image formats: `jpg`, `jpeg`, `png`, `tif`, `tiff`, `webp`.
+Supported image formats: `jpg`, `jpeg`, `png`, `webp`.
 
 ---
 

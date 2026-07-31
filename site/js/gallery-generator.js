@@ -7,7 +7,14 @@
  *   - styles:        visual variants (each provides a glb per shape)
  */
 
-const IMAGE_TYPES = ['jpg', 'jpeg', 'png', 'tif', 'tiff', 'webp'];
+const IMAGE_TYPES = ['jpg', 'jpeg', 'png', 'webp'];
+
+// Extensions a user plausibly meant as artwork. Anything outside this set
+// (README.txt, .DS_Store, sidecar files) is ignored in silence; anything inside
+// it that fails screenImageFiles is reported back by name.
+const CANDIDATE_IMAGE_TYPES = IMAGE_TYPES.concat(
+  ['tif', 'tiff', 'heic', 'heif', 'bmp', 'gif', 'avif', 'svg', 'jfif']
+);
 
 // Viewer convention: 1 babylon m = 120/2.5 cm. Mirror of room_builder_aux.js SCENE_M_PER_CM.
 const SCENE_M_PER_CM = 2.5 / 120;
@@ -368,11 +375,57 @@ async function getImageDimensions(file) {
   });
 }
 
+function fileExtension(file) {
+  return file.name.split('.').pop().toLowerCase();
+}
+
 function filterImageFiles(files) {
   return Array.from(files).filter(function(file) {
-    const ext = file.name.split('.').pop().toLowerCase();
-    return IMAGE_TYPES.indexOf(ext) !== -1;
+    return IMAGE_TYPES.indexOf(fileExtension(file)) !== -1;
   });
+}
+
+// Container sniff on the first bytes. An extension says nothing about what is
+// actually inside — a HEIC or TIFF renamed to .jpg passes every name check and
+// then fails to decode in the browser, which is how an image ends up in the ZIP
+// but not on a wall. Only the three containers the viewer can show pass here.
+function isSupportedImageHeader(head) {
+  if (head.length >= 8 &&
+      head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4E && head[3] === 0x47 &&
+      head[4] === 0x0D && head[5] === 0x0A && head[6] === 0x1A && head[7] === 0x0A) return true; // PNG
+  if (head.length >= 3 && head[0] === 0xFF && head[1] === 0xD8 && head[2] === 0xFF) return true; // JPEG
+  if (head.length >= 12 &&
+      head[0] === 0x52 && head[1] === 0x49 && head[2] === 0x46 && head[3] === 0x46 &&   // 'RIFF'
+      head[8] === 0x57 && head[9] === 0x45 && head[10] === 0x42 && head[11] === 0x50) return true; // 'WEBP'
+  return false;
+}
+
+/**
+ * Split picked files into what can be packed and what cannot. A file is kept
+ * only when its extension is one we ship (the name reaches the server as-is, so
+ * it decides the served content type) AND its first bytes are a PNG/JPEG/WebP
+ * container. Files with no image-ish extension at all are dropped silently.
+ *
+ * @param {File[]|FileList} files
+ * @returns {Promise<{accepted: File[], rejected: string[]}>} rejected = names
+ */
+async function screenImageFiles(files) {
+  const accepted = [];
+  const rejected = [];
+  for (const file of Array.from(files)) {
+    const ext = fileExtension(file);
+    if (CANDIDATE_IMAGE_TYPES.indexOf(ext) === -1) continue;
+    let ok = false;
+    if (IMAGE_TYPES.indexOf(ext) !== -1) {
+      try {
+        ok = isSupportedImageHeader(new Uint8Array(await file.slice(0, 12).arrayBuffer()));
+      } catch (e) {
+        ok = false;
+      }
+    }
+    if (ok) accepted.push(file); else rejected.push(file.name);
+  }
+  return { accepted: accepted, rejected: rejected };
 }
 
 function getGalleryName(file) {
@@ -610,13 +663,40 @@ async function relayoutRoom(roomEntries, styleConfig, settings, options) {
   });
 }
 
-function buildFileMap(galleries) {
+// Every path the manifest references as artwork.
+function collectImagePaths(config) {
+  const paths = new Set();
+  for (const roomName of Object.keys(config || {})) {
+    const room = config[roomName];
+    if (!room || typeof room !== 'object') continue;
+    for (const key of Object.keys(room)) {
+      const entry = room[key];
+      if (entry && typeof entry === 'object' && entry.resource_type === 'image' && entry.resource) {
+        paths.add(entry.resource);
+      }
+    }
+  }
+  return paths;
+}
+
+/**
+ * Map manifest image path → File, for preview blob URLs and for the ZIP.
+ *
+ * Pass the built manifest as `config`: the pack then carries exactly what the
+ * layout placed. Without it this walks extensions alone, which reads no bytes
+ * and so cannot know that buildGalleryJSON dropped a file it couldn't decode —
+ * that file would be absent from the manifest and present in the archive.
+ */
+function buildFileMap(galleries, config) {
+  const wanted = config ? collectImagePaths(config) : null;
   const fileMap = {};
   for (const gallery of galleries) {
     const folderName = gallery.folderName || gallery.name;
     const imageFiles = filterImageFiles(gallery.files);
     for (const file of imageFiles) {
-      fileMap['/' + folderName + '/' + file.name] = file;
+      const path = '/' + folderName + '/' + file.name;
+      if (wanted && !wanted.has(path)) continue;
+      fileMap[path] = file;
     }
   }
   return fileMap;
@@ -641,6 +721,8 @@ if (typeof module !== 'undefined' && module.exports) {
     packIntoRooms,
     buildFileMap,
     filterImageFiles,
+    screenImageFiles,
+    isSupportedImageHeader,
     groupFilesByFolder,
     getImageDimensions,
     extractOccupanciesFromGLB,

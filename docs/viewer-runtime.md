@@ -87,7 +87,7 @@ This gives a live preview without writing any files.
 - **`file://` doesn't work** in Chrome (cross-origin iframe restrictions). Always serve over HTTP.
 - **Cross-origin checks:** `doesFileExist()` requires a 2xx status to work across origins.
 - **`overlay.html`** is fetched at runtime by `overlay.js` and must be present in any deployment. `overlay.js` tries `cdn_base + '/core/overlay.html'` first and falls back to a local `overlay.html`.
-- **Image formats:** jpg, jpeg, png, tif, tiff, webp.
+- **Image formats:** jpg, jpeg, png, webp.
 
 ---
 
