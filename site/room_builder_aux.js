@@ -76,8 +76,10 @@ var plaque_builder = function(name, item_position, item_size, vector, metadata, 
 	var titleText = lines[0] || '';
 	var subtitleText = lines.length > 1 ? lines[1] : '';
 
-	// Plaque dimensions proportional to artwork
-	var plaqueW = item_size.width * 0.38;
+	// Plaques are a fixed physical size, matching what an M-bucket artwork
+	// (120 cm longest edge = 2.5 babylon m) used to produce. Sizing them off
+	// item_size made the label — and its text — grow and shrink with the image.
+	var plaqueW = 2.5 * 0.38;
 	var plaqueH = plaqueW * 0.3;
 	var texW = 512;
 	var texH = Math.round(texW * (plaqueH / plaqueW));
