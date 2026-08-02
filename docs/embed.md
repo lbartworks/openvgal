@@ -15,19 +15,29 @@ When `?embed=1` is present:
   only **Preview** and **Customize**. Export is **parent-driven**: the host
   owns the save actions and asks for the ZIP by posting
   `openvgal:export-request`; the child builds it and posts the blob back via
-  `openvgal:zip-ready`. The host provides the real download.
+  `openvgal:zip-ready`, or `openvgal:export-failed` if it could not. The host
+  provides the real download.
 - The page does not open the `ready.html` confirmation tab.
 - The step-3 **Preview** overlay requests fullscreen on itself (the host iframe
   must `allow="fullscreen"`), because the parent-driven iframe height makes an
   in-page fixed overlay taller than the visible screen. Exiting fullscreen
   (Esc or Close Preview) tears the preview down.
 
-Embed mode always builds the **cloud** flavor (ADR-0008): a kernel-only ZIP of
-`building_v2.json` + the user images at `room/filename` (no leading slash, no
-`images/` segment), with every other asset family (engine, templates, materials)
-referenced rather than bundled. The host uploads this to storage, which keys each
-image as `{artist}/{hall}/{room}/{filename}`. `?cdn=1` has no effect on the export
-in embed mode — the cloud kernel is the only embed delivery.
+The **host names the flavor** on `openvgal:export-request`; absent or unknown
+means `cloud`, so a host that never sends the field gets the kernel it always
+got. The three flavors are ADR-0008's:
+
+- **`cloud`** — a kernel-only ZIP of `building_v2.json` + the user images at
+  `room/filename` (no leading slash, no `images/` segment), with every other
+  asset family (engine, templates, materials) referenced rather than bundled.
+  The host uploads this to storage, which keys each image as
+  `{artist}/{hall}/{room}/{filename}`.
+- **`full`** — the self-contained pack: the kernel plus the engine, templates
+  and materials, so the artist can unzip it and open `viewer.html` offline.
+- **`cdn`** — the thin client: kernel plus an `index.html` that loads the viewer
+  from `cdn.openvgal.com`.
+
+`?cdn=1` has no effect on the export in embed mode — the request decides.
 
 ## URL
 
@@ -55,13 +65,14 @@ unchanged.
    `openvgal:gallery-ready` — a gallery now exists to export. The parent enables
    its save group.
 6. **User clicks a Save action.** The parent posts `openvgal:export-request` to
-   the child.
-7. **Child posts zero or more `openvgal:export-progress`** as it packages, then
-   exactly one `openvgal:zip-ready`. Progress is advisory — a host may ignore it
-   and render its own indeterminate state.
-8. **Child builds the ZIP and posts `openvgal:zip-ready`** with the blob and
-   metadata. The parent uploads it (draft) or downloads it (local copy). One
-   `zip-ready` per `export-request`.
+   the child, naming the `flavor` that action wants.
+7. **Child posts zero or more `openvgal:export-progress`** as it packages.
+   Progress is advisory — a host may ignore it and render its own indeterminate
+   state.
+8. **Child replies exactly once.** Either `openvgal:zip-ready` with the blob and
+   metadata — the parent uploads it (draft) or downloads it (local copy) — or
+   `openvgal:export-failed` if the pack could not be built. Every
+   `export-request` ends in exactly one of the two: never both, never neither.
 
 ## Messages
 
@@ -115,11 +126,11 @@ group. Re-sent if the user rebuilds.
 }
 ```
 
-Posted zero or more times between an `openvgal:export-request` and its
-`openvgal:zip-ready`, as the child packages the gallery. `percent` runs 0-100
-and never decreases within a single export. This message is **advisory** — a
-host may ignore it and show its own indeterminate state; the authoritative
-end-of-export signal is `openvgal:zip-ready`.
+Posted zero or more times between an `openvgal:export-request` and its reply, as
+the child packages the gallery. `percent` runs 0-100 and never decreases within a
+single export. This message is **advisory** — a host may ignore it and show its
+own indeterminate state; the authoritative end-of-export signals are
+`openvgal:zip-ready` and `openvgal:export-failed`.
 
 #### `openvgal:zip-ready`
 
@@ -128,19 +139,40 @@ end-of-export signal is `openvgal:zip-ready`.
   type: 'openvgal:zip-ready',
   zip: Blob,           // application/zip
   meta: {
-    count: number,     // number of artwork images in the gallery
+    count: number,      // number of artwork images in the gallery
     totalBytes: number, // blob.size
-    style: string | null // style key (e.g. 'classic'), or null if unset
+    style: string | null, // style key (e.g. 'classic'), or null if unset
+    flavor: string      // 'full' | 'cdn' | 'cloud' — what was actually built
   }
 }
 ```
 
 Sent in response to each `openvgal:export-request` — one blob per request
-(the export button is hidden in embed mode). The blob is the cloud kernel —
-`building_v2.json` + the user images at `room/filename`, nothing else. It is
-transferred by structured clone (no transferable list needed) and reflects the
-current state of the gallery, including any Customize edits made before the
-request.
+(the export button is hidden in embed mode). The blob's contents are the
+`meta.flavor` pack described above. It is transferred by structured clone (no
+transferable list needed) and reflects the current state of the gallery,
+including any Customize edits made before the request.
+
+**Check `meta.flavor`.** A builder deployed before this field existed answers
+every request with the cloud kernel and no `flavor` at all, so a host that asked
+for `full` and does not check will hand an artist a kernel that does not open.
+
+#### `openvgal:export-failed`
+
+```js
+{
+  type: 'openvgal:export-failed',
+  message: string  // human-readable reason, e.g. which files could not be fetched
+}
+```
+
+Sent instead of `openvgal:zip-ready` when the pack could not be built — most
+often because a required asset (a template, a material, an engine file) could
+not be fetched. The child refuses to hand over an incomplete gallery rather than
+produce a ZIP that fails at view time. Also sent if an `export-request` arrives
+before any gallery has been generated. Exactly one of `zip-ready` or
+`export-failed` follows every request, so a host may treat this as the signal to
+clear its saving state and show the message.
 
 ### Parent → child
 
@@ -159,14 +191,20 @@ fields may be added later.
 #### `openvgal:export-request`
 
 ```js
-{ type: 'openvgal:export-request' }
+{
+  type: 'openvgal:export-request',
+  flavor?: 'full' | 'cdn' | 'cloud'  // default: 'cloud'
+}
 ```
 
 Asks the child to build the ZIP. Sent when the user clicks a parent-owned Save
-action (e.g. "Save as draft" or "Save local copy"). The child builds the cloud
-kernel (`building_v2.json` + images at `room/filename`) and replies with
-`openvgal:zip-ready`. Only meaningful after `openvgal:gallery-ready`; if no
-gallery has been built yet the request is a no-op.
+action (e.g. "Save as draft" or "Save local copy"). `flavor` names the pack that
+action wants — a draft upload wants `cloud`, handing the artist their gallery
+wants `full`. Absent or unrecognised values mean `cloud`.
+
+The child replies with exactly one `openvgal:zip-ready` or
+`openvgal:export-failed`. Only meaningful after `openvgal:gallery-ready`; if no
+gallery has been built yet the reply is `export-failed`.
 
 ## Origin handling
 
@@ -188,12 +226,15 @@ python -m http.server 8080
 
 It iframes `site/create/index.html?embed=1` and logs the child→parent messages
 (`openvgal:ready`, `openvgal:resize`, `openvgal:gallery-ready`,
-`openvgal:zip-ready` plus the blob size). Build a gallery in the iframe; once
-`gallery-ready` arrives the harness enables its **Request export** button, which
-posts `openvgal:export-request` and prompts the child to reply with
-`openvgal:zip-ready` (with a download link to sanity-check the ZIP). The response
-is the cloud kernel — open the ZIP to confirm it holds only `building_v2.json`
-and the images at `room/filename`.
+`openvgal:zip-ready` plus the blob size and `meta.flavor`, and
+`openvgal:export-failed`). Build a gallery in the iframe; once `gallery-ready`
+arrives the harness enables its **Request export** button, which posts
+`openvgal:export-request` with the flavor chosen in the **export flavor**
+dropdown — including a *(no flavor field)* option that reproduces an old host —
+and prompts the child to reply (with a download link to sanity-check the ZIP).
+Open the ZIP to confirm it matches the flavor asked for: `cloud` holds only
+`building_v2.json` and the images at `room/filename`, while `full` also carries
+`viewer.html`, `templates/`, `materials/` and `babylon.js`.
 
 ## Stability
 

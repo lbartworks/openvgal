@@ -846,7 +846,8 @@
         } else if (msg.type === 'openvgal:export-request') {
           // Parent clicked a Save action. Run the same zip-build path the
           // Export button ran; deliverZip posts openvgal:zip-ready back.
-          buildAndDeliverZip();
+          // The host names the flavor (docs/embed.md); absent/unknown = cloud.
+          buildAndDeliverZip(msg.flavor);
         }
       });
       // Post our content height so the parent can size the iframe to fit (no
@@ -1028,12 +1029,31 @@
       }
     });
 
+    // Tell the parent an export request produced nothing. In embed mode every
+    // openvgal:export-request must end in exactly one reply — zip-ready or
+    // export-failed — or the host waits forever (docs/embed.md).
+    function postExportFailed(message) {
+      try {
+        window.parent.postMessage({
+          type: 'openvgal:export-failed',
+          message: message
+        }, '*');
+      } catch (_) {}
+    }
+
     // ZIP Download - bundles everything needed to deploy. Triggered by the
     // Export button (standard mode) or by openvgal:export-request from the
     // parent (embed mode). deliverZip handles the handoff: browser download in
     // standard mode, postMessage(openvgal:zip-ready) in embed mode.
-    async function buildAndDeliverZip() {
-      if (!generatedJSON) return;
+    //
+    // requestedFlavor is honoured in embed mode only — see the flavor pick
+    // below. Standalone callers pass nothing.
+    async function buildAndDeliverZip(requestedFlavor) {
+      if (!generatedJSON) {
+        // Silently doing nothing leaves an embed host hanging on its request.
+        if (EMBED_MODE) postExportFailed('No gallery has been generated yet.');
+        return;
+      }
 
       // Open the ready page synchronously inside the click stack so mobile
       // browsers don't treat it as a deferred popup. Keeps tab order: download
@@ -1045,10 +1065,15 @@
       zipProgressContainer.style.display = 'block';
 
       try {
-        // Pick the delivery flavor (ADR-0008). Embed mode always produces the
-        // cloud kernel (manifest + images) for the parent to upload; otherwise
-        // ?cdn=1 picks the thin client and the default is the self-contained pack.
-        var flavor = EMBED_MODE ? 'cloud' : (CDN_OUTPUT_MODE ? 'cdn' : 'full');
+        // Pick the delivery flavor (ADR-0008). In embed mode the host names it
+        // on the request — its two Save actions want different packs — and
+        // anything unknown or absent means the cloud kernel, so a host that
+        // predates the field keeps getting exactly what it gets today.
+        // Standalone: ?cdn=1 picks the thin client, default is self-contained.
+        var flavor = EMBED_MODE
+          ? (requestedFlavor === 'full' || requestedFlavor === 'cdn' ||
+             requestedFlavor === 'cloud' ? requestedFlavor : 'cloud')
+          : (CDN_OUTPUT_MODE ? 'cdn' : 'full');
         await buildPack(generatedJSON, flavor, function(progress, message) {
           zipProgressFill.style.width = progress + '%';
           zipProgressText.textContent = message;
@@ -1075,12 +1100,17 @@
         }
         console.error('ZIP creation failed:', error);
         zipProgressText.textContent = 'Error: ' + error.message;
+        // buildPack throws on any unfetchable entry rather than hand over an
+        // incomplete gallery. The parent can't see the bar above, so this is
+        // the reply that closes out its request.
+        if (EMBED_MODE) postExportFailed(error.message);
       }
 
       downloadZipBtn.disabled = false;
     }
 
-    downloadZipBtn.addEventListener('click', buildAndDeliverZip);
+    // Wrapped: the listener would otherwise pass the click Event as the flavor.
+    downloadZipBtn.addEventListener('click', function() { buildAndDeliverZip(); });
 
     // ========================================================================
     // Unified pack builder — one kernel, three flavors (ADR-0008/ADR-0013).
@@ -1204,7 +1234,7 @@
         );
       });
 
-      deliverZip(blob, packFilename(flavor), config, onProgress);
+      deliverZip(blob, packFilename(flavor), config, onProgress, flavor);
     }
 
     // --- Extend an existing gallery (used by the cdn flavor) ---
@@ -1296,7 +1326,7 @@
     // In standard mode this triggers a browser download. In embed mode it posts
     // the blob to the parent and never downloads. Contract documented in
     // docs/embed.md.
-    function deliverZip(blob, filename, config, onProgress) {
+    function deliverZip(blob, filename, config, onProgress, flavor) {
       if (EMBED_MODE) {
         var stats = GalleryPage.computeStats(config);
         var sel = StylePicker.getSelected();
@@ -1307,11 +1337,18 @@
             meta: {
               count: stats.imageCount,
               totalBytes: blob.size,
-              style: sel ? sel.key : null
+              style: sel ? sel.key : null,
+              // What was actually built. A host asking for 'full' can tell a
+              // real pack from a kernel returned by a builder deployed before
+              // the flavor field existed, instead of shipping the kernel.
+              flavor: flavor
             }
           }, '*');
         } catch (e) {
+          // postMessage either delivered or threw, so nothing reached the
+          // parent — it is still waiting. Close its request out.
           console.warn('Embed mode: failed to post zip-ready to parent', e);
+          postExportFailed('Built the pack but could not hand it to the host: ' + e.message);
         }
         onProgress(100, 'Sent to parent.');
         return;

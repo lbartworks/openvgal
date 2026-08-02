@@ -16,6 +16,7 @@
     #log { font-family: ui-monospace, monospace; white-space: pre-wrap; word-break: break-word; line-height: 1.45; }
     .ev { border-left: 3px solid #6366f1; padding: 0.3rem 0.5rem; margin: 0.3rem 0; background: #1c1c1c; border-radius: 0 4px 4px 0; }
     .ev.zip { border-left-color: #4caf50; }
+    .ev.fail { border-left-color: #e5484d; }
     .ev .ts { color: #71717a; font-size: 0.7rem; }
     .ev .ty { color: #a5b4fc; font-weight: 600; }
   </style>
@@ -33,6 +34,15 @@
     <label>
       preselect style
       <input id="preselect" placeholder="(none)" style="width: 8rem" />
+    </label>
+    <label>
+      export flavor
+      <select id="flavor">
+        <option value="cloud">cloud (kernel)</option>
+        <option value="full">full (self-contained)</option>
+        <option value="cdn">cdn (thin client)</option>
+        <option value="">(no flavor field — old host)</option>
+      </select>
     </label>
     <button id="export" disabled>Request export</button>
     <button id="reload">Reload iframe</button>
@@ -52,6 +62,7 @@
     const modeSel = document.getElementById('mode');
     const preselect = document.getElementById('preselect');
     const exportBtn = document.getElementById('export');
+    const flavorSel = document.getElementById('flavor');
 
     // Serve this from the repo root via `python -m http.server 8080` and open
     // http://localhost:8080/docs/embed-test.html so the iframe URL resolves.
@@ -95,10 +106,21 @@
         return;
       }
 
+      if (msg.type === 'openvgal:export-failed') {
+        entry('openvgal:export-failed', '<code>' + (msg.message || '(no message)') + '</code>', 'fail');
+        return;
+      }
+
       if (msg.type === 'openvgal:zip-ready') {
         const meta = msg.meta || {};
         const sizeKb = msg.zip && msg.zip.size ? (msg.zip.size / 1024).toFixed(1) + ' kB' : '?';
-        const body = 'blob size: <strong>' + sizeKb + '</strong>' +
+        // A builder deployed before the flavor field answers everything with
+        // the cloud kernel — say so loudly rather than let it pass as 'full'.
+        const flavor = meta.flavor
+          ? '<strong>' + meta.flavor + '</strong>'
+          : '<strong style="color:#e5a50a">absent (pre-flavor builder → cloud kernel)</strong>';
+        const body = 'flavor: ' + flavor +
+                     '<br>blob size: <strong>' + sizeKb + '</strong>' +
                      '<br>meta: <code>' + JSON.stringify(meta) + '</code>';
         entry('openvgal:zip-ready', body, 'zip');
         // Offer a download so we can sanity-check the produced ZIP.
@@ -119,8 +141,13 @@
     });
 
     exportBtn.addEventListener('click', () => {
-      frame.contentWindow.postMessage({ type: 'openvgal:export-request' }, '*');
-      entry('→ openvgal:export-request', '');
+      // The empty option omits the field entirely, reproducing a host built
+      // against the pre-flavor contract.
+      const msg = { type: 'openvgal:export-request' };
+      if (flavorSel.value) msg.flavor = flavorSel.value;
+      frame.contentWindow.postMessage(msg, '*');
+      entry('→ openvgal:export-request', 'flavor: <code>' +
+        (flavorSel.value || '(omitted)') + '</code>');
     });
     document.getElementById('reload').addEventListener('click', () => {
       exportBtn.disabled = true;
