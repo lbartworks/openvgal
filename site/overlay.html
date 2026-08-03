@@ -2,11 +2,6 @@
     <div class="overlay-section" id="artwork-section">
         <p>Artwork</p>
         <p id="artwork-info"></p>
-        <div class="action-buttons">
-            <button class="action-button" disabled onclick="CB_buy()">Buy print</button>
-            <button class="action-button" disabled onclick="CB_mint()">Mint NFT</button>
-            <button class="action-button like-button" disabled onclick="CB_toggleLike()">&#x2764;</button>
-        </div>
     </div>
     <div class="overlay-section" id="navigation-section">
         <p>Manual navigation</p>
@@ -33,6 +28,24 @@
             <input type="checkbox" id="plaquesToggle" onchange="if(typeof togglePlaques==='function')togglePlaques(this)" style="accent-color:oklch(0.66 0.075 64);"> Plaques
         </label>
     </div>
+    <!-- Canonical "open threshold" mark, inlined: the overlay is injected into
+         pages that don't define the <symbol>, so <use> has nothing to reference. -->
+    <a id="overlay-attribution" href="https://openvgal.com" target="_blank" rel="noopener">
+        <svg viewBox="0 0 256 256" aria-hidden="true" focusable="false">
+            <polygon points="35.84,35.84 220.16,35.84 161.18,87.14 94.82,87.14" fill="oklch(0.985 0.004 80)"/>
+            <polygon points="35.84,35.84 94.82,87.14 94.82,153.5 35.84,220.16" fill="oklch(0.995 0.002 80)"/>
+            <polygon points="220.16,35.84 161.18,87.14 161.18,153.5 220.16,220.16" fill="oklch(0.995 0.002 80)"/>
+            <polygon points="35.84,220.16 220.16,220.16 161.18,153.5 94.82,153.5" fill="oklch(0.78 0.065 68)"/>
+            <rect x="94.82" y="87.14" width="66.36" height="66.36" fill="oklch(0.985 0.004 80)"/>
+            <line x1="35.84" y1="35.84" x2="94.82" y2="87.14" stroke="oklch(0.16 0.01 270)" stroke-width="4.84"/>
+            <line x1="220.16" y1="35.84" x2="161.18" y2="87.14" stroke="oklch(0.16 0.01 270)" stroke-width="4.84"/>
+            <line x1="35.84" y1="220.16" x2="94.82" y2="153.5" stroke="oklch(0.16 0.01 270)" stroke-width="4.84"/>
+            <line x1="220.16" y1="220.16" x2="161.18" y2="153.5" stroke="oklch(0.16 0.01 270)" stroke-width="4.84"/>
+            <rect x="94.82" y="87.14" width="66.36" height="66.36" fill="none" stroke="oklch(0.16 0.01 270)" stroke-width="5.76"/>
+            <rect x="35.84" y="35.84" width="184.32" height="184.32" fill="none" stroke="oklch(0.16 0.01 270)" stroke-width="6.91"/>
+        </svg>
+        <span class="attribution-word">Made with OpenVGal</span>
+    </a>
 </div>
 
 <div id="help-popup">

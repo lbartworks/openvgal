@@ -9,7 +9,6 @@
     --bg-btn-hover: rgba(255, 255, 255, 0.4);
 
     --text-light: white;
-    --text-liked: red;
 
     --border-light: 1px solid rgba(255, 255, 255, 0.3);
     --border-btn: 1px solid rgba(255, 255, 255, 0.5);
@@ -81,24 +80,39 @@
     font-size: 18px;
 }
 
+/* Credit line, not a fourth control: sits in the bar's flow after the last
+   section, takes only the width it needs and never grows. */
+#overlay-attribution {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding-left: 20px;
+    font-size: 0.7rem;
+    color: #ccc;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+#overlay-attribution svg {
+    display: block;
+    width: 18px;
+    height: 18px;
+}
+
+#overlay-attribution:hover {
+    color: var(--text-light);
+}
+
 .nav-buttons,
-.action-buttons,
 .language-buttons {
     display: flex;
     justify-content: center;
     align-items: center;
 }
 
-.action-buttons,
 .language-buttons {
     gap: 10px;
-}
-
-.action-buttons {
-    margin-top: 10px;
-}
-
-.language-buttons {
     margin-bottom: 20px;
 }
 
@@ -115,8 +129,7 @@
 .nav-button,
 .help-button,
 .lang-button,
-.close-button,
-.action-button {
+.close-button {
     background-color: var(--bg-btn);
     border: var(--border-btn);
     border-radius: var(--radius-btn);
@@ -129,7 +142,6 @@
 .nav-button:hover,
 .help-button:hover,
 .close-button:hover,
-.action-button:hover,
 .lang-button.active {
     background-color: var(--bg-btn-hover);
 }
@@ -147,8 +159,7 @@
 }
 
 .help-button,
-.lang-button,
-.action-button {
+.lang-button {
     padding: 8px 15px;
 }
 
@@ -170,15 +181,6 @@
     border-color: #6366f1;
     background-color: rgba(99, 102, 241, 0.3);
     box-shadow: 0 0 8px rgba(99, 102, 241, 0.6);
-}
-
-/* Special button styles (icon-style) */
-.like-button {
-    color: var(--text-light);
-}
-
-.like-button.liked {
-    color: var(--text-liked);
 }
 
 /* ==========================================================================
@@ -227,14 +229,18 @@
         margin-bottom: 8px;
     }
 
-    .action-button {
-        min-height: 60px;
-        gap: 4px;
+    /* Portrait budget: the mark yields, the bar's layout never does — the glyph
+       alone stays as the link rather than wrapping the bar to two lines. */
+    #overlay-attribution {
+        padding-left: 8px;
+    }
+
+    #overlay-attribution .attribution-word {
+        display: none;
     }
 
     .nav-button,
-    .help-button,
-    .action-button {
+    .help-button {
         font-size: 16px;
     }
 

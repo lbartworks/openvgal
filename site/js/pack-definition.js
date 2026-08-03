@@ -232,6 +232,7 @@
       '├── materials/          # Textures and materials\n' +
       folders.map(function(k) { return '├── ' + k + '/               # Your images'; }).join('\n') + '\n' +
       '├── overlay.js          # UI overlay\n' +
+      '├── overlay.html        # UI overlay markup\n' +
       '├── overlay.css         # UI styles\n' +
       '└── babylon.js          # 3D engine\n```\n\n' +
       '## Deploying to a Subfolder\n\n' +
@@ -245,6 +246,9 @@
       'Replace `materials/logo.png` with your own image.\n' +
       'Use white artwork on a black background (the white areas will glow).\n' +
       'Recommended size: 1024x512 px, PNG format.\n\n' +
+      '## Attribution\n\n' +
+      'This pack resolves `overlay.html` locally, so removing the\n' +
+      '`Made with OpenVGal` link from that file removes it from your gallery (MIT licence).\n\n' +
       '## Need Help?\n\n' +
       'Visit https://openvgal.com for documentation and support.\n\n' +
       'Generated with OpenVGAL Generator\n';
@@ -273,7 +277,9 @@
       '  on black background, 1024x512 px recommended. The viewer checks for a local\n' +
       '  logo first, then falls back to the CDN default.\n' +
       '- **Custom overlay**: Add `overlay.js` next to index.html to override the\n' +
-      '  default CDN overlay behavior.\n\n' +
+      '  default CDN overlay behavior.\n' +
+      '- **Attribution**: the overlay markup comes from the CDN, so removing the\n' +
+      '  `Made with OpenVGal` link means editing your own `overlay.js` (MIT licence).\n\n' +
       '## Need the self-contained version?\n\n' +
       'Visit https://openvgal.com/create/ for a ZIP that includes all code and\n' +
       'works offline (no CDN dependency).\n\n' +

@@ -1,13 +1,5 @@
 // Overlay functionality
 // callbacks
-function CB_toggleLike() {
-    const likeButton = document.querySelector('.like-button');
-    likeButton.classList.toggle('liked');
-}
-
-function CB_buy(){};
-function CB_mint(){};
-
 function CB_artwork_picked(index) {
 	return function() {
 		manual_navigation_idx = index;
@@ -279,10 +271,6 @@ function CB_cinematic_visit(){
 function showInfoBox(title) {
     const el = document.getElementById("artwork-info");
     if (el) el.innerText = title;
-    //enable action buttons
-    document.querySelectorAll('.action-button').forEach(button => {
-        button.disabled = false;
-    });
 }
 
 function hideInfoBox() {
@@ -291,14 +279,6 @@ function hideInfoBox() {
     if (typeof stopCinematicVisit === 'function') stopCinematicVisit();
     const el = document.getElementById("artwork-info");
     if (el) el.innerText = "";
-    //disable action buttons. Called when entering a new gallery
-    document.querySelectorAll('.action-button').forEach(button => {
-        button.disabled = true;
-    });
-    const likeButton = document.querySelector('.like-button');
-    if (likeButton) {
-        likeButton.classList.remove('liked');
-    }
 }
 
 
