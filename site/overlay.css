@@ -34,6 +34,7 @@
     color: var(--text-light);
     font-family: 'Arial', sans-serif;
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
     padding: 10px 20px;
@@ -71,7 +72,9 @@
     text-align: center;
 }
 
-.overlay-section:last-child {
+/* Last of type, not last child: the mark is the bar's last child but no divider
+   should trail the final section. */
+.overlay-section:last-of-type {
     border-right: none;
 }
 
@@ -80,14 +83,17 @@
     font-size: 18px;
 }
 
-/* Credit line, not a fourth control: sits in the bar's flow after the last
-   section, takes only the width it needs and never grows. */
+/* Credit line, not a fourth control: it wraps to its own row under the
+   sections, so the bar keeps the width the controls need. */
 #overlay-attribution {
-    flex: 0 0 auto;
+    flex: 0 0 100%;
     display: flex;
+    justify-content: center;
     align-items: center;
     gap: 0.4rem;
-    padding-left: 20px;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: var(--border-light);
     font-size: 0.7rem;
     color: #ccc;
     text-decoration: none;
@@ -229,14 +235,10 @@
         margin-bottom: 8px;
     }
 
-    /* Portrait budget: the mark yields, the bar's layout never does — the glyph
-       alone stays as the link rather than wrapping the bar to two lines. */
+    /* On its own row the mark costs the bar no width, so the words stay. */
     #overlay-attribution {
-        padding-left: 8px;
-    }
-
-    #overlay-attribution .attribution-word {
-        display: none;
+        margin-top: 8px;
+        padding-top: 6px;
     }
 
     .nav-button,
