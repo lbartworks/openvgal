@@ -1,7 +1,7 @@
 <img width="1232" height="842" alt="image" src="https://github.com/user-attachments/assets/1cba2f50-cf57-41e7-9259-95a0ca4bd6c8" />
 
 
-# OpenVGAL v4.0.13
+# OpenVGAL v4.1.0
 
 Open-source 3D virtual gallery platform built on [Babylon.js](https://www.babylonjs.com/). Create interactive WebGL art galleries from your images, download a ZIP, host it anywhere. Version 4 is a massive upgrade with more realistic light and updated templates leaveraging the new light system.
 
@@ -151,6 +151,10 @@ Note: the `file://` protocol will not work in Chrome due to cross-origin iframe 
 ---
 
 ## Changelog
+
+**v4.1.0 (August 2026)**
+- Overlay bar redesign: the artwork panel's three dead buttons (Buy print, Mint NFT, like) are gone, and a "Made with OpenVGal" mark now sits on its own row under the controls, linking to openvgal.com. Removing the dead controls is also what stopped the bar overflowing on portrait phones
+- Both pack READMEs document how to remove the mark, and they differ by flavor: the self-contained ZIP resolves `overlay.html` locally, the CDN-first pack needs `overlay.js`
 
 **v4.0.0 (July 2026)**
 - Baked lightmap lighting: template galleries bake per-surface lightmaps at load time — spotlights and fixture area lights, hemispheric ambient, and soft shadows — then freeze materials for performance. Fixtures become decorative; the bake is the lighting
