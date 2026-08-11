@@ -852,16 +852,20 @@
       });
       // Post our content height so the parent can size the iframe to fit (no
       // 100dvh band). Fires on step transitions, customize open/close, etc.
+      // Measure the wrapper, not documentElement: the root's scrollHeight is
+      // floored at the frame height the host last set from us, so it can only
+      // ratchet upward and never reports a shrink.
+      var resizeTarget = document.querySelector('.page-wrapper');
       var postResize = function() {
         try {
           window.parent.postMessage({
             type: 'openvgal:resize',
-            height: document.documentElement.scrollHeight
+            height: Math.ceil(resizeTarget.getBoundingClientRect().bottom + window.scrollY)
           }, '*');
         } catch (_) {}
       };
       if (typeof ResizeObserver === 'function') {
-        new ResizeObserver(postResize).observe(document.documentElement);
+        new ResizeObserver(postResize).observe(resizeTarget);
       }
       // Tell the parent we're up, then post an initial height. Hosts typically
       // wait for openvgal:ready before sending openvgal:configure.

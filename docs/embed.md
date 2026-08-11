@@ -58,9 +58,10 @@ unchanged.
    The child buffers and retries for ~3 s, so a configure sent immediately after
    `openvgal:ready` is safe.
 3. **(Optional) Parent posts `openvgal:configure`** to preselect a style.
-4. **Child posts `openvgal:resize`** as its content grows (step transitions,
-   customize open/close). The parent sizes the iframe to this height so there is
-   no empty band beneath the builder.
+4. **Child posts `openvgal:resize`** as its content grows *or shrinks* (step
+   transitions, customize open/close). The parent should set the iframe height
+   to this value rather than clamping it upward, so there is no empty band
+   beneath the builder after the content shrinks.
 5. **User builds the gallery.** On reaching step 3, the child posts
    `openvgal:gallery-ready` — a gallery now exists to export. The parent enables
    its save group.
@@ -93,12 +94,12 @@ configure listener is wired. Followed immediately by an initial
 ```js
 {
   type: 'openvgal:resize',
-  height: number  // document.documentElement.scrollHeight, in CSS pixels
+  height: number  // bottom edge of the builder's content wrapper, in CSS pixels
 }
 ```
 
 Posted whenever the builder's content height changes — driven by a
-`ResizeObserver` on the document element, plus one post right after
+`ResizeObserver` on the content wrapper, plus one post right after
 `openvgal:ready`. The parent applies this height to the iframe so the frame
 hugs the builder's content (no `100dvh` band, no empty panel).
 
