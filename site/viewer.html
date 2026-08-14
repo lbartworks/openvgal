@@ -7,18 +7,20 @@
 	<meta name="description" content="Explore a stunning 3D virtual tour of your art gallery. Experience interactive WebGL visuals with OpenVGal immersive 3D environment.">
 	<meta name="keywords" content="3D virtual gallery, WebGL environment, interactive 3D model, 3D virtual photo gallery, 3D virtual art gallery">
 	<meta name="robots" content="index, follow">
-	<link rel="canonical" href="https://openvgal.com/">
+	<!-- No static canonical or og:url. This file ships in self-host ZIPs and as
+	     cdn.openvgal.com/core/viewer.html, so its real address is only known at
+	     runtime. Both tags are created further down, and only when
+	     window.openvgal_location is an absolute https URL. -->
 	<!-- Open Graph -->
 	<meta property="og:title" content="Interactive 3D Virtual Gallery | OpenVGAL">
 	<meta property="og:description" content="Step into a fully immersive 3D environment. Explore our WebGL-powered virtual tour of an art gallery.">
-	<meta property="og:image" content="https://openvgal.com/preview.jpg">
-	<meta property="og:url" content="https://openvgal.com/">
+	<meta property="og:image" content="preview.jpg">
 	<meta property="og:type" content="website">
 	<!-- Twitter Card -->
 	<meta name="twitter:card" content="summary_large_image">
 	<meta name="twitter:title" content="3D Virtual Gallery | OpenVGAL">
 	<meta name="twitter:description" content="Experience an interactive 3D virtual gallery powered by WebGL. Explore now!">
-	<meta name="twitter:image" content="https://openvgal.com/preview.jpg">
+	<meta name="twitter:image" content="preview.jpg">
 	<!-- Structured Data -->
 	<script type="application/ld+json">
 	{
@@ -26,12 +28,10 @@
 		"@type": "VirtualTour",
 		"name": "3D Virtual Gallery",
 		"description": "An interactive WebGL-based 3D virtual gallery by OpenVGAL.",
-		"url": "https://openvgal.com/",
-		"image": "https://openvgal.com/preview.jpg",
+		"image": "preview.jpg",
 		"provider": {
 		"@type": "Organization",
-		"name": "OpenVGAL",
-		"url": "https://openvgal.com"
+		"name": "OpenVGAL"
 		}
 	}
 	</script>
@@ -39,46 +39,9 @@
          <!--/////////////////////// CUSTOMIZE THIS VALUE //////////////////////////////////-->
 		window.openvgal_location = '.';
 		<!--/////////////////////// CUSTOMIZE THIS VALUE //////////////////////////////////-->
-		
 
-		// Amend header values with your choice. Only proceed if base is set and valid
-        if (window.openvgal_location && window.openvgal_location.trim() !== '') {
-            const baseUrl = window.openvgal_location;
-            const fullPageUrl = baseUrl + '/virtual.html';
-            const imageUrl = baseUrl + '/preview.jpg';
-            const providerUrl = baseUrl.replace('/virtual', '');
-    
-            // Set canonical
-            const canonical = document.querySelector('link[rel="canonical"]');
-            if (canonical) canonical.href = fullPageUrl;
-    
-            // Set Open Graph
-            const ogUrl = document.querySelector('meta[property="og:url"]');
-            if (ogUrl) ogUrl.content = fullPageUrl;
-            const ogImage = document.querySelector('meta[property="og:image"]');
-            if (ogImage) ogImage.content = imageUrl;
-    
-            // Set Twitter
-            const twitterImage = document.querySelector('meta[name="twitter:image"]');
-            if (twitterImage) twitterImage.content = imageUrl;
-    
-            // Set Structured Data
-            const structuredData = document.querySelector('script[type="application/ld+json"]');
-            if (structuredData) {
-                try {
-                    const data = JSON.parse(structuredData.textContent);
-                    data['@id'] = fullPageUrl;
-                    data.url = fullPageUrl;
-                    data.image = imageUrl;
-                    data.provider.url = providerUrl;
-                    structuredData.textContent = JSON.stringify(data, null, 2);
-                } catch (e) {
-                    console.warn('Failed to update structured data:', e);
-                }
-            }
-        };
-
-
+		// The SEO tags are filled in from this value further down the head, after the
+		// URL-based overrides have had their say — see the "SEO tags" block below.
 	</script>
 
        <style>
@@ -370,6 +333,56 @@
 			window.openvgal_location = '/examples';
 			window.openvgal_cdn_base = '/cdn';
 			console.log('Dev mode: location=/examples, cdn=/cdn');
+		}
+	})();
+
+	// SEO tags. Runs after the overrides above, so it sees the final value of
+	// window.openvgal_location. Only an absolute https URL can produce a correct
+	// canonical or og:url; the head default '.' and dev mode's '/examples' cannot,
+	// so they are left alone rather than emitting './virtual.html'.
+	(function() {
+		const raw = window.openvgal_location;
+		if (typeof raw !== 'string' || !/^https:\/\//i.test(raw.trim())) return;
+
+		const baseUrl = raw.trim().replace(/\/+$/, '');
+		const fullPageUrl = baseUrl + '/virtual.html';
+		const imageUrl = baseUrl + '/preview.jpg';
+		const providerUrl = baseUrl.replace('/virtual', '');
+
+		// canonical and og:url carry no static value, so create them here.
+		let canonical = document.querySelector('link[rel="canonical"]');
+		if (!canonical) {
+			canonical = document.createElement('link');
+			canonical.rel = 'canonical';
+			document.head.appendChild(canonical);
+		}
+		canonical.href = fullPageUrl;
+
+		let ogUrl = document.querySelector('meta[property="og:url"]');
+		if (!ogUrl) {
+			ogUrl = document.createElement('meta');
+			ogUrl.setAttribute('property', 'og:url');
+			document.head.appendChild(ogUrl);
+		}
+		ogUrl.setAttribute('content', fullPageUrl);
+
+		const ogImage = document.querySelector('meta[property="og:image"]');
+		if (ogImage) ogImage.setAttribute('content', imageUrl);
+		const twitterImage = document.querySelector('meta[name="twitter:image"]');
+		if (twitterImage) twitterImage.setAttribute('content', imageUrl);
+
+		const structuredData = document.querySelector('script[type="application/ld+json"]');
+		if (structuredData) {
+			try {
+				const data = JSON.parse(structuredData.textContent);
+				data['@id'] = fullPageUrl;
+				data.url = fullPageUrl;
+				data.image = imageUrl;
+				if (data.provider) data.provider.url = providerUrl;
+				structuredData.textContent = JSON.stringify(data, null, 2);
+			} catch (e) {
+				console.warn('Failed to update structured data:', e);
+			}
 		}
 	})();
 	</script>

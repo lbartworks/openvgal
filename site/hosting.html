@@ -3,7 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hosting service — coming soon | OpenVGAL</title>
+  <title>Hosted version | OpenVGAL</title>
+  <meta name="description" content="OpenVGAL is free to self-host. If you'd rather not, there is a hosted version that publishes and serves your gallery for you.">
+  <link rel="canonical" href="https://demo.openvgal.com/hosting.html">
+  <meta property="og:title" content="Hosted version | OpenVGAL">
+  <meta property="og:description" content="OpenVGAL is free to self-host. If you'd rather not, there is a hosted version that publishes and serves your gallery for you.">
+  <meta property="og:url" content="https://demo.openvgal.com/hosting.html">
+  <meta property="og:type" content="website">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'><rect width='256' height='256' fill='%23faf8f3'/><polygon points='35.84,35.84 220.16,35.84 161.18,87.14 94.82,87.14' fill='%23fbf9f5'/><polygon points='35.84,35.84 94.82,87.14 94.82,153.5 35.84,220.16' fill='%23fefdfb'/><polygon points='220.16,35.84 161.18,87.14 161.18,153.5 220.16,220.16' fill='%23fefdfb'/><polygon points='35.84,220.16 220.16,220.16 161.18,153.5 94.82,153.5' fill='%23c89b6e'/><rect x='94.82' y='87.14' width='66.36' height='66.36' fill='%23fbf9f5'/><line x1='35.84' y1='35.84' x2='94.82' y2='87.14' stroke='%231c1c24' stroke-width='4.84'/><line x1='220.16' y1='35.84' x2='161.18' y2='87.14' stroke='%231c1c24' stroke-width='4.84'/><line x1='35.84' y1='220.16' x2='94.82' y2='153.5' stroke='%231c1c24' stroke-width='4.84'/><line x1='220.16' y1='220.16' x2='161.18' y2='153.5' stroke='%231c1c24' stroke-width='4.84'/><rect x='94.82' y='87.14' width='66.36' height='66.36' fill='none' stroke='%231c1c24' stroke-width='5.76'/><rect x='35.84' y='35.84' width='184.32' height='184.32' fill='none' stroke='%231c1c24' stroke-width='6.91'/></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -129,35 +135,21 @@
       margin-bottom: 1.25rem;
       line-height: 1.6;
     }
-    .form-embed {
-      width: 100%;
-      min-height: 480px;
-      border: none;
+    .host-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--paper);
+      background: var(--ink);
       border-radius: 8px;
-      background: var(--room-2);
+      padding: 0.7rem 1.2rem;
+      text-decoration: none;
+      transition: background 0.15s;
     }
-    .privacy-note {
-      font-size: 0.72rem;
-      color: var(--ink-3);
-      margin-top: 0.85rem;
-      text-align: center;
-    }
-
-    .placeholder-card {
-      text-align: center;
-      padding: 2.5rem 1.5rem;
-      color: var(--ink-3);
-      border: 1px dashed var(--rule);
-      border-radius: 10px;
-    }
-    .placeholder-card code {
-      background: color-mix(in oklab, var(--wood) 18%, transparent);
-      color: var(--wood-deep);
-      padding: 0.1rem 0.4rem;
-      border-radius: 3px;
-      font-family: var(--font-mono);
-      font-size: 0.78rem;
-    }
+    .host-cta:hover { background: var(--wood-deep); }
+    .host-cta svg { width: 15px; height: 15px; }
 
     .footer-note {
       text-align: center;
@@ -211,55 +203,41 @@
     <div class="hero">
       <div class="hero-badge">
         <span class="hero-badge-dot"></span>
-        <span>Coming soon</span>
+        <span>Invite-only</span>
       </div>
-      <h1>Hosting <span class="gradient-text">service</span></h1>
+      <h1>Don't want to <span class="gradient-text">host it yourself?</span></h1>
       <p class="hero-sub">
-        Want us to host your gallery for you? Drop your email and we'll let you know when it's ready.
+        The engine is free and yours to run anywhere. If you'd rather skip the hosting
+        part, there's a hosted version that publishes, serves and backs up your gallery
+        for you.
       </p>
     </div>
 
     <div class="form-section">
-      <div class="form-title">Get notified at launch</div>
-      <div id="formContainer"></div>
-      <div class="privacy-note">We'll only email you about this launch. No spam, ever.</div>
+      <div class="form-title">The hosted version</div>
+      <div class="form-hint">
+        Sign-ups are invite-only while it opens up. Nothing about it changes the
+        self-host path — the ZIP you build here keeps working on any web host, forever.
+      </div>
+      <a class="host-cta" href="https://openvgal.com" target="_blank" rel="noopener">
+        Go to openvgal.com
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
     </div>
 
     <div class="footer-note">
-      Stay in the loop — <a href="https://nostromophoto.com/newslettter/" target="_blank" rel="noopener">subscribe to the newsletter</a>.
+      Prefer to stay self-hosted? <a href="https://github.com/lbartworks/openvgal" target="_blank" rel="noopener">The engine is on GitHub</a>, MIT licensed.
     </div>
   </div>
 
   <script>
     // === Configurable constants — edit these before deploy ===
-    // Google Form embed URL. Create a form at https://forms.google.com,
-    // click Send → embed (<>) → copy the iframe src here.
-    // Until set, the page shows a "not configured" placeholder.
-    const HOSTING_FORM_URL = '';
-
     // Optional analytics endpoint. Leave empty to skip; or set to a URL that
     // accepts a POST with a small JSON body (e.g. a Cloudflare Worker, Plausible
     // custom event endpoint, or a Google Apps Script doPost handler).
     const ANALYTICS_ENDPOINT = '';
 
     // === End config ===
-
-    // Render the form (or a clear placeholder so the page is still useful pre-config).
-    const formContainer = document.getElementById('formContainer');
-    if (HOSTING_FORM_URL) {
-      const iframe = document.createElement('iframe');
-      iframe.className = 'form-embed';
-      iframe.src = HOSTING_FORM_URL;
-      iframe.title = 'Hosting service interest form';
-      iframe.loading = 'lazy';
-      formContainer.appendChild(iframe);
-    } else {
-      formContainer.innerHTML =
-        '<div class="placeholder-card">' +
-        'Subscribe to the <a href="https://nostromophoto.com/newslettter/" target="_blank" rel="noopener" style="color:var(--wood-deep);">newsletter</a> ' +
-        'and we\'ll let you know when it\'s ready.' +
-        '</div>';
-    }
 
     // Page-view beacon. Captures interest from people who view but don't submit.
     (function() {
