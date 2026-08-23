@@ -76,13 +76,18 @@ var plaque_builder = function(name, item_position, item_size, vector, metadata, 
 	var titleText = lines[0] || '';
 	var subtitleText = lines.length > 1 ? lines[1] : '';
 
-	// Plaques are a fixed physical size, matching what an M-bucket artwork
-	// (120 cm longest edge = 2.5 babylon m) used to produce. Sizing them off
-	// item_size made the label — and its text — grow and shrink with the image.
-	var plaqueW = 2.5 * 0.38;
-	var plaqueH = plaqueW * 0.3;
-	var texW = 512;
-	var texH = Math.round(texW * (plaqueH / plaqueW));
+	// Plaque height is a fixed physical size, matching what an M-bucket artwork
+	// (120 cm longest edge = 2.5 babylon m) used to produce — the text is drawn
+	// off texH, so it never grows or shrinks with the image. The width does
+	// follow the artwork, up to half its span, so wide pieces get a plaque that
+	// reads as part of the hang instead of a stub, and long titles stop clipping.
+	var baseW = 2.5 * 0.38;
+	var plaqueH = baseW * 0.3;
+	var texH = Math.round(512 * 0.3);
+	// Clamp to what a 2048 px texture can cover at this height, so the texture
+	// aspect always matches the plane and the text is never stretched.
+	var plaqueW = Math.min(Math.max(baseW, item_size.width * 0.5), plaqueH * (2048 / texH));
+	var texW = Math.round(texH * (plaqueW / plaqueH));
 
 	var dynTex = new BABYLON.DynamicTexture("plaqueTex_" + name, {width: texW, height: texH}, scene, false);
 	var ctx = dynTex.getContext();
