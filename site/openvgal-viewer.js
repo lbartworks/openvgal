@@ -99,7 +99,13 @@
 	function doesFileExist(urlToFile) {
 		var xhr = new XMLHttpRequest();
 		xhr.open('HEAD', urlToFile, false);
-		xhr.send();
+		// A blocked request (CORS, offline, mixed content) throws instead of
+		// answering. Treat that as "not there" so callers fall back to the default.
+		try {
+			xhr.send();
+		} catch (e) {
+			return false;
+		}
 		return xhr.status >= 200 && xhr.status < 300;
 	}
 
