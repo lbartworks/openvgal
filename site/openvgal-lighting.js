@@ -916,21 +916,62 @@ function _computeRoomAABB(meshes) {
 	return { min: min, max: max };
 }
 
-// Build (or rebuild) one depth map per light. Each is rendered once from the
-// light's POV with the depth material, then sampled in the bake. Independent of
-// the tuning sliders, so this only runs on first bake + resolution change.
+// Dispose the pooled depth target(s). Called on a resolution change; the room
+// dispose (AssetContainer.moveAllFromScene) handles them on navigation.
+function _disposeShadowPool() {
+	var b = _ovgal_bake;
+	if (!b || !b.shadowPool) return;
+	Object.keys(b.shadowPool).forEach(function (r) { b.shadowPool[r].dispose(); });
+	b.shadowPool = null;
+}
+
+// One reusable depth target per distinct resolution (splash/sun use b.shadowRes,
+// rect sub-lights a quarter of it). Created on first use against the caster set
+// _buildShadowMaps just captured.
+function _shadowMapFor(res) {
+	var b = _ovgal_bake;
+	if (!b.shadowPool) b.shadowPool = {};
+	var dm = b.shadowPool[res];
+	if (!dm) {
+		dm = new BABYLON.RenderTargetTexture("bakeDepth_" + res, res, b.scene,
+			false, true, BABYLON.Constants.TEXTURETYPE_HALF_FLOAT);
+		dm.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+		dm.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+		dm.renderList = b.casters;
+		b.casters.forEach(function (m) { dm.setMaterialForRendering(m, b.depthMat); });
+		b.shadowPool[res] = dm;
+	}
+	return dm;
+}
+
+// Render one pass's depth map from its light's POV into the shared target for its
+// resolution, and hand it back for binding. Must run immediately before the pass is
+// consumed: the next pass at the same resolution overwrites it.
+function _renderShadowPass(ps) {
+	var b = _ovgal_bake;
+	var dm = _shadowMapFor(ps.res);
+	b.depthMat.setMatrix("lightVP", ps.vp);
+	b.depthMat.setVector4("lightInfo",
+		new BABYLON.Vector4(ps.pos.x, ps.pos.y, ps.pos.z, BAKE_SHADOW_FAR));
+	dm.render();
+	return dm;
+}
+
+// Resolve one bake pass per light (view-projection, resolution, normal offset).
+// Geometry-only, so this runs once per room. The depth maps themselves are
+// rendered lazily, one at a time, as each pass is consumed.
 function _buildShadowMaps(scene) {
 	var b = _ovgal_bake;
 
-	// Dispose any previous maps (resolution change).
-	if (b.shadowMaps) b.shadowMaps.forEach(function (m) { m.dispose(); });
-	b.shadowMaps = [];
-	b.passes = [];   // one bake pass per map: {light, faceId, vp, texel, normOff}
+	// Drop any pooled target (resolution change).
+	_disposeShadowPool();
+	b.passes = [];   // one per map: {light, faceId, vp, res, pos, texel, normOff}
 
 	// Casters = the room surfaces the bake covers, minus plaques (see _isBakeOccluder).
 	// Keep them always-active so the light-POV render isn't culled by the user camera.
 	var casters = scene.meshes.filter(_isBakeOccluder);
 	casters.forEach(function (m) { m.alwaysSelectAsActiveMesh = true; });
+	b.casters = casters;
 
 	// Combined room AABB — a far light (e.g. a sun above a roof opening) sits well
 	// beyond the fixed 50 m far plane, so its casters would be clipped out of the
@@ -943,20 +984,15 @@ function _buildShadowMaps(scene) {
 
 	var lh = !scene.useRightHandedSystem;
 
-	// Render one depth map and register its bake pass.
+	// Register a bake pass. The depth map is NOT rendered here: the bake loop is
+	// light-outer (each pass is bound once, consumed by every mesh, then never
+	// revisited), so one shared target per resolution is re-rendered from each
+	// light's POV just in time — see _renderShadowPass. One map per light instead
+	// cost ~8 MB each held for the whole session: ~740 MB on the 88-light panels
+	// template, enough to push mobile Safari past its per-tab memory limit.
 	function _addPass(k, pos, vp, res, faceId, normOff) {
-		var dm = new BABYLON.RenderTargetTexture("bakeDepth_" + b.passes.length, res, scene,
-			false, true, BABYLON.Constants.TEXTURETYPE_HALF_FLOAT);
-		dm.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
-		dm.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-		dm.renderList = casters;
-		casters.forEach(function (m) { dm.setMaterialForRendering(m, b.depthMat); });
-		// Bind this map's matrices, then render it exactly once.
-		b.depthMat.setMatrix("lightVP", vp);
-		b.depthMat.setVector4("lightInfo", new BABYLON.Vector4(pos.x, pos.y, pos.z, BAKE_SHADOW_FAR));
-		dm.render();
-		b.shadowMaps.push(dm);
-		b.passes.push({ light: k, faceId: faceId, vp: vp, texel: 1.0 / res, normOff: normOff });
+		b.passes.push({ light: k, faceId: faceId, vp: vp, res: res, pos: pos,
+			texel: 1.0 / res, normOff: normOff });
 	}
 
 	function _lookAt(pos, dir) {
@@ -1328,7 +1364,7 @@ function _bindBakePass(k) {
 	m.setVector4("bakeLight", new BABYLON.Vector4(lp.x, lp.y, lp.z, cosInner));
 	m.setVector4("bakeAxis0", new BABYLON.Vector4(ld.x, ld.y, ld.z, cosOuter));
 	m.setMatrix("lightMatrix", ps.vp);
-	m.setTexture("shadowSampler", b.shadowMaps[k]);
+	m.setTexture("shadowSampler", _renderShadowPass(ps));
 	m.setVector4("faceParams", new BABYLON.Vector4(ps.faceId, ps.normOff, 0, 0));
 	m.setVector4("shadowParams",
 		new BABYLON.Vector4(b.shadowDarkness, b.shadowBias, k === 0 ? 1 : 0, ps.texel));
@@ -1353,25 +1389,23 @@ function _commitBakeView(it) {
 	it.view.freeze();
 }
 
-// Accumulate every light into one mesh's ping-pong buffers, then commit its view.
-// Assumes _runBakeSetup already bound the shared uniforms.
-function _runBakeMesh(it) {
-	// The display material is frozen after each bake (static uniforms, zero
-	// per-frame rebind). Unfreeze to re-point its lightmap sampler, refreeze below.
-	it.view.unfreeze();
-	for (var k = 0; k < _ovgal_bake.passes.length; k++) {
-		_bindBakePass(k);
-		_renderBakePassForMesh(it, k);
-	}
-	_commitBakeView(it);
-}
-
-// Imperative bake driver — synchronous, one shot over every mesh. Used by the
-// slider re-bakes (cheap: no depth re-render). The startup bake paces the same
-// work across frames instead; see setupLightmapBake.
+// Imperative bake driver — synchronous, one shot over every mesh. The startup
+// bake paces the same work across frames instead; see setupLightmapBake.
+// Light-outer, mesh-inner, mirroring the paced loop: each pass binds once and is
+// consumed by every mesh before the next overwrites the shared depth target.
 function _runBake() {
 	if (!_runBakeSetup()) return;
-	_ovgal_bake.baked.forEach(_runBakeMesh);
+	var list = _ovgal_bake.baked;
+	var P = _ovgal_bake.passes.length;
+	// The display materials are frozen after each bake (static uniforms, zero
+	// per-frame rebind). Unfreeze to re-point their lightmap samplers; _commitBakeView
+	// refreezes each one below.
+	list.forEach(function (it) { it.view.unfreeze(); });
+	for (var k = 0; k < P; k++) {
+		_bindBakePass(k);
+		for (var j = 0; j < list.length; j++) _renderBakePassForMesh(list[j], k);
+	}
+	list.forEach(_commitBakeView);
 }
 
 /**
@@ -1524,7 +1558,7 @@ function setupLightmapBake(scene, onComplete, onProgress) {
 				}
 
 				var g = _ovgal_bake.aoGrid;
-				console.log("Lightmap bake: committed " + _ovgal_bake.shadowMaps.length
+				console.log("Lightmap bake: committed " + _ovgal_bake.passes.length
 					+ " shadow map(s), AO grid " + g.Nx + "x" + g.Ny + "x" + g.Nz
 					+ " (voxel " + g.vs.toFixed(3) + "m)");
 				done();
