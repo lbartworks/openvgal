@@ -290,6 +290,113 @@
 
     </style>
 
+    <!-- Debug mode: ?debug=1 loads an in-page console (Eruda) and records a
+         breadcrumb trail to localStorage. The trail survives a tab kill, so a
+         large gallery reaped by iOS Safari's memory limit can still be
+         diagnosed: reopen with ?debug=1 and the previous run's trail is dumped
+         to the console. Entirely inert without ?debug=1. -->
+    <script>
+    (function () {
+        // Always defined so instrumented call sites stay one-liners.
+        window.ovgMark = function () {};
+        if (new URLSearchParams(window.location.search).get('debug') !== '1') return;
+
+        var KEY = 'ovg_debug_trail';
+        var MAX = 300;
+        var t0 = Date.now();
+        var trail = [];
+        var prev = null;
+
+        // Read the trail the previous run left behind before overwriting it.
+        try {
+            var raw = localStorage.getItem(KEY);
+            if (raw) prev = JSON.parse(raw);
+        } catch (e) {}
+
+        function store() {
+            try { localStorage.setItem(KEY, JSON.stringify(trail)); } catch (e) {}
+        }
+
+        function stats() {
+            var s = {};
+            try {
+                // Viewer locals are not globals; go through the engine store.
+                var scene = BABYLON.EngineStore.LastCreatedScene;
+                if (scene) {
+                    s.meshes = scene.meshes.length;
+                    s.verts = scene.getTotalVertices();
+                    s.mats = scene.materials.length;
+                    s.texs = scene.textures.length;
+                    var bytes = 0;
+                    for (var i = 0; i < scene.textures.length; i++) {
+                        var sz = scene.textures[i].getSize();
+                        // 4 bytes/texel, +33% for the mip chain
+                        if (sz && sz.width) bytes += sz.width * sz.height * 4 * 1.33;
+                    }
+                    s.texMB = Math.round(bytes / 1048576);
+                    s.fps = Math.round(scene.getEngine().getFps());
+                }
+            } catch (e) {}
+            return s;
+        }
+
+        window.ovgMark = function (label, extra) {
+            var e = { t: Date.now() - t0, m: label };
+            var s = stats();
+            for (var k in s) e[k] = s[k];
+            if (extra) e.x = String(extra);
+            trail.push(e);
+            if (trail.length > MAX) trail.splice(0, trail.length - MAX);
+            store();
+            console.log('[ovg] ' + e.t + 'ms', label,
+                (s.texMB === undefined) ? '' : '(' + s.meshes + ' meshes, ' + s.texMB + ' MB tex)',
+                extra || '');
+        };
+
+        window.ovgDebug = {
+            prev: function () { console.table(prev || []); return prev; },
+            trail: function () { console.table(trail); return trail; },
+            stats: stats,
+            clear: function () { try { localStorage.removeItem(KEY); } catch (e) {} }
+        };
+
+        window.addEventListener('error', function (ev) {
+            ovgMark('ERROR', (ev.message || '') + ' @ ' + (ev.filename || '') + ':' + (ev.lineno || ''));
+        });
+        window.addEventListener('unhandledrejection', function (ev) {
+            ovgMark('REJECT', (ev.reason && ev.reason.message) || ev.reason);
+        });
+        // A clean exit stamps the trail. A trail without this stamp was killed.
+        window.addEventListener('pagehide', function () { ovgMark('pagehide (clean exit)'); });
+
+        document.addEventListener('DOMContentLoaded', function () {
+            var c = document.getElementById('renderCanvas');
+            if (!c) return;
+            // Highest-signal event for a memory death: it fires while the page
+            // is still alive, whereas an OS kill leaves nothing behind.
+            c.addEventListener('webglcontextlost', function () { ovgMark('WEBGL CONTEXT LOST'); });
+            c.addEventListener('webglcontextrestored', function () { ovgMark('webgl context restored'); });
+        });
+
+        // Separates "died while loading" from "died while walking around".
+        setInterval(function () { ovgMark('heartbeat'); }, 10000);
+
+        var s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/eruda';
+        s.onload = function () {
+            eruda.init();
+            ovgMark('debug console ready', navigator.userAgent);
+            if (!prev) return;
+            var clean = prev.some(function (e) { return /clean exit/.test(e.m); });
+            console.warn('[ovg] previous run: ' + prev.length + ' marks, ' +
+                (clean ? 'exited cleanly' : 'NO clean exit - the tab was killed'));
+            console.table(prev);
+        };
+        s.onerror = function () { ovgMark('eruda failed to load'); };
+        document.head.appendChild(s);
+    })();
+    </script>
+
     <script src="babylon.js"></script>
     <script src="babylonjs.loaders.min.js"></script>
     <script src="https://code.jquery.com/pep/0.4.3/pep.js"></script>

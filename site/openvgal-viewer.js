@@ -363,10 +363,12 @@
 		//receives the events to switch galleries
 		let galleryManager=async function (evt){
 				console.log(evt);
+				if (typeof ovgMark === 'function') ovgMark('galleryManager', evt && evt.source && evt.source.name);
 
 				//only in the first run
 				if ('first' in evt){
 					console.log('First gallery booting');
+					if (typeof ovgMark === 'function') ovgMark('first gallery boot');
 				} else {
 					//dispose the outgoing gallery — rooms are not cached in memory;
 					//a revisit reloads from the (browser-cached) files and re-bakes
@@ -388,6 +390,7 @@
 					let outgoing=new BABYLON.AssetContainer(scene);
 					outgoing.moveAllFromScene(keepAssets);
 					outgoing.dispose();
+					if (typeof ovgMark === 'function') ovgMark('outgoing gallery disposed');
 
 					//the dispose destroyed the BJS node materials (frozen materials with
 					//disposed lights/effects silently stop rendering) and the bake's
@@ -415,8 +418,10 @@
 						//No _B/UV2/light validation and no baking: a self-contained GLB is
 						//expected to ship its lighting pre-baked into its own textures.
 						console.log("loading full glb for gallery " + current_gallery);
+						if (typeof ovgMark === 'function') ovgMark('loading full glb', glb_file);
 						let temp_assetcontainer=await loadAsset(glb_file, scene);
 						temp_assetcontainer.addAllToScene();
+						if (typeof ovgMark === 'function') ovgMark('full glb added to scene');
 					} else {
 							glb_file=config_file_content[current_gallery]["template"];
 							//template — v4 contract. Check A: templates must be baked (_B).
@@ -429,6 +434,7 @@
 								return;
 							}
 							console.log("Loading template glb for gallery " + current_gallery);
+							if (typeof ovgMark === 'function') ovgMark('loading template glb', glb_file);
 							let temp_assetcontainer=await loadAsset(glb_file, scene);
 
 							//Check B: the loaded _B template must satisfy the bake contract
@@ -446,6 +452,7 @@
 							}
 
 							temp_assetcontainer.addAllToScene();
+							if (typeof ovgMark === 'function') ovgMark('template added to scene');
 
 							// check BJS materials
 							const n_meshes=scene.meshes.length-1;
@@ -472,20 +479,27 @@
 							if (BJS_materials["BJS_black_metal"]==undefined){
 								BJS_materials["BJS_black_metal"] = await loadNodeMaterial('rBJS_black_metal', materials_folder + '/BJS_black_metal.json', scene);
 								console.log("material BJS_black_metal loaded");
+								if (typeof ovgMark === 'function') ovgMark('node materials loaded');
 							}
 							// Room lighting setup first (disables stray lights, reads ambient) before
 							// materials are assigned to meshes.
 							setupRoomLighting(scene, config_file_content);
+							if (typeof ovgMark === 'function') ovgMark('room lighting set up');
 							// Loader stays up until BOTH artworks and the lightmap bake finish
 							// (both async); markArtworksDone / markLightsDone coordinate the close.
 							if (typeof beginTemplateLoad === 'function') beginTemplateLoad();
 							populate_template(config_file_content, current_gallery, scene);
+							if (typeof ovgMark === 'function') ovgMark('artworks populated');
 							console.log("template populated");
 							if (typeof setLightsProgress === 'function') setLightsProgress(30);
 							setupLightmapBake(scene,
-								(typeof markLightsDone === 'function') ? markLightsDone : undefined,
+								function () {
+									if (typeof ovgMark === 'function') ovgMark('lightmap bake done');
+									if (typeof markLightsDone === 'function') markLightsDone();
+								},
 								(typeof setLightsProgress === 'function') ? setLightsProgress : undefined);
 							freezeGalleryMaterials();
+							if (typeof ovgMark === 'function') ovgMark('materials frozen, bake running');
 					}
 
 
@@ -608,10 +622,12 @@
 		window.engine = await asyncEngineCreation();
 		if (!engine) throw 'engine should not be null.';
 		startRenderLoop(engine, canvas);
+		if (typeof ovgMark === 'function') ovgMark('engine created', JSON.stringify(engine.getGlInfo()) + ' webgl' + engine.webGLVersion + ' maxTex' + engine.getCaps().maxTextureSize);
 
 		//crete the scene
 		window.current_gallery="root"
 		scene=createScene();
+		if (typeof ovgMark === 'function') ovgMark('scene created');
 		const framesPerSecond = 60;
 		const gravity = -9.81;
 		scene.gravity = new BABYLON.Vector3(0, gravity / framesPerSecond, 0);
