@@ -80,6 +80,7 @@
     'materials/rust2/Rust006_1K-JPG_NormalDX.jpg',
     'materials/rust2/Rust006_1K-JPG_NormalGL.jpg',
     'materials/rust2/Rust006_1K-JPG_Roughness.jpg',
+    'materials/wood_floor/WoodFloor051_1K_Color.jpg',
     'materials/wood_floor/WoodFloor051_2K_AmbientOcclusion.jpg',
     'materials/wood_floor/WoodFloor051_2K_Color.jpg',
     'materials/wood_floor/WoodFloor051_2K_Displacement.jpg',

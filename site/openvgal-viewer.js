@@ -81,6 +81,11 @@
 		let text = await response.text();
 		text = text.replaceAll('http://localhost/materials/', '');
 
+		// Mobile texture budget: the 2K floor albedo decodes to ~21 MB on its own.
+		// The 1K variant is a quarter of that and is indistinguishable at gallery
+		// viewing distance. Both sizes ship in the pack (see pack-definition.js).
+		if (isTouchDevice) text = text.replaceAll('WoodFloor051_2K_', 'WoodFloor051_1K_');
+
 		// Try local logo first, fall back to CDN (same pattern as overlay.html)
 		if (text.includes('"logo.png"')) {
 			const localLogoPath = openvgal_location + '/materials/logo.png';

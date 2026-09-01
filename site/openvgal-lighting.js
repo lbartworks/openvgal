@@ -1210,6 +1210,31 @@ function _runAO() {
 	b.baked.forEach(function (it) { it.aoBuffer.render(); });
 }
 
+// One half-float ping-pong accumulation target for a mesh. Module level (rather
+// than a closure in _bakeMesh) so _restoreBakeScratch can rebuild whichever half
+// _freeBakeScratch dropped after the last bake committed.
+function _makeBakeBuf(mesh, tag) {
+	var b = _ovgal_bake;
+	var rtt = new BABYLON.RenderTargetTexture(
+		"bakeRTT_" + mesh.name + "_" + tag, b.size, b.scene,
+		false,                                      // generateMipMaps
+		true,                                       // doNotChangeAspectRatio
+		BABYLON.Constants.TEXTURETYPE_HALF_FLOAT);  // float accumulation target
+	rtt.coordinatesIndex = 1;                       // sample with UV2 when used on the material
+	rtt.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+	rtt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+	// UV2 texels not covered by this mesh's triangles (island seams, door cutout
+	// edges) keep the clearColor. We clear to fully transparent (alpha 0) so the
+	// bake's alpha=1 marks coverage; the display shader blends only covered texels,
+	// dilating across seams. NEAREST so each manual tap reads a single exact texel
+	// (no hardware bleed of black into the lit edge) — we do our own filtering.
+	rtt.clearColor = new BABYLON.Color4(0, 0, 0, 0);
+	rtt.updateSamplingMode(BABYLON.Texture.NEAREST_SAMPLINGMODE);
+	rtt.renderList = [mesh];
+	rtt.setMaterialForRendering(mesh, b.material);  // draw this mesh with the bake shader
+	return rtt;
+}
+
 // Allocate a mesh's two ping-pong half-float RTTs + its debug view material.
 // Content is rendered later by _runBake (these are driven manually, NOT added to
 // scene.customRenderTargets — we don't want per-frame auto-refresh).
@@ -1227,31 +1252,12 @@ function _bakeMesh(scene, mesh) {
 	if (res) {
 		mesh.material = res.view;
 		mesh.alwaysSelectAsActiveMesh = true;
-		b.baked.push({ mesh: mesh, buffers: res.buffers, aoBuffer: res.aoBuffer, orig: res.orig, view: res.view });
+		b.baked.push({ mesh: mesh, buffers: res.buffers, aoBuffer: res.aoBuffer, orig: res.orig,
+			view: res.view, hasAlbedo: res.hasAlbedo });
 		return;
 	}
 
-	function makeBuf(tag) {
-		var rtt = new BABYLON.RenderTargetTexture(
-			"bakeRTT_" + mesh.name + "_" + tag, b.size, scene,
-			false,                                      // generateMipMaps
-			true,                                       // doNotChangeAspectRatio
-			BABYLON.Constants.TEXTURETYPE_HALF_FLOAT);  // float accumulation target
-		rtt.coordinatesIndex = 1;                       // sample with UV2 when used on the material
-		rtt.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
-		rtt.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
-		// UV2 texels not covered by this mesh's triangles (island seams, door cutout
-		// edges) keep the clearColor. We clear to fully transparent (alpha 0) so the
-		// bake's alpha=1 marks coverage; the display shader blends only covered texels,
-		// dilating across seams. NEAREST so each manual tap reads a single exact texel
-		// (no hardware bleed of black into the lit edge) — we do our own filtering.
-		rtt.clearColor = new BABYLON.Color4(0, 0, 0, 0);
-		rtt.updateSamplingMode(BABYLON.Texture.NEAREST_SAMPLINGMODE);
-		rtt.renderList = [mesh];
-		rtt.setMaterialForRendering(mesh, b.material);  // draw this mesh with the bake shader
-		return rtt;
-	}
-	var buffers = [makeBuf("A"), makeBuf("B")];
+	var buffers = [_makeBakeBuf(mesh, "A"), _makeBakeBuf(mesh, "B")];
 
 	// One AO buffer per mesh (.r = ambient occlusion). Lower res than the lightmap —
 	// AO is low-frequency, and the main bake upsamples it via UV2 bilinear.
@@ -1301,9 +1307,11 @@ function _bakeMesh(scene, mesh) {
 	// Remember this mesh's bake resources so a room re-entry reuses them (see the
 	// reuse guard at the top of this function) instead of leaking new ones.
 	if (!mesh.metadata) mesh.metadata = {};
-	mesh.metadata.ovgal_bake = { buffers: buffers, aoBuffer: aoBuffer, orig: orig, view: view };
+	mesh.metadata.ovgal_bake = { buffers: buffers, aoBuffer: aoBuffer, orig: orig, view: view,
+		hasAlbedo: !!albedo };
 
-	b.baked.push({ mesh: mesh, buffers: buffers, aoBuffer: aoBuffer, orig: orig, view: view });
+	b.baked.push({ mesh: mesh, buffers: buffers, aoBuffer: aoBuffer, orig: orig, view: view,
+		hasAlbedo: !!albedo });
 }
 
 // Bind the per-light-invariant uniforms shared by every mesh's bake. Returns
@@ -1315,6 +1323,7 @@ function _runBakeSetup() {
 	var b = _ovgal_bake;
 	var m = b.material;
 	if (b.count === 0) return false;
+	_restoreBakeScratch();
 
 	// Shared (per-light-invariant) uniforms. bakeGlobals.z (intensity) is re-set
 	// per light inside the loop so an authored _I<value> suffix can override it.
@@ -1385,8 +1394,45 @@ function _renderBakePassForMesh(it, k) {
 // (ping-pong end depends on the pass count's parity). The buffer object is stable
 // across rebakes — only its contents change — so freezing still shows live re-bakes.
 function _commitBakeView(it) {
-	it.view.setTexture("lightSampler", it.buffers[_ovgal_bake.passes.length % 2]);
+	var keep = it.buffers[_ovgal_bake.passes.length % 2];
+	it.view.setTexture("lightSampler", keep);
+	// buffers[0] doubles as the dummy albedo bind for meshes with no base-color
+	// texture (see _bakeMesh). Re-point it at the survivor, or _freeBakeScratch
+	// would leave that sampler on a disposed texture.
+	if (!it.hasAlbedo) it.view.setTexture("albedoSampler", keep);
 	it.view.freeze();
+}
+
+// Release the bake's scratch memory once every view is committed. Only the
+// surviving ping-pong half is sampled from here on, and the pooled depth target is
+// bake-only, so both are dead weight until a re-bake rebuilds them. Worth ~88 MB of
+// half-float RTT on a large gallery — enough to decide whether iOS Safari keeps the
+// tab. The AO buffers are deliberately KEPT: only setupLightmapBake runs _runAO, so
+// a slider re-bake reuses their contents and freeing them would bake flat ambient.
+function _freeBakeScratch() {
+	var b = _ovgal_bake;
+	if (!b || !b.baked || !b.baked.length) return;
+	var drop = 1 - (b.passes.length % 2);
+	b.baked.forEach(function (it) {
+		if (!it.buffers[drop]) return;
+		it.buffers[drop].dispose();
+		it.buffers[drop] = null;
+	});
+	_disposeShadowPool();
+}
+
+// Rebuild whichever ping-pong half _freeBakeScratch dropped. Called before every
+// bake, so a slider re-bake — or a room re-entry reusing the cached buffers off
+// mesh.metadata — always starts with both halves live. The restored buffer is
+// always written before it is read: pass 0 renders into buffers[1] and only reads
+// buffers[0], which a restore leaves cleared exactly as a fresh allocation would.
+function _restoreBakeScratch() {
+	var b = _ovgal_bake;
+	if (!b || !b.baked) return;
+	b.baked.forEach(function (it) {
+		if (!it.buffers[0]) it.buffers[0] = _makeBakeBuf(it.mesh, "A");
+		if (!it.buffers[1]) it.buffers[1] = _makeBakeBuf(it.mesh, "B");
+	});
 }
 
 // Imperative bake driver — synchronous, one shot over every mesh. The startup
@@ -1406,6 +1452,7 @@ function _runBake() {
 		for (var j = 0; j < list.length; j++) _renderBakePassForMesh(list[j], k);
 	}
 	list.forEach(_commitBakeView);
+	_freeBakeScratch();
 }
 
 /**
@@ -1553,6 +1600,7 @@ function setupLightmapBake(scene, onComplete, onProgress) {
 						}
 					}
 					list.forEach(_commitBakeView);
+					_freeBakeScratch();
 				} else {
 					_runBake();
 				}

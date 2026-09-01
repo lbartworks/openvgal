@@ -299,7 +299,20 @@
     (function () {
         // Always defined so instrumented call sites stay one-liners.
         window.ovgMark = function () {};
-        if (new URLSearchParams(window.location.search).get('debug') !== '1') return;
+
+        // The flag is sticky, because published galleries embed this file in a
+        // cross-origin iframe whose src we cannot add a query param to. Arming it
+        // once in a direct tab latches it for this origin, so every later embed
+        // records too. ?debug=0 disarms it.
+        var STICKY = 'ovg_debug_on';
+        var flag = new URLSearchParams(window.location.search).get('debug');
+        var armed = (flag === '1');
+        try {
+            if (flag === '1') localStorage.setItem(STICKY, '1');
+            else if (flag === '0') localStorage.removeItem(STICKY);
+            else armed = (localStorage.getItem(STICKY) === '1');
+        } catch (e) {}
+        if (!armed) return;
 
         var KEY = 'ovg_debug_trail';
         var MAX = 300;
@@ -357,7 +370,11 @@
             prev: function () { console.table(prev || []); return prev; },
             trail: function () { console.table(trail); return trail; },
             stats: stats,
-            clear: function () { try { localStorage.removeItem(KEY); } catch (e) {} }
+            clear: function () { try { localStorage.removeItem(KEY); } catch (e) {} },
+            off: function () {
+                try { localStorage.removeItem(STICKY); } catch (e) {}
+                return 'debug disarmed for this origin - reload to take effect';
+            }
         };
 
         window.addEventListener('error', function (ev) {
