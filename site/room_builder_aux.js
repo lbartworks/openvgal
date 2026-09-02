@@ -222,6 +222,51 @@ var item_builder= function(name, item_position, item_size, vector, material,scen
 	return item
 }
 
+// Builds an artwork's diffuse texture and reports when it is ready.
+//
+// Artwork textures are the largest memory cost in a big gallery: each arrives at
+// 1024 px on the long edge and costs ~5.6 MB of VRAM, so 88 pieces is ~310 MB -
+// past the per-tab ceiling on iOS. On touch devices we draw the image into a
+// smaller DynamicTexture as it lands, so the full-size bitmap never reaches the
+// GPU. That makes the texture asynchronous, hence onLoaded instead of the caller
+// hooking onLoadObservable itself.
+var artwork_texture = function(url, material, scene, onLoaded){
+	// The material is frozen before it has a texture, so re-point it and refreeze.
+	var apply = function(tex){
+		material.unfreeze();
+		material.diffuseTexture = tex;
+		material.freeze();
+	};
+
+	var cap = (typeof isTouchDevice !== 'undefined' && isTouchDevice
+		&& typeof max_artwork_px !== 'undefined') ? max_artwork_px : 0;
+
+	if (!cap){
+		var full = new BABYLON.Texture(url, scene);
+		apply(full);
+		full.onLoadObservable.add(onLoaded);
+		return;
+	}
+
+	var img = new Image();
+	// The asset host sends Access-Control-Allow-Origin, so this keeps the
+	// DynamicTexture's canvas untainted and therefore uploadable to WebGL.
+	img.crossOrigin = "anonymous";
+	// Count a failed image as done, or one bad URL leaves the loading bar short.
+	img.onerror = function(){ onLoaded(); };
+	img.onload = function(){
+		var scale = Math.min(1, cap / Math.max(img.width, img.height));
+		var w = Math.max(1, Math.round(img.width * scale));
+		var h = Math.max(1, Math.round(img.height * scale));
+		var tex = new BABYLON.DynamicTexture(url, {width: w, height: h}, scene, true);
+		tex.getContext().drawImage(img, 0, 0, w, h);
+		tex.update();
+		apply(tex);
+		onLoaded();
+	};
+	img.src = url;
+};
+
 function populate_template(config_file, room_name,scene){
 
     var _pt = document.getElementById('plaquesToggle');
@@ -260,8 +305,15 @@ function populate_template(config_file, room_name,scene){
 		items_material.freeze();
 		items_material.specularColor=new BABYLON.Color3(0,0,0);
 		items_material.maxSimultaneousLights=max_lights;
-		let tex=new BABYLON.Texture(window.resolveImageUrl(gallery[item]["resource"]), scene);
-		items_material.diffuseTexture=tex;
+		//texture + loading-bar tick, assigned to the material by artwork_texture
+		artwork_texture(window.resolveImageUrl(gallery[item]["resource"]), items_material, scene, ((j) => {
+			return() => {
+				percentage_artwork=percentage_artwork + j;
+				if (Math.round(percentage_artwork) >= 100){
+					markArtworksDone();
+				}
+			};
+		})(100/num_items));
 		items_material.emissiveColor=new BABYLON.Color3(1, 1, 1);
 		items_material.disableLighting=true;
 
@@ -291,16 +343,6 @@ function populate_template(config_file, room_name,scene){
 		const round_per=Math.round(((i - 2) / num_items) * 100);
 		document.getElementById("percentLoaded_artwork").textContent = `${round_per}%`;
 		document.getElementById("loadingBar_artwork").style.width =`${round_per}%`;
-
-		//trigger reset when texture actually loads
-		tex.onLoadObservable.add(((j) => {
-			return() => {
-				percentage_artwork=percentage_artwork + j;
-				if (Math.round(percentage_artwork) >= 100){
-					markArtworksDone();
-				}
-			};
-		})(100/num_items));
 
 
 		i=i+1;

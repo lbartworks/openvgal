@@ -3,6 +3,7 @@
 	const margin=0.2; 			//frame margin
 	const item_separation=0.05; 	//separation from the wall
 	const max_lights=14;
+	const max_artwork_px=768;	//touch-device cap on artwork texture long edge (0 = uncapped)
 
 
 
@@ -30,7 +31,14 @@
 
 
 	var deviceAgent = navigator.userAgent.toLowerCase();
-	isTouchDevice = (deviceAgent.match(/(iphone|ipod|ipad)/) || deviceAgent.match(/(android)/) || deviceAgent.match(/(iemobile)/) || deviceAgent.match(/iphone/i) || deviceAgent.match(/ipad/i) || deviceAgent.match(/ipod/i) || deviceAgent.match(/blackberry/i) || deviceAgent.match(/bada/i));
+	isTouchDevice = /iphone|ipod|ipad|android|iemobile|blackberry|bada/.test(deviceAgent)
+		// iPadOS 13+ asks for desktop sites by default, so its UA says Macintosh and
+		// the sniff above misses it - and the iPad is exactly the device whose per-tab
+		// memory ceiling the mobile texture budget exists for.
+		|| (/mac/.test(deviceAgent) && navigator.maxTouchPoints > 1)
+		// Primary pointer is coarse: a real touch device. A laptop with a touchscreen
+		// still reports "fine" because of its trackpad, so this does not catch desktops.
+		|| (window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
 
 	//loads the gallery file and updates the loading bar
 	var loadAsset = async(file, scene)=>{
