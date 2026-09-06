@@ -624,6 +624,9 @@
             wrap.className = 'map-card-thumb-wrap';
             if (imageKeys.length > 0) {
                 var img = document.createElement('img');
+                // Must match the room build's CORS fetch, or the two requests share
+                // one cache entry and the no-Origin reply (no ACAO) breaks the wall texture.
+                img.crossOrigin = 'anonymous';
                 img.className = 'map-card-thumb';
                 var resourcePath = gallery[imageKeys[0]].resource;
                 img.src = (typeof window.resolveImageUrl === 'function')
