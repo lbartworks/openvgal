@@ -303,14 +303,22 @@
         // The flag is sticky, because published galleries embed this file in a
         // cross-origin iframe whose src we cannot add a query param to. Arming it
         // once in a direct tab latches it for this origin, so every later embed
-        // records too. ?debug=0 disarms it.
+        // records too. The latch expires after TTL so a forgotten debug session
+        // cannot leave the console button on every later visit. ?debug=0 disarms
+        // it immediately.
         var STICKY = 'ovg_debug_on';
+        var TTL = 2 * 60 * 60 * 1000;
         var flag = new URLSearchParams(window.location.search).get('debug');
         var armed = (flag === '1');
         try {
-            if (flag === '1') localStorage.setItem(STICKY, '1');
+            if (flag === '1') localStorage.setItem(STICKY, String(Date.now()));
             else if (flag === '0') localStorage.removeItem(STICKY);
-            else armed = (localStorage.getItem(STICKY) === '1');
+            else {
+                // Legacy value was '1'; anything not a live timestamp is stale.
+                var since = parseInt(localStorage.getItem(STICKY), 10);
+                armed = (since > 0 && (Date.now() - since) < TTL);
+                if (!armed) localStorage.removeItem(STICKY);
+            }
         } catch (e) {}
         if (!armed) return;
 
