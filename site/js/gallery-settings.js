@@ -5,7 +5,8 @@
 var GallerySettings = (function() {
   var _mounted = false;
   var _state = {
-    show_plaques: false
+    show_plaques: false,
+    show_frames: true
   };
 
   function _injectStyles() {
@@ -88,22 +89,33 @@ var GallerySettings = (function() {
       '</svg></span>' +
       '<span class="section-title">Gallery settings</span>';
 
-    // show_plaques toggle
+    section.appendChild(header);
+    section.appendChild(_toggleRow('gs-show-plaques', 'show_plaques',
+      'Show artwork plaques',
+      'Display title and subtitle labels below each artwork'));
+    section.appendChild(_toggleRow('gs-show-frames', 'show_frames',
+      'Show artwork frames',
+      'Add a frame around each artwork; off mounts the image flush at its own size'));
+    containerEl.appendChild(section);
+    _mounted = true;
+  }
+
+  function _toggleRow(id, key, label, hint) {
     var row = document.createElement('div');
     row.className = 'gs-toggle-row';
 
     var labelDiv = document.createElement('div');
-    labelDiv.innerHTML = '<div class="gs-toggle-label">Show artwork plaques</div>' +
-      '<div class="gs-toggle-hint">Display title and subtitle labels below each artwork</div>';
+    labelDiv.innerHTML = '<div class="gs-toggle-label">' + label + '</div>' +
+      '<div class="gs-toggle-hint">' + hint + '</div>';
 
     var switchLabel = document.createElement('label');
     switchLabel.className = 'gs-switch';
     var checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
-    checkbox.id = 'gs-show-plaques';
-    checkbox.checked = _state.show_plaques;
+    checkbox.id = id;
+    checkbox.checked = _state[key];
     checkbox.addEventListener('change', function() {
-      _state.show_plaques = this.checked;
+      _state[key] = this.checked;
     });
     var slider = document.createElement('span');
     slider.className = 'gs-slider';
@@ -112,23 +124,23 @@ var GallerySettings = (function() {
 
     row.appendChild(labelDiv);
     row.appendChild(switchLabel);
-
-    section.appendChild(header);
-    section.appendChild(row);
-    containerEl.appendChild(section);
-    _mounted = true;
+    return row;
   }
 
   function load(technicalObj) {
     if (!technicalObj) return;
     _state.show_plaques = technicalObj.show_plaques !== false;
-    var cb = document.getElementById('gs-show-plaques');
-    if (cb) cb.checked = _state.show_plaques;
+    _state.show_frames = technicalObj.show_frames !== false;
+    var cbP = document.getElementById('gs-show-plaques');
+    if (cbP) cbP.checked = _state.show_plaques;
+    var cbF = document.getElementById('gs-show-frames');
+    if (cbF) cbF.checked = _state.show_frames;
   }
 
   function getValues() {
     return {
-      show_plaques: _state.show_plaques
+      show_plaques: _state.show_plaques,
+      show_frames: _state.show_frames
     };
   }
 

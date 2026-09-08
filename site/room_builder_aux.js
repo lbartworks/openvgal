@@ -154,7 +154,7 @@ var plaque_builder = function(name, item_position, item_size, vector, metadata, 
 	plaquePlane.parent = plaquesRoot;
 }
 
-var item_builder= function(name, item_position, item_size, vector, material,scene, item_shadow_material=null){
+var item_builder= function(name, item_position, item_size, vector, material,scene, item_shadow_material=null, frame_margin=margin){
 	//places artwork as an image texture
 	//adds a frame and both elements have a customizable separation from the wall
 	//the thickness of the frame is half the separation
@@ -203,7 +203,7 @@ var item_builder= function(name, item_position, item_size, vector, material,scen
 	item2.position = new BABYLON.Vector3(item_position.x, item_position.y, item_position.z).add(vector.scale(item_separation/2-0.001));
 	// Full-circle yaw so frames orient correctly on walls at any angle, not only N/S/E/W.
 	item2.rotate(BABYLON.Axis.Y, Math.atan2(vector.x, vector.z), BABYLON.Space.LOCAL);
-	item2.scaling = new BABYLON.Vector3(item_size.width+margin, item_size.height+margin, item_separation);
+	item2.scaling = new BABYLON.Vector3(item_size.width+frame_margin, item_size.height+frame_margin, item_separation);
 	
 	
 	//check if the mesh that merges all the frames is already created
@@ -271,6 +271,8 @@ function populate_template(config_file, room_name,scene){
 
     var _pt = document.getElementById('plaquesToggle');
     var showPlaques = _pt ? _pt.checked : (config_file["Technical"]["show_plaques"] === true);
+    // show_frames off collapses the frame margin, leaving a mount the exact size of the artwork
+    var frame_margin = config_file["Technical"]["show_frames"] === false ? 0 : margin;
     // width/height in the JSON are real cm. Babylon scene units don't read 1:1 to
     // real-world — a longest-edge of 2.5 babylon m reads as ~120 cm to the viewer.
     const SCENE_M_PER_CM = 2.5 / 120;
@@ -326,7 +328,7 @@ function populate_template(config_file, room_name,scene){
 		scaled_height = Number(gallery[item]["height"]) * SCENE_M_PER_CM;
 
 		//notice that y and z are flippped
-		let artwork_plane = item_builder(item + "_" + i ,{x:location[0], y:location[2], z:location[1]}, {width:scaled_width, height:scaled_height}, orientation, items_material, scene, null);
+		let artwork_plane = item_builder(item + "_" + i ,{x:location[0], y:location[2], z:location[1]}, {width:scaled_width, height:scaled_height}, orientation, items_material, scene, null, frame_margin);
 
 		// Tag the plane with its position among the gallery's image items. The viewer
 		// uses this to drive click→navigate, so the index can never drift even when the

@@ -2245,6 +2245,7 @@
   "Technical": {
     "ambientLight": 0.5,
     "pointLight": 50,
-    "show_plaques": false
+    "show_plaques": false,
+    "show_frames": false
   }
 }
