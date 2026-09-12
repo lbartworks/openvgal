@@ -1,7 +1,7 @@
 <img width="1232" height="842" alt="image" src="https://github.com/user-attachments/assets/1cba2f50-cf57-41e7-9259-95a0ca4bd6c8" />
 
 
-# OpenVGAL v4.1.11
+# OpenVGAL v4.2.0
 
 Open-source 3D virtual gallery platform built on [Babylon.js](https://www.babylonjs.com/). Create interactive WebGL art galleries from your images, download a ZIP, host it anywhere. Version 4 is a massive upgrade with more realistic light and updated templates leaveraging the new light system.
 
@@ -151,6 +151,10 @@ Note: the `file://` protocol will not work in Chrome due to cross-origin iframe 
 ---
 
 ## Changelog
+
+**v4.2.0 (September 2026)**
+- New "Skip the entrance hall" switch in the generator's gallery settings: with a single folder selected, the gallery opens straight into that room instead of an entrance hall. The hall carries the brand sign, so skipping it drops the sign too
+- The manifest now records the style it was built on as `Technical.style`, and the viewer resolves its entrance as the hall with `parent: "none"` rather than the name `root`. Existing galleries are unaffected — they already mark the entrance that way
 
 **v4.1.0 (August 2026)**
 - Overlay bar redesign: the artwork panel's three dead buttons (Buy print, Mint NFT, like) are gone, and a "Made with OpenVGal" mark now sits on its own row under the controls, linking to openvgal.com. Removing the dead controls is also what stopped the bar overflowing on portrait phones

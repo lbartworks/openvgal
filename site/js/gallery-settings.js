@@ -4,9 +4,11 @@
  */
 var GallerySettings = (function() {
   var _mounted = false;
+  var _rows = {};
   var _state = {
     show_plaques: false,
-    show_frames: true
+    show_frames: true,
+    skip_hub: false
   };
 
   function _injectStyles() {
@@ -24,6 +26,12 @@ var GallerySettings = (function() {
       '  font-size: 0.82rem;',
       '  color: var(--ink, #18181b);',
       '  font-weight: 500;',
+      '}',
+      '.gs-toggle-row.gs-disabled {',
+      '  opacity: 0.45;',
+      '}',
+      '.gs-toggle-row.gs-disabled .gs-slider {',
+      '  cursor: not-allowed;',
       '}',
       '.gs-toggle-hint {',
       '  font-size: 0.72rem;',
@@ -76,6 +84,7 @@ var GallerySettings = (function() {
     _injectStyles();
 
     containerEl.innerHTML = '';
+    _rows = {};
 
     var section = document.createElement('div');
     section.className = 'section';
@@ -96,6 +105,9 @@ var GallerySettings = (function() {
     section.appendChild(_toggleRow('gs-show-frames', 'show_frames',
       'Show artwork frames',
       'Add a frame around each artwork; off mounts the image flush at its own size'));
+    section.appendChild(_toggleRow('gs-skip-hub', 'skip_hub',
+      'Skip the entrance hall',
+      'Open straight into the gallery. Single folder only, and the brand sign in the hall goes with it'));
     containerEl.appendChild(section);
     _mounted = true;
   }
@@ -124,29 +136,45 @@ var GallerySettings = (function() {
 
     row.appendChild(labelDiv);
     row.appendChild(switchLabel);
+    _rows[key] = { row: row, checkbox: checkbox };
     return row;
+  }
+
+  // The hub-less layout only has a meaning for a single folder, so the host page
+  // greys the switch out the rest of the time. The generator gates on the folder
+  // count too — this is the visible half of that rule, not the enforcing one.
+  function setAvailable(key, available) {
+    var entry = _rows[key];
+    if (!entry) return;
+    entry.row.classList.toggle('gs-disabled', !available);
+    entry.checkbox.disabled = !available;
   }
 
   function load(technicalObj) {
     if (!technicalObj) return;
     _state.show_plaques = technicalObj.show_plaques !== false;
     _state.show_frames = technicalObj.show_frames !== false;
+    _state.skip_hub = technicalObj.skip_hub === true;
     var cbP = document.getElementById('gs-show-plaques');
     if (cbP) cbP.checked = _state.show_plaques;
     var cbF = document.getElementById('gs-show-frames');
     if (cbF) cbF.checked = _state.show_frames;
+    var cbH = document.getElementById('gs-skip-hub');
+    if (cbH) cbH.checked = _state.skip_hub;
   }
 
   function getValues() {
     return {
       show_plaques: _state.show_plaques,
-      show_frames: _state.show_frames
+      show_frames: _state.show_frames,
+      skip_hub: _state.skip_hub
     };
   }
 
   return {
     mount: mount,
     load: load,
-    getValues: getValues
+    getValues: getValues,
+    setAvailable: setAvailable
   };
 })();

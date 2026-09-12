@@ -600,6 +600,20 @@
 
 		}
 
+		// The entrance is the room nobody is a child of — `parent: 'none'`. That is
+		// the hall in a normal gallery and the single gallery itself in a hub-less
+		// one, so the same rule covers both without a version flag (manifests have
+		// always marked the hall this way). "root" stays the last resort for a
+		// hand-edited manifest that declares no entrance at all.
+		function startGalleryName(config) {
+			const keys = Object.keys(config || {});
+			for (const k of keys) {
+				if (k === 'Technical') continue;
+				if (config[k] && config[k].parent === 'none') return k;
+			}
+			return 'root';
+		}
+
 		// Expose the in-scene gallery swap so the navigation map can reuse it
 		// instead of doing a full page reload (a reload spins up a second
 		// Babylon engine/WebGL context and peaks memory while the old document
@@ -638,7 +652,8 @@
 		if (typeof ovgMark === 'function') ovgMark('engine created', JSON.stringify(engine.getGlInfo()) + ' webgl' + engine.webGLVersion + ' maxTex' + engine.getCaps().maxTextureSize);
 
 		//crete the scene
-		window.current_gallery="root"
+		const startGallery = startGalleryName(config_file_content);
+		window.current_gallery = startGallery;
 		scene=createScene();
 		if (typeof ovgMark === 'function') ovgMark('scene created');
 		const framesPerSecond = 60;
@@ -652,12 +667,12 @@
 		const urlParams = new URLSearchParams(window.location.search);
 		const directGallery = urlParams.get('gallery');
 
-		// Validate gallery exists, fallback to root if not
+		// Validate gallery exists, fall back to the entrance if not
 		if (directGallery && !config_file_content[directGallery]) {
-			console.warn(`Gallery "${directGallery}" not found, loading root`);
-			window.current_gallery = "root";
+			console.warn(`Gallery "${directGallery}" not found, loading ${startGallery}`);
+			window.current_gallery = startGallery;
 		} else {
-			window.current_gallery = directGallery || "root";
+			window.current_gallery = directGallery || startGallery;
 		}
 
 		// Create synthetic event

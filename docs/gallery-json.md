@@ -8,7 +8,7 @@
 
 ## Mental model
 
-A gallery is a **tree of halls**. There is always one **root hub** (`parent: "none"`); every other hall hangs off a parent via a door. Each hall either:
+A gallery is a **tree of halls**. Exactly one hall is the **entrance** (`parent: "none"`); every other hall hangs off a parent via a door. Usually the entrance is a dedicated `root` hub with no artwork, but a single-folder gallery may skip it, in which case the one gallery hall is itself the entrance. Each hall either:
 
 - loads a **fully designed GLB** (its `resource`), rendered as-is, or
 - falls back to a **template GLB** (`template`) that the viewer furnishes at runtime with the artworks listed in the JSON.
@@ -46,7 +46,7 @@ The top level is a flat map of hall name → hall object. Order is not significa
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `parent` | Yes | Name of the parent hall. `"none"` for the root hub. |
+| `parent` | Yes | Name of the parent hall. `"none"` marks the entrance — exactly one hall has it, and that is where the viewer starts. |
 | `resource` | Yes | GLB filename for a fully designed hall. If the file exists it loads as-is and the template is bypassed. If it doesn't exist, the viewer falls back to `template`. |
 | `template` | Yes | Template GLB filename (prefixed `T_`), used when `resource` is absent. See [Creating Custom Templates](creating-templates.md). |
 | `item_N` | No | Items in the hall — artworks or doors. Keys are arbitrary; only the `item`-vs-door distinction matters (via `resource_type`). |
@@ -161,6 +161,8 @@ A reserved `Technical` block carries gallery-wide defaults. These are fallbacks 
 | `ambientLight` | Default intensity for the hemispheric ambient lights. The lower hemisphere defaults to half this value. |
 | `pointLight` | Default intensity for template point lights that don't encode their own `_I{value}`. |
 | `verticalPosition` | Vertical placement hint used during layout. |
+| `style` | Catalog style key the gallery was built on (`classic`, `dark`, `modern`). How the pack builder knows which templates to ship: styles share shape GLBs, so the filenames alone cannot identify one. Written by the generator on every manifest; older files fall back to matching `root.template`. |
+| `skip_hub` | `true` when the gallery was built without an entrance hall. A record of what was built, not a runtime switch — the viewer reads the structure, not this flag. |
 
 ---
 

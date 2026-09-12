@@ -473,19 +473,29 @@ async function buildGalleryJSON(galleries, onProgress, styleConfig, options) {
 
   const catalog = await loadCatalog(cdnBase);
   const styleKey = _resolveStyleKey(catalog, styleConfig);
+  const settings = (typeof GallerySettings !== 'undefined') ? GallerySettings.getValues() : {};
 
   const building = {};
   let uniqueId = 0;
 
-  building['root'] = {
-    parent: 'none',
-    resource: 'root.glb',
-    template: catalog.styles[styleKey].root
-  };
-
   const topLevelCount = galleries.filter(function(g) {
     return filterImageFiles(g.files).length > 0;
   }).length;
+
+  // Hub-less: one folder and the switch on means that folder's first room is the
+  // entrance (parent 'none') and no hall is emitted at all. The hall carries the
+  // brand sign, so skipping it drops the branding with it — that is the trade the
+  // switch makes. It also removes the only place the style was recoverable from
+  // (root.template), which is why Technical.style is written below.
+  const skipHub = settings.skip_hub === true && topLevelCount === 1;
+
+  if (!skipHub) {
+    building['root'] = {
+      parent: 'none',
+      resource: 'root.glb',
+      template: catalog.styles[styleKey].root
+    };
+  }
 
   // Resolve the root template's door-slot count: catalog first, GLB probe as
   // fallback. Only needed when overflow chaining could trigger.
@@ -513,6 +523,7 @@ async function buildGalleryJSON(galleries, onProgress, styleConfig, options) {
   // Hub for the next top-level gallery; creates overflow hub entries on demand.
   function nextHubParent() {
     topIdx++;
+    if (skipHub) return 'none';
     if (topLevelCount <= doorsRoot || topIdx <= doorsRoot - 1) return 'root';
     const j = Math.ceil((topIdx - (doorsRoot - 1)) / (doorsRoot - 2));
     const hubName = 'root#' + j;
@@ -601,10 +612,15 @@ async function buildGalleryJSON(galleries, onProgress, styleConfig, options) {
     }
   }
 
-  building['Technical'] = { ambientLight: 0.5, pointLight: 50 };
-  if (typeof GallerySettings !== 'undefined') {
-    Object.assign(building['Technical'], GallerySettings.getValues());
-  }
+  // `style` is the manifest's own record of what it was built on. Shape GLBs are
+  // shared between styles (classic and modern use the same ones), so a hub-less
+  // manifest has no other unambiguous anchor. Written on every manifest, hub or not.
+  building['Technical'] = { ambientLight: 0.5, pointLight: 50, style: styleKey };
+  Object.assign(building['Technical'], settings);
+  // Record what was actually built, not what was asked for: the switch is ignored
+  // when more than one folder has images, and a stored `true` would then contradict
+  // the structure on re-import.
+  building['Technical'].skip_hub = skipHub;
 
   if (onProgress) onProgress(totalImages, totalImages, 'Done!');
   return building;

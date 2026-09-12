@@ -10,7 +10,7 @@ How `viewer.html` loads a gallery, resolves asset paths, applies materials, and 
 
 The viewer is a Babylon.js app that:
 
-1. Reads `building_v2.json` and creates the root hall.
+1. Reads `building_v2.json` and creates the entrance hall (the one with `parent: "none"`).
 2. For each hall, tries to load the `resource` GLB first; if it doesn't exist, loads the `template` GLB instead.
 3. Places artwork textures at the JSON positions via `item_builder()`.
 4. Creates 3D text labels for room names via `text3D_builder()`.

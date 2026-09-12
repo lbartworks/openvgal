@@ -144,8 +144,14 @@
   //
   // The manifest is the only required input. A consumer retrieving a published
   // gallery has building_v2.json and nothing else — no picker, no DOM — so the
-  // style must be recoverable from `config.root.template` alone, against the
-  // catalog that is already published engine data.
+  // style must be recoverable from the manifest alone, against the catalog that
+  // is already published engine data.
+  //
+  // `Technical.style` is the anchor. It is written on every manifest the generator
+  // produces, and is the only anchor a hub-less gallery has: shape GLBs are shared
+  // between styles (classic and modern both use T_small_B.glb), so without the hall
+  // there is nothing in the room templates to tell them apart. Manifests built
+  // before the key existed fall back to matching `config.root.template`.
 
   // The one implementation: match a root GLB name to a style key.
   // Returns null when nothing matches. StylePicker.inferStyleFromTemplate()
@@ -170,11 +176,26 @@
    * @returns {{key: string, config: object}}
    */
   function resolveStyle(config, catalog, galleryName) {
-    var template = config && config.root && config.root.template;
     var who = galleryName ? '"' + galleryName + '"' : 'gallery';
+    var styles = (catalog && catalog.styles) || {};
+
+    var declared = config && config.Technical && config.Technical.style;
+    if (declared) {
+      if (!styles[declared]) {
+        throw new Error(
+          'Cannot describe pack for ' + who + ': manifest declares style "' +
+          declared + '", which the catalog does not have (known styles: ' +
+          (Object.keys(styles).join(', ') || 'none — catalog missing or empty') + ').'
+        );
+      }
+      return { key: declared, config: styles[declared] };
+    }
+
+    var template = config && config.root && config.root.template;
     if (!template) {
       throw new Error(
-        'Cannot describe pack for ' + who + ': manifest has no root.template.'
+        'Cannot describe pack for ' + who + ': manifest has neither Technical.style ' +
+        'nor root.template.'
       );
     }
     var key = styleKeyFromTemplate(catalog, template);

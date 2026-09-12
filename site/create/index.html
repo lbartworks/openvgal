@@ -953,8 +953,13 @@
         reader.onload = function(ev) {
           try {
             var parsed = JSON.parse(ev.target.result);
-            if (!parsed.root) {
-              alert('Invalid building_v2.json: missing "root" entry.');
+            // A hub-less gallery has no "root" entry; what every manifest does have
+            // is exactly one entrance, the room with parent 'none'.
+            var hasEntrance = Object.keys(parsed).some(function(k) {
+              return k !== 'Technical' && parsed[k] && parsed[k].parent === 'none';
+            });
+            if (!hasEntrance) {
+              alert('Invalid building_v2.json: no entrance room (none has "parent": "none").');
               return;
             }
             if (!parsed.Technical) {
@@ -963,7 +968,16 @@
             }
             importedJSON = parsed;
             GallerySettings.load(parsed.Technical);
-            if (parsed.root && parsed.root.template) {
+            // Technical.style is authoritative; root.template is the fallback for
+            // manifests written before the key existed (and is absent hub-less).
+            if (parsed.Technical.style) {
+              StylePicker.selectStyle(parsed.Technical.style);
+              var applied = StylePicker.getSelected();
+              if (!applied || applied.key !== parsed.Technical.style) {
+                console.warn('Import: the catalog has no style "' + parsed.Technical.style +
+                  '"; keeping the current selection.');
+              }
+            } else if (parsed.root && parsed.root.template) {
               var inferredStyle = StylePicker.inferStyleFromTemplate(parsed.root.template);
               if (inferredStyle) {
                 StylePicker.selectStyle(inferredStyle);
@@ -1306,7 +1320,11 @@
       newRoomKeys.forEach(function(name) {
         var srcRoom = newBuilding[name];
         var newName = nameMap[name];
-        var parentName = srcRoom.parent === 'root' ? lastRoom : nameMap[srcRoom.parent];
+        // The sub-build's own entrance — 'root' when it emitted a hall, 'none' when
+        // it went hub-less — grafts onto the existing chain either way.
+        var parentName = (srcRoom.parent === 'root' || srcRoom.parent === 'none')
+          ? lastRoom
+          : nameMap[srcRoom.parent];
 
         var dstRoom = {
           parent: parentName,
@@ -1545,6 +1563,9 @@
       checkImageResolutions(); // async, fire-and-forget; reads galleries directly
       var items = galleryList.querySelectorAll('.gallery-item, .import-divider');
       items.forEach(function(item) { item.remove(); });
+
+      // Skipping the hall only means anything when the whole gallery is one folder.
+      GallerySettings.setAvailable('skip_hub', !importedJSON && galleries.length === 1);
 
       var hasContent = importedJSON || galleries.length > 0;
       if (!hasContent) {
