@@ -101,6 +101,12 @@
         return;
       }
 
+      if (msg.type === 'openvgal:customize') {
+        entry('openvgal:customize', 'open: <code>' + msg.open + '</code>');
+        // A real host would hide its own save actions while open is true.
+        return;
+      }
+
       if (msg.type === 'openvgal:resize') {
         entry('openvgal:resize', 'height: <code>' + msg.height + 'px</code>');
         return;

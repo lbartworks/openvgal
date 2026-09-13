@@ -1065,6 +1065,17 @@
       } catch (_) {}
     }
 
+    // Tell the host whether the customize editor owns the screen. While it does,
+    // the host hides its own save actions so the editor's Apply/Cancel is the only
+    // action row (docs/embed.md). Unlike postExportFailed, this guards EMBED_MODE
+    // itself — it has four call sites and they read better without the prefix.
+    function postCustomize(open) {
+      if (!EMBED_MODE) return;
+      try {
+        window.parent.postMessage({ type: 'openvgal:customize', open: open }, '*');
+      } catch (_) {}
+    }
+
     // ZIP Download - bundles everything needed to deploy. Triggered by the
     // Export button (standard mode) or by openvgal:export-request from the
     // parent (embed mode). deliverZip handles the handoff: browser download in
@@ -1435,6 +1446,7 @@
         // Hide upload UI and result actions; show host.
         _czHideOthers(true);
         customizeHost.hidden = false;
+        postCustomize(true);
 
         var mod = await import('./customize.js');
         var selectedStyleForCustomize = StylePicker.getSelected();
@@ -1452,6 +1464,7 @@
           _czApi = null;
           _czFragmentLoaded = false; // unmount cleared host innerHTML; re-fetch next time
           customizeHost.hidden = true;
+          postCustomize(false);
           _czHideOthers(false);
         });
         _czApi.onCancel(function() {
@@ -1459,6 +1472,7 @@
           _czApi = null;
           _czFragmentLoaded = false;
           customizeHost.hidden = true;
+          postCustomize(false);
           _czHideOthers(false);
         });
       } catch (e) {
@@ -1466,6 +1480,7 @@
         alert('Could not open customize: ' + e.message);
         _czHideOthers(false);
         customizeHost.hidden = true;
+        postCustomize(false);
       }
     });
 

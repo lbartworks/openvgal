@@ -22,6 +22,9 @@ When `?embed=1` is present:
   must `allow="fullscreen"`), because the parent-driven iframe height makes an
   in-page fixed overlay taller than the visible screen. Exiting fullscreen
   (Esc or Close Preview) tears the preview down.
+- The step-3 **Customize** editor announces itself with `openvgal:customize`
+  (`open: true` / `open: false`) so the host can hide its own save actions while
+  the editor's Apply/Cancel row owns the screen.
 
 The **host names the flavor** on `openvgal:export-request`; absent or unknown
 means `cloud`, so a host that never sends the field gets the kernel it always
@@ -65,12 +68,16 @@ unchanged.
 5. **User builds the gallery.** On reaching step 3, the child posts
    `openvgal:gallery-ready` — a gallery now exists to export. The parent enables
    its save group.
-6. **User clicks a Save action.** The parent posts `openvgal:export-request` to
+6. **(Optional) User opens Customize.** The child posts `openvgal:customize`
+   with `open: true`, and posts it again with `open: false` when the editor
+   closes (apply, cancel, or failure to load). The parent hides its own save
+   group while the editor is open.
+7. **User clicks a Save action.** The parent posts `openvgal:export-request` to
    the child, naming the `flavor` that action wants.
-7. **Child posts zero or more `openvgal:export-progress`** as it packages.
+8. **Child posts zero or more `openvgal:export-progress`** as it packages.
    Progress is advisory — a host may ignore it and render its own indeterminate
    state.
-8. **Child replies exactly once.** Either `openvgal:zip-ready` with the blob and
+9. **Child replies exactly once.** Either `openvgal:zip-ready` with the blob and
    metadata — the parent uploads it (draft) or downloads it (local copy) — or
    `openvgal:export-failed` if the pack could not be built. Every
    `export-request` ends in exactly one of the two: never both, never neither.
@@ -116,6 +123,28 @@ hugs the builder's content (no `100dvh` band, no empty panel).
 Sent when the builder reaches step 3 — a gallery now exists to export. This,
 not `zip-ready`, is the signal that the parent should reveal/enable its save
 group. Re-sent if the user rebuilds.
+
+#### `openvgal:customize`
+
+```js
+{
+  type: 'openvgal:customize',
+  open: boolean  // true when the customize editor opens, false when it closes
+}
+```
+
+Sent when the user opens the **Customize** editor, and again when that editor
+closes — on **Apply**, on **Cancel**, and if the editor fails to load. While
+`open` is `true` the host should hide its own action row: the editor renders its
+own Apply/Cancel inside the iframe, and leaving the host's save row visible
+underneath shows the user two competing action rows.
+
+It carries a boolean rather than splitting into `customize-open` /
+`customize-close` types so the host's handler is idempotent — a duplicate or a
+dropped event can't wedge the host's UI into the wrong state. That also makes
+the load-failure case safe: `open: true` is posted before the editor module is
+imported, so a failure posts `true` then `false`, and the host ends up with its
+action row back.
 
 #### `openvgal:export-progress`
 
