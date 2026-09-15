@@ -1,13 +1,13 @@
 <img width="1232" height="842" alt="image" src="https://github.com/user-attachments/assets/1cba2f50-cf57-41e7-9259-95a0ca4bd6c8" />
 
 
-# OpenVGAL v4.2.1
+# OpenVGAL v4.2.2
 
 Open-source 3D virtual gallery platform built on [Babylon.js](https://www.babylonjs.com/). Create interactive WebGL art galleries from your images, download a ZIP, host it anywhere. Version 4 is a massive upgrade with more realistic light and updated templates leaveraging the new light system.
 
 **Website:** [openvgal.com](https://openvgal.com) &nbsp;|&nbsp; **Clone of this repository:** [demo.openvgal.com](https://demo.openvgal.com) &nbsp;|&nbsp; **Create a gallery:** [openvgal.com/create](https://openvgal.com/create) &nbsp;|&nbsp; **Live demo:** [nostromophoto.com/virtual](https://nostromophoto.com/virtual/virtual.html)
 
-![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)
+![MIT License](https://img.shields.io/badge/license-MIT-blue.svg) [![Sponsor](https://img.shields.io/badge/sponsor-%E2%9D%A4-ff69b4.svg)](https://github.com/sponsors/lbartworks)
 
 > [!IMPORTANT]
 > **v4 introduces some non-backwards compatibility changes.** While the main structure of the spaces (the .json file) has not been modified in v4, there are many important changes in the templates with v4. The upgrade is quality is massive and it did not make sense to keep the backwards compatibility. Change always comes with a tag
@@ -21,6 +21,8 @@ OpenVGAL started in June 2022 as a personal project to give myself, and anyone, 
 Looking back the changes in 4 years are massive. Version 1 required Python and manual configuration. Version 2 brought executables and an Electron app to lower the barrier. Version 3 removed all of that — everything happens in the browser now. You go to [openvgal.com/create](https://openvgal.com/create), drop your folders, click build, and get a self-contained ZIP that works on any web server. No installs, no dependencies, no accounts. Version 4 brings a completely new light system, shadows and ambient occlusion, circumventing the limitations of Babylon JS while keeping efficiency and speed as a priority. OpenVGal intends to run on non-gaming hardware. Lightmaps are baked at runtime transparently to the user, this is a very experimental approach that other BabylonJS users may like.
 
 For the rest, the philosophy has not changed: **you own your gallery**. The output is plain HTML + JS files. There is no lock-in, no subscription, no tracking. Put the files on any server and they just work.
+
+OpenVGAL is MIT-licensed and developed in the open; [sponsorship](https://github.com/sponsors/lbartworks) funds that work. There is also a paid hosting service at [openvgal.com](https://openvgal.com) for people who want a permanent URL without running a server — separate from this, and never required to use it.
 
 ---
 
@@ -152,59 +154,41 @@ Note: the `file://` protocol will not work in Chrome due to cross-origin iframe 
 
 ## Changelog
 
-**v4.2.0 (September 2026)**
+**v4.2 (September 2026)**
 - New "Skip the entrance hall" switch in the generator's gallery settings: with a single folder selected, the gallery opens straight into that room instead of an entrance hall. The hall carries the brand sign, so skipping it drops the sign too
 - The manifest now records the style it was built on as `Technical.style`, and the viewer resolves its entrance as the hall with `parent: "none"` rather than the name `root`. Existing galleries are unaffected — they already mark the entrance that way
 
-**v4.1.0 (August 2026)**
+**v4.1 (August 2026)**
 - Overlay bar redesign: the artwork panel's three dead buttons (Buy print, Mint NFT, like) are gone, and a "Made with OpenVGal" mark now sits on its own row under the controls, linking to openvgal.com. Removing the dead controls is also what stopped the bar overflowing on portrait phones
 - Both pack READMEs document how to remove the mark, and they differ by flavor: the self-contained ZIP resolves `overlay.html` locally, the CDN-first pack needs `overlay.js`
 
-**v4.0.0 (July 2026)**
+**v4.0 (July 2026)**
 - Baked lightmap lighting: template galleries bake per-surface lightmaps at load time — spotlights and fixture area lights, hemispheric ambient, and soft shadows — then freeze materials for performance. Fixtures become decorative; the bake is the lighting
 - Baked templates are the only supported template path; the viewer validates each template on load (lightmap channel present, only recognized gallery lights) and shows a clear in-viewer error for stale/corrupt templates instead of rendering a broken room
 
 
-**v3.4.7 (June 2026)**
-- Cinematic visit: fixed camera misalignment — the destination look-at is now computed from the artwork's arrival position (via a save/restore of camera pose), so legs land squarely in front of each artwork instead of accumulating a side-view drift
-- Cinematic visit button is now a white movie-camera icon inline with the ◀/▶ arrows (no more overlap), with an indigo glow while the tour runs
-
-**v3.4.6 (June 2026)**
-- Unified pack builder: one kernel (`building_v2.json` + images at `room/filename`) + a per-flavor step table replaces the separate full/CDN builders; full and CDN ZIPs are unchanged
-- New `cloud` flavor (kernel only, every asset family referenced) — embed mode (`?embed=1`) now exports the cloud pack via `openvgal:zip-ready` (see `docs/embed.md`)
-
-**v3.4.5 (June 2026)**
-- Embed mode (`?embed=1`): parent-driven export — the builder hides its own export buttons and exports on `openvgal:export-request`, plus new `openvgal:gallery-ready` and `openvgal:resize` messages (see `docs/embed.md`)
-
-**v3.4.4 (June 2026)**
-- Embed mode (`?embed=1`): hide the step-3 "Show JSON preview" disclosure so the export card hugs its action row (no empty panel under the buttons)
-
-**v3.4.3 (June 2026)**
-- Embed mode (`?embed=1`): the builder hides its own step-3 export summary and relabels the export trigger to "Export gallery", so the host owns the post-export UI
-- Fix the artwork-plaques toggle contrast on the light theme (the label was nearly invisible)
-- Fix overlay icons in CDN / thin-client ZIPs by rewriting icon paths to the CDN base
-
-**v3.4.2 (May 2026)**
-- Pre-3.4 → 3.4 [migration tool](https://openvgal.com/tools/migrate-pre34.html): rescales normalised `width`/`height` in older `building_v2.json` files to real centimetres so they render correctly in the 3.4 viewer
-
-**v3.4.1 (May 2026)**
-- Bundle `openvgal-lighting.js` in the standard (self-contained) ZIP
-
-**v3.4 (May 2026)**
+**v3.4 (May–June 2026)**
 - Occupancy-driven layout: wall and panel placement read from `Occupancy_*` planes in template GLBs; width-aware density-balanced packing replaces the old hardcoded rectangle algorithm
 - Single `catalog.json` (shapes + selectionOrder + styles) replaces `styles.json`; visual [Catalog Manager](https://openvgal.com/tools/catalog-manager.html) for editing it
 - Real-world artwork sizes in centimetres in `building_v2.json` (was normalized 0–1)
 - Customize editor in the generator: per-artwork size (S / M / L buckets or free cm/inch slider) and metadata
 - "Ready" page after ZIP download with free-hosting walkthrough and share buttons
 - Frame yaw uses `atan2(N.x, N.z)` so artworks face correctly on walls at any angle, not just N/S/E/W
+- Unified pack builder: one kernel (`building_v2.json` + images at `room/filename`) + a per-flavor step table replaces the separate full/CDN builders; full and CDN ZIPs are unchanged
+- New `cloud` flavor (kernel only, every asset family referenced) — embed mode (`?embed=1`) now exports the cloud pack via `openvgal:zip-ready` (see `docs/embed.md`)
+- Embed mode (`?embed=1`): parent-driven export — the builder hides its own export buttons and exports on `openvgal:export-request`, plus new `openvgal:gallery-ready` and `openvgal:resize` messages; it also hides the step-3 export summary and "Show JSON preview" disclosure and relabels the export trigger to "Export gallery", so the host owns the post-export UI
+- Pre-3.4 → 3.4 [migration tool](https://openvgal.com/tools/migrate-pre34.html): rescales normalised `width`/`height` in older `building_v2.json` files to real centimetres so they render correctly in the 3.4 viewer
+- Cinematic visit: fixed camera misalignment — the destination look-at is now computed from the artwork's arrival position (via a save/restore of camera pose), so legs land squarely in front of each artwork instead of accumulating a side-view drift
+- Cinematic visit button is now a white movie-camera icon inline with the ◀/▶ arrows (no more overlap), with an indigo glow while the tour runs
+- Fix the artwork-plaques toggle contrast on the light theme (the label was nearly invisible)
+- Fix overlay icons in CDN / thin-client ZIPs by rewriting icon paths to the CDN base
+- Bundle `openvgal-lighting.js` in the standard (self-contained) ZIP
 
 **v3.3 (March 2026)**
 - Gallery styles: Classic, Minimalist, and Dark — each with coordinated templates, materials, and lighting
 - Template-driven lighting: ambient levels and RectAreaLight fixtures defined in GLB files via named empties/meshes
 
 **v3.2 (March 2026)**
-- Gallery styles: Classic, Minimalist, and Dark — each with coordinated templates, materials, and lighting
-- Template-driven lighting: ambient levels and RectAreaLight fixtures defined in GLB files via named empties/meshes
 - CDN-first mode for lightweight ZIPs with automatic viewer updates
 - Metadata editor for artwork titles and subtitles
 - Gallery map for visual room navigation
