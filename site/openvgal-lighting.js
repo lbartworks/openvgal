@@ -92,6 +92,12 @@ function setupRoomLighting(scene, config) {
 	// RectAreaLight is created from them anymore.
 	scene.meshes.forEach(function(m) {
 		if (m.name.match(/^Occupancy_/) || m.name === 'door_title') m.isVisible = false;
+		// Doors (d_) are pure click targets: never drawn, but still picked and still
+		// solid to the camera. isVisible = false would kill both (Babylon's default
+		// pointer predicates require isVisible, and the active-mesh pass needs it too),
+		// so drop them from every camera's layer instead: that skips the draw while
+		// leaving picking and checkCollisions untouched.
+		else if (m.name.match(/^d_/)) m.layerMask = 0;
 	});
 }
 
@@ -889,9 +895,11 @@ function _ensureAOMaterials(scene) {
 
 // A room surface the bake covers (shadow caster, AO receiver, lightmap target):
 // any visible mesh that isn't a template helper. Shared by every bake pass so the
-// skip list can't drift between them.
+// skip list can't drift between them. Doors (d_) are helpers too — invisible click
+// targets (see setupRoomLighting), so they must neither cast shadows, darken the AO
+// grid, nor receive a lightmap.
 function _isBakeableMesh(m) {
-	return m.isVisible && !m.name.match(/^Occupancy_/) && m.name !== 'door_title';
+	return m.isVisible && !m.name.match(/^Occupancy_/) && !m.name.match(/^d_/) && m.name !== 'door_title';
 }
 
 // Plaques are thin unlit label planes floating a few cm off the wall; T_ meshes are

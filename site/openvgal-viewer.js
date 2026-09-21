@@ -126,10 +126,10 @@
 	// AssetContainer satisfies the bake contract, otherwise a short detail string
 	// naming the failing check (logged to the console). Two checks:
 	//   1. Every lightmap receiver carries UV2. A receiver mirrors the baker's own
-	//      filter (setupLightmapBake): a visible non-helper (not Occupancy_/door_title),
-	//      non-glow surface with real geometry. Doors (d_) and other UV2-less meshes are
-	//      not receivers, so they're not flagged — but a receiver missing UV2 means a
-	//      stale/corrupt _B export and is rejected.
+	//      filter (setupLightmapBake): a visible non-helper (not Occupancy_/d_/door_title),
+	//      non-glow surface with real geometry. Helpers aren't receivers, so they're
+	//      never flagged — but a receiver missing UV2 means a stale/corrupt _B export
+	//      and is rejected.
 	//   2. Every scene light must be a recognized OpenVGAL light (a sun_/splash_ spot
 	//      or an ambient hemi). Presence is NOT required — a template may light purely
 	//      via F_ fixtures + runtime ambient — but any foreign/unrecognized light left
@@ -139,14 +139,9 @@
 			? _isBakeableMesh
 			: function () { return false; };
 
-		// Doors (d_) are bakeable geometry (occluders) but never lightmap receivers —
-		// they ship without UV2 by design, so exempt them from the UV2 requirement.
-		var doorRe = (typeof regul_exp_door !== 'undefined') ? regul_exp_door : /^d_/;
-
 		var missingUV2 = [];
 		container.meshes.forEach(function (m) {
 			if (!bakeable(m)) return;
-			if (doorRe.test(m.name)) return;
 			if (m.material && /glow/i.test(m.material.name || '')) return;
 			// Only real surfaces are receivers; geometry-less nodes (glTF __root__,
 			// empties) pass the name predicate but never get lightmapped.
