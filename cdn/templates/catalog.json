@@ -52,6 +52,24 @@
         "nopannels": "T_nopannels_B.glb",
         "pannels": "T_pannels_B.glb"
       }
+    },
+    "school": {
+      "name": "School",
+      "description": "",
+      "root": "T_root_school.glb",
+      "rootDoors": 8,
+      "glbs": {
+        "pannels": "T_pannels_school.glb"
+      }
+    },
+    "warm": {
+      "name": "Warm",
+      "description": "",
+      "root": "T_root_warm.glb",
+      "rootDoors": 4,
+      "glbs": {
+        "nopannels": "T_nopannels_warm_B.glb"
+      }
     }
   }
 }
