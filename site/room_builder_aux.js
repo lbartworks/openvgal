@@ -269,8 +269,15 @@ var artwork_texture = function(url, material, scene, onLoaded){
 
 function populate_template(config_file, room_name,scene){
 
+    // The overlay checkbox starts unchecked: seed it from the config on the first
+    // room, then let the viewer's runtime choice carry across rooms.
     var _pt = document.getElementById('plaquesToggle');
-    var showPlaques = _pt ? _pt.checked : (config_file["Technical"]["show_plaques"] === true);
+    var configPlaques = config_file["Technical"]["show_plaques"] === true;
+    if (_pt && !_pt.dataset.seeded) {
+        _pt.checked = configPlaques;
+        _pt.dataset.seeded = '1';
+    }
+    var showPlaques = _pt ? _pt.checked : configPlaques;
     // show_frames off collapses the frame margin, leaving a mount the exact size of the artwork
     var frame_margin = config_file["Technical"]["show_frames"] === false ? 0 : margin;
     // width/height in the JSON are real cm. Babylon scene units don't read 1:1 to
