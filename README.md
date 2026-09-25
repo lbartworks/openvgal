@@ -1,7 +1,7 @@
 <img width="1232" height="842" alt="image" src="https://github.com/user-attachments/assets/1cba2f50-cf57-41e7-9259-95a0ca4bd6c8" />
 
 
-# OpenVGAL v4.2.3
+# OpenVGAL v4.3.0
 
 Open-source 3D virtual gallery platform built on [Babylon.js](https://www.babylonjs.com/). Create interactive WebGL art galleries from your images, download a ZIP, host it anywhere. Version 4 is a massive upgrade with more realistic light and updated templates leaveraging the new light system.
 
@@ -153,6 +153,11 @@ Note: the `file://` protocol will not work in Chrome due to cross-origin iframe 
 ---
 
 ## Changelog
+
+**v4.3 (September 2026)**
+- Two new gallery styles: School and Warm
+- The style picker shows one style at a time, with arrows, swipe and a row of style names to jump between them
+- Images larger than 1600 px can be downsized in one click from the resolution warning; they are re-encoded in the same format, which also removes their metadata
 
 **v4.2 (September 2026)**
 - New "Skip the entrance hall" switch in the generator's gallery settings: with a single folder selected, the gallery opens straight into that room instead of an entrance hall. The hall carries the brand sign, so skipping it drops the sign too
