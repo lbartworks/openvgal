@@ -43,7 +43,7 @@
     },
     "modern": {
       "name": "Modern",
-      "description": "",
+      "description": "Style of a modern gallery",
       "thumbnail": "modern_thumb.jpg",
       "root": "T_root_modern_B.glb",
       "rootDoors": 6,
@@ -55,17 +55,19 @@
     },
     "school": {
       "name": "School",
-      "description": "",
-      "root": "T_root_school.glb",
+      "description": "Art school style",
+      "thumbnail": "school_thumb.jpg",
+      "root": "T_root_school_B.glb",
       "rootDoors": 8,
       "glbs": {
-        "pannels": "T_pannels_school.glb"
+        "pannels": "T_pannels_school_B.glb"
       }
     },
     "warm": {
       "name": "Warm",
-      "description": "",
-      "root": "T_root_warm.glb",
+      "description": "Classic style with warm tones",
+      "thumbnail": "warm_thumb.jpg",
+      "root": "T_root_warm_B.glb",
       "rootDoors": 4,
       "glbs": {
         "nopannels": "T_nopannels_warm_B.glb"

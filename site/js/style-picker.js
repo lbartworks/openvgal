@@ -1,209 +1,208 @@
 /**
  * OpenVGAL Style Picker
- * Horizontal carousel for selecting gallery styles.
- * Fetches catalog.json from CDN, renders cards from catalog.styles.
+ * One-slide carousel for selecting gallery styles: the visible slide is the
+ * selected style. Swipe, arrows, name pills or arrow keys move between them.
+ * Fetches catalog.json from CDN, renders slides from catalog.styles.
  */
 var StylePicker = (function() {
   var _styles = null;
   var _catalog = null;
   var _selectedKey = 'classic';
   var _container = null;
-  var _carousel = null;
+  var _track = null;
+  var _keys = [];
+  var _index = 0;
+  var _pills = [];
+  var _prev = null;
+  var _next = null;
+  var _count = null;
+  var _target = null; // slide a programmatic smooth scroll is heading to
 
   function _injectStyles() {
     if (document.getElementById('style-picker-css')) return;
     var style = document.createElement('style');
     style.id = 'style-picker-css';
     style.textContent = [
-      '.sp-wrapper { position: relative; width: 100%; }',
+      '.sp-wrapper { width: 100%; margin-bottom: 1.5rem; }',
 
-      '.sp-carousel {',
-      '  display: flex; gap: 14px; overflow-x: auto;',
-      '  scroll-snap-type: x mandatory; scroll-behavior: smooth;',
-      '  padding: 4px 4px 12px 4px;',
-      '  -webkit-overflow-scrolling: touch;',
-      '  scrollbar-width: none;',
+      '.sp-row { display: flex; align-items: center; justify-content: center; gap: 16px; }',
+      '.sp-stage {',
+      '  flex: 1 1 auto; min-width: 0; max-width: 500px;',
+      '  position: relative; border-radius: var(--radius-card, 12px); overflow: hidden;',
+      '  border: 1px solid var(--rule, #e5e5e5); background: var(--paper-2, #f4f4f5);',
       '}',
-      '.sp-carousel::-webkit-scrollbar { display: none; }',
-
-      /* Fade edges */
-      '.sp-wrapper::before, .sp-wrapper::after {',
-      '  content: ""; position: absolute; top: 0; bottom: 12px;',
-      '  width: 40px; z-index: 3; pointer-events: none;',
-      '  transition: opacity 0.3s;',
+      '.sp-track {',
+      '  display: flex; overflow-x: auto; scroll-snap-type: x mandatory;',
+      '  scrollbar-width: none; outline: none;',
+      '  -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain;',
       '}',
-      '.sp-wrapper::before { left: 0; background: linear-gradient(to right, #000, transparent); opacity: 0; }',
-      '.sp-wrapper::after { right: 0; background: linear-gradient(to left, #000, transparent); opacity: 0; }',
-      '.sp-wrapper.can-scroll-left::before { opacity: 1; }',
-      '.sp-wrapper.can-scroll-right::after { opacity: 1; }',
-
-      /* Arrow buttons */
-      '.sp-arrow {',
-      '  position: absolute; top: 50%; transform: translateY(calc(-50% - 6px));',
-      '  z-index: 4; width: 36px; height: 36px; border-radius: 50%;',
-      '  border: 1.5px solid rgba(255,255,255,0.1); background: rgba(10,10,10,0.9);',
-      '  color: #fafafa; cursor: pointer; display: flex; align-items: center;',
-      '  justify-content: center; transition: opacity 0.3s;',
-      '  opacity: 0; pointer-events: none;',
-      '}',
-      '.sp-arrow:hover { background: rgba(30,30,30,0.95); border-color: #3f3f46; }',
-      '.sp-arrow svg { width: 16px; height: 16px; }',
-      '.sp-arrow.left { left: -6px; }',
-      '.sp-arrow.right { right: -6px; }',
-      '.sp-wrapper.can-scroll-left .sp-arrow.left,',
-      '.sp-wrapper.can-scroll-right .sp-arrow.right { opacity: 1; pointer-events: auto; }',
-
-      /* Cards */
-      '.sp-card {',
-      '  flex: 0 0 220px; scroll-snap-align: start;',
-      '  border: 1.5px solid rgba(255,255,255,0.08); border-radius: 14px;',
-      '  background: rgba(255,255,255,0.02); overflow: hidden; cursor: pointer;',
-      '  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;',
-      '  outline: none;',
-      '}',
-      '.sp-card:hover {',
-      '  border-color: #3f3f46; background: rgba(255,255,255,0.04);',
-      '  transform: translateY(-2px); box-shadow: 0 6px 24px rgba(0,0,0,0.4);',
-      '}',
-      '.sp-card.selected {',
-      '  border-color: oklch(0.66 0.075 64);',
-      '  box-shadow: 0 0 0 1px oklch(0.66 0.075 64), 0 0 20px color-mix(in oklab, oklch(0.78 0.065 68) 22%, transparent);',
+      '.sp-track::-webkit-scrollbar { display: none; }',
+      '.sp-track:focus-visible + .sp-focus { opacity: 1; }',
+      '.sp-focus {',
+      '  position: absolute; inset: 0; border-radius: inherit; pointer-events: none;',
+      '  box-shadow: inset 0 0 0 2px var(--wood-deep, #a1887f); opacity: 0;',
       '}',
 
-      /* Preview */
-      '.sp-preview {',
-      '  position: relative; width: 100%; aspect-ratio: 16/10;',
-      '  overflow: hidden; background: #111;',
+      /* Slides */
+      '.sp-slide {',
+      '  position: relative; flex: 0 0 100%; scroll-snap-align: center;',
+      '  scroll-snap-stop: always; aspect-ratio: 16/9; background: var(--paper-2, #f4f4f5);',
       '}',
-      '.sp-preview img {',
+      '.sp-slide img {',
       '  width: 100%; height: 100%; object-fit: cover; display: block;',
+      '  user-select: none; -webkit-user-drag: none;',
       '}',
       '.sp-placeholder {',
       '  width: 100%; height: 100%; display: flex;',
       '  align-items: center; justify-content: center;',
-      '  font-size: 0.7rem; color: #52525b; font-weight: 500;',
+      '  font-size: 0.7rem; color: var(--ink-3, #71717a); font-weight: 500;',
       '  letter-spacing: 0.05em; text-transform: uppercase;',
       '}',
-
-      /* Badge */
-      '.sp-badge {',
-      '  position: absolute; top: 10px; right: 10px;',
-      '  width: 22px; height: 22px; border-radius: 50%;',
-      '  background: oklch(0.66 0.075 64); display: flex; align-items: center;',
-      '  justify-content: center; opacity: 0; transform: scale(0.5);',
-      '  transition: opacity 0.2s, transform 0.2s; z-index: 2;',
+      '.sp-caption {',
+      '  position: absolute; left: 0; right: 0; bottom: 0;',
+      '  padding: 48px 22px 18px; pointer-events: none;',
+      '  background: linear-gradient(to top, rgba(0,0,0,0.85), rgba(0,0,0,0.45) 55%, transparent);',
       '}',
-      '.sp-badge svg { width: 12px; height: 12px; }',
-      '.sp-card.selected .sp-badge { opacity: 1; transform: scale(1); }',
-
-      '.sp-ring {',
-      '  position: absolute; top: 10px; right: 10px;',
-      '  width: 22px; height: 22px; border-radius: 50%;',
-      '  border: 2px solid #52525b; z-index: 2;',
-      '  transition: opacity 0.2s;',
-      '}',
-      '.sp-card.selected .sp-ring { opacity: 0; }',
-
-      /* Info */
-      '.sp-info { padding: 12px 14px 14px; }',
-      '.sp-name { font-size: 0.85rem; font-weight: 600; color: #fafafa; margin-bottom: 2px; }',
-      '.sp-desc { font-size: 0.75rem; color: #a1a1aa; line-height: 1.4; }',
-      '.sp-tags { display: flex; gap: 6px; margin-top: 8px; }',
+      '.sp-name { font-size: 1.15rem; font-weight: 600; color: #fafafa; letter-spacing: -0.01em; }',
+      '.sp-desc { font-size: 0.8rem; color: #d4d4d8; line-height: 1.4; margin-top: 2px; }',
       '.sp-tag {',
-      '  font-size: 0.65rem; font-weight: 500; color: #71717a;',
-      '  background: rgba(255,255,255,0.05); padding: 2px 7px; border-radius: 5px;',
+      '  display: inline-block; margin-top: 8px;',
+      '  font-size: 0.65rem; font-weight: 500; color: #d4d4d8;',
+      '  background: rgba(255,255,255,0.12); padding: 2px 8px; border-radius: 999px;',
+      '  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);',
+      '}',
+      '.sp-count {',
+      '  position: absolute; top: 12px; right: 12px; z-index: 2;',
+      '  font-size: 0.7rem; font-weight: 500; color: #d4d4d8;',
+      '  font-variant-numeric: tabular-nums; padding: 3px 9px; border-radius: 999px;',
+      '  background: rgba(0,0,0,0.5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);',
+      '}',
+
+      /* Arrows */
+      '.sp-arrow {',
+      '  flex: 0 0 auto; width: 44px; height: 44px; border-radius: 50%;',
+      '  border: 1px solid var(--rule, #e5e5e5); background: var(--room, #fff);',
+      '  color: var(--ink-2, #3f3f46); cursor: pointer; display: flex; align-items: center;',
+      '  justify-content: center; box-shadow: 0 2px 8px -4px oklch(0.16 0.01 270 / 0.25);',
+      '  transition: color 0.2s, border-color 0.2s, opacity 0.2s, transform 0.2s;',
+      '}',
+      '.sp-arrow:hover { color: var(--ink, #111); border-color: var(--wood-deep, #a1887f); transform: scale(1.06); }',
+      '.sp-arrow:focus-visible { outline: 2px solid var(--wood, #d6b48a); outline-offset: 2px; }',
+      '.sp-arrow:disabled { opacity: 0; pointer-events: none; }',
+      '.sp-arrow svg { width: 18px; height: 18px; }',
+
+      /* Name pills */
+      '.sp-pills {',
+      '  display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;',
+      '  margin-top: 12px;',
+      '}',
+      '.sp-pill {',
+      '  font: inherit; font-size: 0.75rem; font-weight: 500; color: var(--ink-3, #71717a);',
+      '  background: transparent; border: 1px solid var(--rule-soft, #eee);',
+      '  padding: 5px 12px; border-radius: 999px; cursor: pointer;',
+      '  transition: color 0.2s, border-color 0.2s, background 0.2s;',
+      '}',
+      '.sp-pill:hover { color: var(--ink, #111); border-color: var(--rule, #e5e5e5); }',
+      '.sp-pill:focus-visible { outline: 2px solid var(--wood-deep, #a1887f); outline-offset: 2px; }',
+      '.sp-pill[aria-current="true"] {',
+      '  color: var(--ink, #111); border-color: var(--wood-deep, #a1887f);',
+      '  background: color-mix(in oklab, var(--wood, #d6b48a) 22%, transparent);',
+      '}',
+
+      '@media (max-width: 600px) {',
+      '  .sp-caption { padding: 40px 16px 14px; }',
+      '  .sp-row { gap: 8px; }',
+      '  .sp-arrow { width: 32px; height: 32px; }',
+      '  .sp-arrow svg { width: 15px; height: 15px; }',
       '}'
     ].join('\n');
     document.head.appendChild(style);
   }
 
-  function _buildCard(key, data) {
-    var card = document.createElement('div');
-    card.className = 'sp-card' + (key === _selectedKey ? ' selected' : '');
-    card.tabIndex = 0;
-    card.dataset.style = key;
+  function _placeholder(name) {
+    var ph = document.createElement('div');
+    ph.className = 'sp-placeholder';
+    ph.textContent = name;
+    return ph;
+  }
 
-    // Preview
-    var preview = document.createElement('div');
-    preview.className = 'sp-preview';
+  function _buildSlide(key, data, i, total) {
+    var slide = document.createElement('div');
+    slide.className = 'sp-slide';
+    slide.dataset.style = key;
+    slide.setAttribute('role', 'group');
+    slide.setAttribute('aria-roledescription', 'slide');
+    slide.setAttribute('aria-label', (i + 1) + ' of ' + total + ': ' + data.name);
+
     if (data.thumbnail) {
       var img = document.createElement('img');
       var cdnBase = window.openvgal_cdn_base || '';
       img.src = cdnBase + '/templates/' + data.thumbnail;
-      img.alt = data.name;
+      img.alt = '';
+      img.decoding = 'async';
+      img.draggable = false;
       img.onerror = function() {
-        preview.innerHTML = '<div class="sp-placeholder">' + data.name + '</div>';
+        slide.replaceChild(_placeholder(data.name), img);
       };
-      preview.appendChild(img);
+      slide.appendChild(img);
     } else {
-      preview.innerHTML = '<div class="sp-placeholder">' + data.name + '</div>';
+      slide.appendChild(_placeholder(data.name));
     }
 
-    // Ring (unselected) + Badge (selected)
-    var ring = document.createElement('div');
-    ring.className = 'sp-ring';
-
-    var badge = document.createElement('div');
-    badge.className = 'sp-badge';
-    badge.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-
-    // Info
-    var info = document.createElement('div');
-    info.className = 'sp-info';
+    var caption = document.createElement('div');
+    caption.className = 'sp-caption';
 
     var name = document.createElement('div');
     name.className = 'sp-name';
     name.textContent = data.name;
+    caption.appendChild(name);
 
-    var desc = document.createElement('div');
-    desc.className = 'sp-desc';
-    desc.textContent = data.description;
-
-    var tags = document.createElement('div');
-    tags.className = 'sp-tags';
-    var roomCount = data.glbs ? Object.keys(data.glbs).length : 0;
-    tags.innerHTML =
-      '<span class="sp-tag">' + roomCount + ' room type' + (roomCount !== 1 ? 's' : '') + '</span>';
-
-    info.appendChild(name);
-    info.appendChild(desc);
-    info.appendChild(tags);
-
-    card.appendChild(preview);
-    card.appendChild(ring);
-    card.appendChild(badge);
-    card.appendChild(info);
-
-    return card;
-  }
-
-  function _updateScrollState() {
-    if (!_carousel) return;
-    var wrapper = _carousel.parentElement;
-    var sl = _carousel.scrollLeft;
-    var maxScroll = _carousel.scrollWidth - _carousel.clientWidth;
-    wrapper.classList.toggle('can-scroll-left', sl > 10);
-    wrapper.classList.toggle('can-scroll-right', sl < maxScroll - 10);
-  }
-
-  function _scrollIntoView(card) {
-    if (!_carousel) return;
-    var cardRect = card.getBoundingClientRect();
-    var carouselRect = _carousel.getBoundingClientRect();
-    if (cardRect.left < carouselRect.left) {
-      _carousel.scrollBy({ left: cardRect.left - carouselRect.left - 14, behavior: 'smooth' });
-    } else if (cardRect.right > carouselRect.right) {
-      _carousel.scrollBy({ left: cardRect.right - carouselRect.right + 14, behavior: 'smooth' });
+    if (data.description) {
+      var desc = document.createElement('div');
+      desc.className = 'sp-desc';
+      desc.textContent = data.description;
+      caption.appendChild(desc);
     }
+
+    var roomCount = data.glbs ? Object.keys(data.glbs).length : 0;
+    var tag = document.createElement('span');
+    tag.className = 'sp-tag';
+    tag.textContent = roomCount + ' room type' + (roomCount !== 1 ? 's' : '');
+    caption.appendChild(tag);
+
+    slide.appendChild(caption);
+    return slide;
   }
 
-  function _selectCard(card) {
-    _carousel.querySelectorAll('.sp-card').forEach(function(c) {
-      c.classList.remove('selected');
-    });
-    card.classList.add('selected');
-    _selectedKey = card.dataset.style;
-    _scrollIntoView(card);
+  function _arrow(side, label, points) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'sp-arrow ' + side;
+    b.setAttribute('aria-label', label);
+    b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="' + points + '"/></svg>';
+    return b;
+  }
+
+  // Reflect _index in the selection, pills, arrows and counter.
+  function _setActive(i) {
+    _index = i;
+    _selectedKey = _keys[i];
+    for (var p = 0; p < _pills.length; p++) {
+      _pills[p].setAttribute('aria-current', p === i ? 'true' : 'false');
+    }
+    _prev.disabled = i === 0;
+    _next.disabled = i === _keys.length - 1;
+    _count.textContent = (i + 1) + ' / ' + _keys.length;
+  }
+
+  function _goTo(i, smooth) {
+    i = Math.max(0, Math.min(_keys.length - 1, i));
+    _setActive(i);
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    smooth = smooth && !reduce;
+    _target = smooth ? i : null;
+    // Width is 0 while the container is hidden; the ResizeObserver realigns later.
+    _track.scrollTo({ left: i * _track.clientWidth, behavior: smooth ? 'smooth' : 'auto' });
   }
 
   function _render() {
@@ -211,62 +210,98 @@ var StylePicker = (function() {
     _injectStyles();
     _container.innerHTML = '';
 
+    _keys = Object.keys(_styles);
+    _index = Math.max(0, _keys.indexOf(_selectedKey));
+
     var wrapper = document.createElement('div');
     wrapper.className = 'sp-wrapper';
+    wrapper.setAttribute('role', 'region');
+    wrapper.setAttribute('aria-roledescription', 'carousel');
+    wrapper.setAttribute('aria-label', 'Gallery style');
 
-    // Arrow buttons
-    var arrowL = document.createElement('button');
-    arrowL.className = 'sp-arrow left';
-    arrowL.setAttribute('aria-label', 'Scroll left');
-    arrowL.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>';
+    var stage = document.createElement('div');
+    stage.className = 'sp-stage';
 
-    var arrowR = document.createElement('button');
-    arrowR.className = 'sp-arrow right';
-    arrowR.setAttribute('aria-label', 'Scroll right');
-    arrowR.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
-
-    // Carousel
-    _carousel = document.createElement('div');
-    _carousel.className = 'sp-carousel';
-
-    var keys = Object.keys(_styles);
-    for (var i = 0; i < keys.length; i++) {
-      _carousel.appendChild(_buildCard(keys[i], _styles[keys[i]]));
+    _track = document.createElement('div');
+    _track.className = 'sp-track';
+    _track.tabIndex = 0;
+    for (var i = 0; i < _keys.length; i++) {
+      _track.appendChild(_buildSlide(_keys[i], _styles[_keys[i]], i, _keys.length));
     }
 
-    // Events
-    _carousel.addEventListener('click', function(e) {
-      var card = e.target.closest('.sp-card');
-      if (card) _selectCard(card);
-    });
-    _carousel.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        if (e.target.classList.contains('sp-card')) _selectCard(e.target);
-      }
-    });
-    _carousel.addEventListener('scroll', _updateScrollState, { passive: true });
-    _carousel.addEventListener('wheel', function(e) {
-      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-        e.preventDefault();
-        _carousel.scrollLeft += e.deltaY * 3;
-      }
-    }, { passive: false });
+    var focusRing = document.createElement('div');
+    focusRing.className = 'sp-focus';
 
-    arrowL.addEventListener('click', function() {
-      _carousel.scrollBy({ left: -234 * 2, behavior: 'smooth' });
-    });
-    arrowR.addEventListener('click', function() {
-      _carousel.scrollBy({ left: 234 * 2, behavior: 'smooth' });
+    _prev = _arrow('left', 'Previous style', '15 18 9 12 15 6');
+    _next = _arrow('right', 'Next style', '9 18 15 12 9 6');
+    _count = document.createElement('div');
+    _count.className = 'sp-count';
+    _count.setAttribute('aria-hidden', 'true');
+
+    stage.appendChild(_track);
+    stage.appendChild(focusRing);
+    stage.appendChild(_count);
+
+    var pills = document.createElement('div');
+    pills.className = 'sp-pills';
+    _pills = _keys.map(function(key, idx) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'sp-pill';
+      b.textContent = _styles[key].name;
+      b.addEventListener('click', function() { _goTo(idx, true); });
+      pills.appendChild(b);
+      return b;
     });
 
-    wrapper.appendChild(arrowL);
-    wrapper.appendChild(arrowR);
-    wrapper.appendChild(_carousel);
+    var row = document.createElement('div');
+    row.className = 'sp-row';
+    row.appendChild(_prev);
+    row.appendChild(stage);
+    row.appendChild(_next);
+
+    wrapper.appendChild(row);
+    wrapper.appendChild(pills);
     _container.appendChild(wrapper);
 
-    // Initial scroll state
-    setTimeout(_updateScrollState, 50);
+    // Events
+    _prev.addEventListener('click', function() { _goTo(_index - 1, true); });
+    _next.addEventListener('click', function() { _goTo(_index + 1, true); });
+    _track.addEventListener('keydown', function(e) {
+      if (e.key === 'ArrowLeft') { e.preventDefault(); _goTo(_index - 1, true); }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); _goTo(_index + 1, true); }
+    });
+    // Swipes and trackpad scrolls settle on a snapped slide; follow it.
+    var pending = false;
+    _track.addEventListener('scroll', function() {
+      if (pending) return;
+      pending = true;
+      requestAnimationFrame(function() {
+        pending = false;
+        var w = _track.clientWidth;
+        if (!w) return;
+        var i = Math.round(_track.scrollLeft / w);
+        // Don't flick through the slides a smooth jump passes over.
+        if (_target !== null) {
+          if (i === _target) _target = null;
+          return;
+        }
+        if (i !== _index && i >= 0 && i < _keys.length) _setActive(i);
+      });
+    }, { passive: true });
+    // A user gesture takes over from any jump still in flight.
+    ['pointerdown', 'wheel', 'touchstart'].forEach(function(t) {
+      _track.addEventListener(t, function() { _target = null; }, { passive: true });
+    });
+    // Keep the selected slide aligned when the width changes (resize, or the
+    // container being shown again after the customize editor hid it).
+    if (typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(function() {
+        _track.scrollTo({ left: _index * _track.clientWidth, behavior: 'auto' });
+      }).observe(_track);
+    }
+
+    _goTo(_index, false);
   }
 
   function mount(containerEl, cdnBase) {
@@ -314,12 +349,7 @@ var StylePicker = (function() {
   function selectStyle(key) {
     if (!_styles || !_styles[key]) return;
     _selectedKey = key;
-    if (_carousel) {
-      var cards = _carousel.querySelectorAll('.sp-card');
-      cards.forEach(function(c) {
-        c.classList.toggle('selected', c.dataset.style === key);
-      });
-    }
+    if (_track) _goTo(_keys.indexOf(key), false);
   }
 
   // Thin wrapper over the pack definition's derivation, which is the single
