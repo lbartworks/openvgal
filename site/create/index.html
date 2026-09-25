@@ -424,15 +424,32 @@
       border-color: color-mix(in oklab, #c0392b 34%, transparent);
       color: #8c2620;
     }
-    /* Every rejected name is listed; a long list scrolls rather than pushing
-       the rest of the page down. */
-    .rejected-notice ul {
+    .resolution-notice .downsize-actions {
+      display: flex;
+      justify-content: center;
+      margin-top: 0.7rem;
+    }
+    .resolution-notice .downsize-btn {
+      padding: 0.5rem 1.2rem;
+      background: #b45309;
+      color: #fff;
+      border-color: #b45309;
+    }
+    .resolution-notice .downsize-btn:hover:not(:disabled) {
+      background: #92400e;
+      border-color: #92400e;
+      transform: translateY(-1px);
+    }
+    .resolution-notice .downsize-note { display: block; margin-top: 0.3rem; }
+    /* Every rejected/skipped name is listed; a long list scrolls rather than
+       pushing the rest of the page down. */
+    .resolution-notice ul {
       margin: 0.4rem 0 0;
       padding-left: 1.1rem;
       max-height: 9rem;
       overflow-y: auto;
     }
-    .rejected-notice li { word-break: break-all; }
+    .resolution-notice li { word-break: break-all; }
     .import-clear {
       background: none;
       border: none;
@@ -893,6 +910,8 @@
     // Advisory resolution guard: warn when an image's longest side exceeds this.
     const RESOLUTION_WARN_PX = 1600;
     const fileMaxSide = new WeakMap(); // File -> longest pixel side (cached decode)
+    let downsizeProgress = null;        // { done, total } while a downsize runs
+    let downsizeSkipped = [];           // { file, reason } the last downsize left as-is
 
     // Names refused by the content check, accumulated across folder picks. These
     // files never entered `galleries`, so removing a room doesn't affect them.
@@ -1529,19 +1548,142 @@
 
     function renderResolutionNotice(count) {
       if (!resolutionNotice) return;
+      resolutionNotice.innerHTML = '';
+      if (downsizeProgress) {
+        var busy = document.createElement('span');
+        busy.textContent = 'Downsizing ' + downsizeProgress.done + ' of ' + downsizeProgress.total + '…';
+        resolutionNotice.innerHTML = WARN_SVG;
+        resolutionNotice.appendChild(busy);
+        resolutionNotice.style.display = 'flex';
+        return;
+      }
       if (count === 0) {
         resolutionNotice.style.display = 'none';
-        resolutionNotice.innerHTML = '';
         return;
       }
       var noun = count === 1 ? 'image is' : 'images are';
-      resolutionNotice.innerHTML =
-        WARN_SVG +
-        '<span><strong>' + count + ' ' + noun + ' larger than ' + RESOLUTION_WARN_PX + ' px</strong> ' +
+      var span = document.createElement('span');
+      span.innerHTML =
+        '<strong>' + count + ' ' + noun + ' larger than ' + RESOLUTION_WARN_PX + ' px</strong> ' +
         'on the longest side. Around ' + RESOLUTION_WARN_PX + ' px is plenty for on-screen viewing — larger ' +
         'files make your gallery slower to load with little to no visual gain. Start smaller and increase ' +
-        'only if the quality isn\'t enough.</span>';
+        'only if the quality isn\'t enough.' +
+        '<span class="downsize-note">Downsizing also removes metadata.</span>';
+
+      // Only name skipped files still present — a removed room takes its skips with it.
+      var skipped = downsizeSkipped.filter(function(s) {
+        return galleries.some(function(g) { return g.files.indexOf(s.file) !== -1; });
+      });
+      if (skipped.length > 0) {
+        var head = document.createElement('strong');
+        head.className = 'downsize-note';
+        head.textContent = skipped.length + (skipped.length === 1 ? ' file' : ' files') +
+          ' could not be downsized and were left as they are:';
+        span.appendChild(head);
+        var list = document.createElement('ul');
+        skipped.forEach(function(s) {
+          var li = document.createElement('li');
+          li.textContent = s.file.name + ' — ' + s.reason; // filenames are user data — never innerHTML
+          list.appendChild(li);
+        });
+        span.appendChild(list);
+      }
+
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn downsize-btn';
+      btn.textContent = 'Downsize all to ' + RESOLUTION_WARN_PX + ' px';
+      btn.addEventListener('click', downsizeLargeImages);
+      var actions = document.createElement('div');
+      actions.className = 'downsize-actions';
+      actions.appendChild(btn);
+      span.appendChild(actions);
+
+      resolutionNotice.innerHTML = WARN_SVG;
+      resolutionNotice.appendChild(span);
       resolutionNotice.style.display = 'flex';
+    }
+
+    // The name is kept as-is on the server and decides the served content type,
+    // so each file is re-encoded in its own format or not at all.
+    var DOWNSIZE_FORMATS = {
+      jpg:  { type: 'image/jpeg', quality: 0.9 },
+      jpeg: { type: 'image/jpeg', quality: 0.9 },
+      png:  { type: 'image/png' },
+      webp: { type: 'image/webp', quality: 0.9 }
+    };
+
+    // Decode with a plain Image (applies the EXIF orientation when drawn, unlike
+    // createImageBitmap whose defaults have shifted between browser versions),
+    // scale the longest side to RESOLUTION_WARN_PX and re-encode. Metadata is
+    // dropped on purpose. Resolves to the new File; rejects with the reason the
+    // original has to be kept.
+    function downsizeImageFile(file) {
+      var fmt = DOWNSIZE_FORMATS[file.name.split('.').pop().toLowerCase()];
+      if (!fmt) return Promise.reject(new Error('unsupported file type'));
+      return new Promise(function(resolve, reject) {
+        var url = URL.createObjectURL(file);
+        var img = new Image();
+        img.onerror = function() { URL.revokeObjectURL(url); reject(new Error('could not be decoded')); };
+        img.onload = function() {
+          URL.revokeObjectURL(url);
+          try {
+            var w = img.naturalWidth, h = img.naturalHeight;
+            var scale = RESOLUTION_WARN_PX / Math.max(w, h);
+            if (!(scale < 1)) throw new Error('already ' + RESOLUTION_WARN_PX + ' px or smaller'); // never enlarge
+            var canvas = document.createElement('canvas');
+            canvas.width = w >= h ? RESOLUTION_WARN_PX : Math.max(1, Math.round(w * scale));
+            canvas.height = h > w ? RESOLUTION_WARN_PX : Math.max(1, Math.round(h * scale));
+            var ctx = canvas.getContext('2d');
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob(function(blob) {
+              canvas.width = canvas.height = 0; // release the backing store now
+              if (!blob) { reject(new Error('encoding failed')); return; }
+              // toBlob silently falls back to PNG for formats it can't encode.
+              if (blob.type !== fmt.type) { reject(new Error('this browser cannot save ' + fmt.type)); return; }
+              resolve(new File([blob], file.name, { type: fmt.type }));
+            }, fmt.type, fmt.quality);
+          } catch (e) {
+            reject(e);
+          }
+        };
+        img.src = url;
+      });
+    }
+
+    // One file at a time so a folder of large photos never holds every decoded
+    // image in memory at once. Replacing entries in place is safe: folder
+    // grouping is done before galleries.push and buildFileMap only reads name.
+    async function downsizeLargeImages() {
+      if (downsizeProgress) return;
+      var work = [];
+      galleries.forEach(function(g) {
+        g.files.forEach(function(f) {
+          if ((fileMaxSide.get(f) || 0) > RESOLUTION_WARN_PX) work.push({ files: g.files, file: f });
+        });
+      });
+      if (work.length === 0) return;
+      downsizeSkipped = [];
+      downsizeProgress = { done: 0, total: work.length };
+      try {
+        for (var i = 0; i < work.length; i++) {
+          downsizeProgress.done = i + 1;
+          renderResolutionNotice(0);
+          var item = work[i];
+          var replacement = null, reason = '';
+          try { replacement = await downsizeImageFile(item.file); }
+          catch (e) { reason = (e && e.message) || 'unknown error'; }
+          var idx = item.files.indexOf(item.file); // the room may have been removed meanwhile
+          if (idx === -1) continue;
+          if (replacement) item.files[idx] = replacement;
+          else downsizeSkipped.push({ file: item.file, reason: reason });
+        }
+      } finally {
+        downsizeProgress = null;
+        updateGalleryList(); // marks a generated result stale and re-measures
+      }
     }
 
     // Files the content check refused: not a JPEG/PNG/WebP container, whatever
