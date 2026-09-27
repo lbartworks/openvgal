@@ -1184,6 +1184,14 @@
     // a perfectly readable body, so blindly calling .blob() packs the error page
     // under the asset's name and nothing ever throws. Always go through this.
     async function packFetch(url) {
+      // Defense in depth: only ever hit our own origin, the CDN, or a local
+      // blob: URL (fileMap entries). Blocks SSRF if a future change lets
+      // untrusted input reach this URL.
+      var resolved = new URL(url, location.href);
+      var allowedOrigins = [location.origin, 'https://cdn.openvgal.com'];
+      if (resolved.protocol !== 'blob:' && allowedOrigins.indexOf(resolved.origin) === -1) {
+        throw new Error('Blocked fetch to disallowed origin: ' + resolved.origin);
+      }
       var response = await fetch(url);
       if (!response.ok) throw new Error('HTTP ' + response.status + ' for ' + url);
       return response;
