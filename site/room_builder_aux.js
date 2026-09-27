@@ -78,16 +78,16 @@ var plaque_builder = function(name, item_position, item_size, vector, metadata, 
 
 	// Plaque height is a fixed physical size, matching what an M-bucket artwork
 	// (120 cm longest edge = 2.5 babylon m) used to produce — the text is drawn
-	// off texH, so it never grows or shrinks with the image. The width does
-	// follow the artwork, up to half its span, so wide pieces get a plaque that
-	// reads as part of the hang instead of a stub, and long titles stop clipping.
+	// off texH, so it never grows with the image. The width follows the artwork,
+	// up to its full span; a line that still doesn't fit is shrunk to fit.
 	var baseW = 2.5 * 0.38;
 	var plaqueH = baseW * 0.3;
 	var texH = Math.round(512 * 0.3);
 	// Clamp to what a 2048 px texture can cover at this height, so the texture
 	// aspect always matches the plane and the text is never stretched.
-	var plaqueW = Math.min(Math.max(baseW, item_size.width * 0.5), plaqueH * (2048 / texH));
+	var plaqueW = Math.min(item_size.width, plaqueH * (2048 / texH));
 	var texW = Math.round(texH * (plaqueW / plaqueH));
+	var maxTextW = texW * 0.96;
 
 	var dynTex = new BABYLON.DynamicTexture("plaqueTex_" + name, {width: texW, height: texH}, scene, false);
 	var ctx = dynTex.getContext();
@@ -95,9 +95,19 @@ var plaque_builder = function(name, item_position, item_size, vector, metadata, 
 	// Transparent background — only the text is painted, the wall shows through
 	ctx.clearRect(0, 0, texW, texH);
 
+	// Sets the font at `size`, shrinking it if `text` is wider than the plaque
+	var fitFont = function(text, size, weight) {
+		ctx.font = weight + size + "px Inter, Arial, sans-serif";
+		var w = ctx.measureText(text).width;
+		if (w > maxTextW) {
+			size = Math.floor(size * maxTextW / w);
+			ctx.font = weight + size + "px Inter, Arial, sans-serif";
+		}
+	};
+
 	// Title — soft dark-gray text, centered
 	var titleSize = Math.round(texH * 0.32);
-	ctx.font = "bold " + titleSize + "px Inter, Arial, sans-serif";
+	fitFont(titleText, titleSize, "bold ");
 	ctx.fillStyle = "#5a5a5a";
 	ctx.textAlign = "center";
 	ctx.textBaseline = "middle";
@@ -108,7 +118,7 @@ var plaque_builder = function(name, item_position, item_size, vector, metadata, 
 	// Subtitle — soft dark-gray text, centered
 	if (subtitleText) {
 		var subSize = Math.round(texH * 0.22);
-		ctx.font = subSize + "px Inter, Arial, sans-serif";
+		fitFont(subtitleText, subSize, "");
 		ctx.fillStyle = "#5a5a5a";
 		ctx.fillText(subtitleText, centerX, centerY + titleSize * 0.9);
 	}
