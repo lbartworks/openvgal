@@ -240,20 +240,6 @@ var item_builder= function(name, item_position, item_size, vector, material,scen
 // smaller DynamicTexture as it lands, so the full-size bitmap never reaches the
 // GPU. That makes the texture asynchronous, hence onLoaded instead of the caller
 // hooking onLoadObservable itself.
-//
-// The full-size bitmap still has to be decoded before it is scaled down, and a
-// room of 4032 px phone photos is ~50 MB each - all at once that kills a mobile
-// tab. So touch devices fetch and decode a couple at a time through a queue.
-var ARTWORK_DECODE_SLOTS = 2;
-var artwork_queue = [];
-var artwork_active = 0;
-function artwork_pump(){
-	while (artwork_active < ARTWORK_DECODE_SLOTS && artwork_queue.length){
-		artwork_active++;
-		artwork_queue.shift()(function(){ artwork_active--; artwork_pump(); });
-	}
-}
-
 var artwork_texture = function(url, material, scene, onLoaded){
 	// The material is frozen before it has a texture, so re-point it and refreeze.
 	var apply = function(tex){
@@ -272,42 +258,23 @@ var artwork_texture = function(url, material, scene, onLoaded){
 		return;
 	}
 
-	// Leaving a room moves its materials out of the scene. Its queued artworks are
-	// then dropped without ticking the loading bar, which now belongs to the next room.
-	var left_room = function(){ return scene.materials.indexOf(material) === -1; };
-
-	artwork_queue.push(function(done){
-		if (left_room()){ done(); return; }
-		var img = new Image();
-		// The asset host sends Access-Control-Allow-Origin, so this keeps the
-		// DynamicTexture's canvas untainted and therefore uploadable to WebGL.
-		img.crossOrigin = "anonymous";
-		// Count a failed image as done, or one bad URL leaves the loading bar short.
-		img.onerror = function(){
-			done();
-			if (!left_room()) onLoaded();
-		};
-		img.onload = function(){
-			try {
-				if (left_room()) return;
-				var scale = Math.min(1, cap / Math.max(img.width, img.height));
-				var w = Math.max(1, Math.round(img.width * scale));
-				var h = Math.max(1, Math.round(img.height * scale));
-				var tex = new BABYLON.DynamicTexture(url, {width: w, height: h}, scene, true);
-				tex.getContext().drawImage(img, 0, 0, w, h);
-				tex.update();
-				apply(tex);
-				onLoaded();
-			} finally {
-				// Drop the decoded full-size bitmap now rather than whenever GC runs.
-				img.onload = img.onerror = null;
-				img.src = "";
-				done();
-			}
-		};
-		img.src = url;
-	});
-	artwork_pump();
+	var img = new Image();
+	// The asset host sends Access-Control-Allow-Origin, so this keeps the
+	// DynamicTexture's canvas untainted and therefore uploadable to WebGL.
+	img.crossOrigin = "anonymous";
+	// Count a failed image as done, or one bad URL leaves the loading bar short.
+	img.onerror = function(){ onLoaded(); };
+	img.onload = function(){
+		var scale = Math.min(1, cap / Math.max(img.width, img.height));
+		var w = Math.max(1, Math.round(img.width * scale));
+		var h = Math.max(1, Math.round(img.height * scale));
+		var tex = new BABYLON.DynamicTexture(url, {width: w, height: h}, scene, true);
+		tex.getContext().drawImage(img, 0, 0, w, h);
+		tex.update();
+		apply(tex);
+		onLoaded();
+	};
+	img.src = url;
 };
 
 function populate_template(config_file, room_name,scene){
