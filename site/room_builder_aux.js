@@ -258,6 +258,15 @@ var artwork_texture = function(url, material, scene, onLoaded){
 		return;
 	}
 
+	// A frozen material that has already drawn never recompiles its shader, so one
+	// rendered before its image arrives would stay untextured (black) for good. A 1x1
+	// placeholder from the start keeps the diffuse texture in the shader; the real
+	// image then only swaps the sampler, which Babylon re-binds every frame.
+	var placeholder = new BABYLON.DynamicTexture("artPlaceholder", {width: 1, height: 1}, scene, false);
+	placeholder.getContext().fillRect(0, 0, 1, 1);
+	placeholder.update();
+	apply(placeholder);
+
 	var img = new Image();
 	// The asset host sends Access-Control-Allow-Origin, so this keeps the
 	// DynamicTexture's canvas untainted and therefore uploadable to WebGL.
@@ -272,6 +281,7 @@ var artwork_texture = function(url, material, scene, onLoaded){
 		tex.getContext().drawImage(img, 0, 0, w, h);
 		tex.update();
 		apply(tex);
+		placeholder.dispose();
 		onLoaded();
 	};
 	img.src = url;
