@@ -11,35 +11,25 @@ async function  doDownload(filename, scene) {
 
 var text3D_builder=function(name, item_position, vector, parent, scene){
 	const north_vector=new BABYLON.Vector3(0, 0, 1);
-	maxLength=1.3;
-	
-	texto=name.replace("root", "Hall");
+	var maxLength=1.3;
+
+	var texto=name.replace("root", "Hall");
 	texto=texto.replace(/d_(.+)_\d+/, "$1");
-	
-	myText = BABYLON.MeshBuilder.CreateText("T_" + texto, texto, fontContent, {
+
+	var myText = BABYLON.MeshBuilder.CreateText("T_" + texto, texto, fontContent, {
 		size: 0.2,
-		resolution: 5, 
+		resolution: 5,
 		depth: 0.1,
 		sideOrientation:2 }, scene);
 
-	//scale it
-	scene.executeWhenReady(function () {
-		// Assuming the text is aligned along the X axis, measure its length
-		myText.refreshBoundingInfo();
-		var boundingInfo = myText.getBoundingInfo();
-		var textWidth = boundingInfo.maximum.x - boundingInfo.minimum.x;
-
-		// Check if the text exceeds the maximum length
-		if (textWidth > maxLength) {
-			// Calculate the required scaling factor
-			var scaleFactor = maxLength / textWidth;
-
-			// Apply the scaling factor to the text mesh
-			myText.scaling.x = scaleFactor;
-			myText.scaling.y = scaleFactor; // Optional: Scale uniformly in Y to maintain aspect ratio
-			// Note: Adjust Z scaling as needed, or leave it if uniform scaling is desired
-		}
-	});
+	//scale it to fit the door width (text runs along local X)
+	var boundingInfo = myText.getBoundingInfo();
+	var textWidth = boundingInfo.maximum.x - boundingInfo.minimum.x;
+	if (textWidth > maxLength) {
+		var scaleFactor = maxLength / textWidth;
+		myText.scaling.x = scaleFactor;
+		myText.scaling.y = scaleFactor;
+	}
 	
 	//place it
 	myText.parent=parent;
