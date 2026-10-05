@@ -912,6 +912,10 @@
     const fileMaxSide = new WeakMap(); // File -> longest pixel side (cached decode)
     let downsizeProgress = null;        // { done, total } while a downsize runs
     let downsizeSkipped = [];           // { file, reason } the last downsize left as-is
+    // Large images are downsized as soon as they are measured; the user can opt out.
+    const downsizedFrom = new WeakMap(); // downsized File -> original File
+    const autoDownsizeTried = new WeakSet(); // originals already attempted, so failures don't loop
+    let keepOriginals = false;
 
     // Names refused by the content check, accumulated across folder picks. These
     // files never entered `galleries`, so removing a room doesn't affect them.
@@ -1536,14 +1540,40 @@
           }
         }
       }
-      var count = 0;
+      var count = 0, untried = false;
       for (var g = 0; g < galleries.length; g++) {
         var gf = galleries[g].files;
         for (var i = 0; i < gf.length; i++) {
-          if ((fileMaxSide.get(gf[i]) || 0) > RESOLUTION_WARN_PX) count++;
+          if ((fileMaxSide.get(gf[i]) || 0) > RESOLUTION_WARN_PX) {
+            count++;
+            if (!autoDownsizeTried.has(gf[i])) untried = true;
+          }
         }
       }
+      if (untried && !keepOriginals && !downsizeProgress) {
+        downsizeLargeImages(); // re-measures and re-renders the notice when done
+        return;
+      }
       renderResolutionNotice(count);
+    }
+
+    function countDownsized() {
+      var n = 0;
+      galleries.forEach(function(g) {
+        g.files.forEach(function(f) { if (downsizedFrom.has(f)) n++; });
+      });
+      return n;
+    }
+
+    function restoreOriginals() {
+      keepOriginals = true;
+      galleries.forEach(function(g) {
+        for (var i = 0; i < g.files.length; i++) {
+          var orig = downsizedFrom.get(g.files[i]);
+          if (orig) g.files[i] = orig;
+        }
+      });
+      updateGalleryList(); // marks a generated result stale and re-measures
     }
 
     function renderResolutionNotice(count) {
@@ -1558,7 +1588,29 @@
         return;
       }
       if (count === 0) {
-        resolutionNotice.style.display = 'none';
+        var downsized = countDownsized();
+        if (downsized === 0) {
+          resolutionNotice.style.display = 'none';
+          return;
+        }
+        var info = document.createElement('span');
+        info.innerHTML =
+          '<strong>' + downsized + (downsized === 1 ? ' image was' : ' images were') +
+          ' downsized to ' + RESOLUTION_WARN_PX + ' px</strong> on the longest side so the gallery ' +
+          'loads quickly, including on phones.' +
+          '<span class="downsize-note">Downsizing also removes metadata.</span>';
+        var keep = document.createElement('button');
+        keep.type = 'button';
+        keep.className = 'btn downsize-btn';
+        keep.textContent = 'Keep full-size originals';
+        keep.addEventListener('click', restoreOriginals);
+        var keepActions = document.createElement('div');
+        keepActions.className = 'downsize-actions';
+        keepActions.appendChild(keep);
+        info.appendChild(keepActions);
+        resolutionNotice.innerHTML = WARN_SVG;
+        resolutionNotice.appendChild(info);
+        resolutionNotice.style.display = 'flex';
         return;
       }
       var noun = count === 1 ? 'image is' : 'images are';
@@ -1667,17 +1719,22 @@
       if (work.length === 0) return;
       downsizeSkipped = [];
       downsizeProgress = { done: 0, total: work.length };
+      generateBtn.disabled = true; // re-enabled by updateGalleryList in the finally
       try {
         for (var i = 0; i < work.length; i++) {
           downsizeProgress.done = i + 1;
           renderResolutionNotice(0);
           var item = work[i];
+          autoDownsizeTried.add(item.file);
           var replacement = null, reason = '';
           try { replacement = await downsizeImageFile(item.file); }
           catch (e) { reason = (e && e.message) || 'unknown error'; }
           var idx = item.files.indexOf(item.file); // the room may have been removed meanwhile
           if (idx === -1) continue;
-          if (replacement) item.files[idx] = replacement;
+          if (replacement) {
+            item.files[idx] = replacement;
+            downsizedFrom.set(replacement, item.file);
+          }
           else downsizeSkipped.push({ file: item.file, reason: reason });
         }
       } finally {
@@ -1732,7 +1789,7 @@
       }
 
       emptyState.style.display = 'none';
-      generateBtn.disabled = false;
+      generateBtn.disabled = !!downsizeProgress; // building mid-downsize would mix sizes
 
       // Imported rooms (CDN mode only) render as read-only rows with a lock icon —
       // kept page-local because the editable shared renderer doesn't model that state.
