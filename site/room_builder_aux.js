@@ -9,22 +9,65 @@ async function  doDownload(filename, scene) {
 }
 
 
-var text3D_builder=function(name, item_position, vector, parent, scene){
+// Horizontal width of a door plane across its opening, in its parent's space
+// (the space the title is placed and scaled in). Returns 0 if it can't be measured.
+var door_width=function(mesh, normal){
+	var side = new BABYLON.Vector3(normal.z, 0, -normal.x);
+	if (side.length() < 1e-6) return 0;
+	side.normalize();
+	mesh.computeWorldMatrix(true);
+	var toParent = mesh.parent ? BABYLON.Matrix.Invert(mesh.parent.computeWorldMatrix(true)) : BABYLON.Matrix.Identity();
+	var min = Infinity, max = -Infinity;
+	mesh.getBoundingInfo().boundingBox.vectorsWorld.forEach(function(v){
+		var d = BABYLON.Vector3.Dot(BABYLON.Vector3.TransformCoordinates(v, toParent), side);
+		min = Math.min(min, d);
+		max = Math.max(max, d);
+	});
+	return max - min;
+}
+
+var text3D_builder=function(name, item_position, vector, parent, scene, maxWidth){
 	const north_vector=new BABYLON.Vector3(0, 0, 1);
-	var maxLength=1.3;
+	var maxLength = maxWidth > 0 ? maxWidth * 0.9 : 1.3;
 
 	var texto=name.replace("root", "Hall");
 	texto=texto.replace(/d_(.+)_\d+/, "$1");
 
-	var myText = BABYLON.MeshBuilder.CreateText("T_" + texto, texto, fontContent, {
-		size: 0.2,
-		resolution: 5,
-		depth: 0.1,
-		sideOrientation:2 }, scene);
+	var makeLine = function(t){
+		return BABYLON.MeshBuilder.CreateText("T_" + texto, t, fontContent, {
+			size: 0.2,
+			resolution: 5,
+			depth: 0.1,
+			sideOrientation:2 }, scene);
+	};
+	// text runs along local X
+	var widthOf = function(m){
+		var b = m.getBoundingInfo();
+		return b.maximum.x - b.minimum.x;
+	};
 
-	//scale it to fit the door width (text runs along local X)
-	var boundingInfo = myText.getBoundingInfo();
-	var textWidth = boundingInfo.maximum.x - boundingInfo.minimum.x;
+	var myText = makeLine(texto);
+
+	//too wide: split at the space nearest the middle into two centered lines
+	//(CreateText supports "\n" but left-aligns each line, so build them separately)
+	if (widthOf(myText) > maxLength) {
+		var mid = texto.length / 2, cut = -1;
+		for (var i = 0; i < texto.length; i++) {
+			if (texto[i] === " " && (cut < 0 || Math.abs(i - mid) < Math.abs(cut - mid))) cut = i;
+		}
+		if (cut > 0) {
+			var top = makeLine(texto.slice(0, cut));
+			var bottom = makeLine(texto.slice(cut + 1));
+			top.position.y = 0.13;
+			bottom.position.y = -0.13;
+			myText.dispose();
+			myText = BABYLON.Mesh.MergeMeshes([top, bottom], true);
+			myText.name = "T_" + texto;
+		}
+	}
+
+	//still too wide: scale it to fit the door width
+	var textWidth = widthOf(myText);
 	if (textWidth > maxLength) {
 		var scaleFactor = maxLength / textWidth;
 		myText.scaling.x = scaleFactor;
@@ -408,7 +451,7 @@ function populate_template(config_file, room_name,scene){
 				normal = new BABYLON.Vector3(normals[0], normals[1], normals[2]);
 
 				//put text
-				text3D_builder(dict_items[renamed_doors].replace("#", " "), mesh.position, normal, mesh.parent, scene);
+				text3D_builder(dict_items[renamed_doors].replace("#", " "), mesh.position, normal, mesh.parent, scene, door_width(mesh, normal));
 				
 			}
 			renamed_doors++;
