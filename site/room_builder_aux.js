@@ -37,7 +37,7 @@ var text3D_builder=function(name, item_position, vector, parent, scene, maxWidth
 		return BABYLON.MeshBuilder.CreateText("T_" + texto, t, fontContent, {
 			size: 0.2,
 			resolution: 5,
-			depth: 0.1,
+			depth: 0.075,
 			sideOrientation:2 }, scene);
 	};
 	// text runs along local X

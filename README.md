@@ -1,7 +1,7 @@
 <img width="2560" height="1212" alt="styles-dark" src="https://github.com/user-attachments/assets/768f9b2c-78d0-4b6b-94d2-6837a303baed" />
 
 
-# OpenVGAL v4.3.4
+# OpenVGAL v4.3.5
 
 Open-source 3D virtual gallery platform built on [Babylon.js](https://www.babylonjs.com/). Create interactive WebGL art galleries from your images, download a ZIP, host it anywhere. Version 4 is a massive upgrade with more realistic light and updated templates leaveraging the new light system.
 
