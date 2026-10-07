@@ -1,4 +1,11 @@
 <div id="permanent-overlay">
+    <button id="overlay-collapse" type="button" aria-label="Minimize controls" aria-expanded="true"
+            onclick="if(typeof toggleOverlayCollapsed==='function')toggleOverlayCollapsed()">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+             stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="6 15 12 9 18 15"/>
+        </svg>
+    </button>
     <div class="overlay-section" id="artwork-section">
         <p>Artwork</p>
         <p id="artwork-info"></p>
@@ -24,7 +31,7 @@
     </div>
     <div class="overlay-section" id="help-section">
         <button class="help-button" onclick="toggleHelp()">Help</button>
-        <label style="display:flex;align-items:center;gap:0.4rem;margin-top:0.5rem;cursor:pointer;font-size:0.7rem;color:#ccc;">
+        <label id="plaques-label" style="display:flex;align-items:center;gap:0.4rem;margin-top:0.5rem;cursor:pointer;font-size:0.7rem;color:#ccc;">
             <input type="checkbox" id="plaquesToggle" onchange="if(typeof togglePlaques==='function')togglePlaques(this)" style="accent-color:oklch(0.66 0.075 64);"> Plaques
         </label>
     </div>

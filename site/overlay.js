@@ -289,6 +289,28 @@ function toggleHelp() {
     helpPopup.style.display = helpPopup.style.display === 'none' ? 'block' : 'none';
 }
 
+// Minimize/restore the overlay; the choice persists across rooms and visits.
+const OVERLAY_COLLAPSED_KEY = 'openvgal_overlay_collapsed';
+
+function setOverlayCollapsed(collapsed) {
+    const overlay = document.getElementById('permanent-overlay');
+    const button = document.getElementById('overlay-collapse');
+    if (!overlay) return;
+    overlay.classList.toggle('collapsed', collapsed);
+    if (button) {
+        button.setAttribute('aria-expanded', String(!collapsed));
+        button.setAttribute('aria-label', collapsed ? 'Show controls' : 'Minimize controls');
+    }
+}
+
+function toggleOverlayCollapsed() {
+    const overlay = document.getElementById('permanent-overlay');
+    if (!overlay) return;
+    const collapsed = !overlay.classList.contains('collapsed');
+    setOverlayCollapsed(collapsed);
+    try { localStorage.setItem(OVERLAY_COLLAPSED_KEY, collapsed ? '1' : '0'); } catch (e) {}
+}
+
 function changeLanguage(lang) {
     // Remove active class from all language buttons and texts
     document.querySelectorAll('.lang-button').forEach(button => button.classList.remove('active'));
@@ -312,6 +334,9 @@ function loadOverlay() {
         const helpPopup = document.getElementById('help-popup');
         if (helpPopup) helpPopup.style.display = 'none';
         hideInfoBox();
+        try {
+            if (localStorage.getItem(OVERLAY_COLLAPSED_KEY) === '1') setOverlayCollapsed(true);
+        } catch (e) {}
     };
 
     const fetchText = (url) => fetch(url).then(r => {

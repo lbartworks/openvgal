@@ -188,6 +188,82 @@
     box-shadow: 0 0 8px rgba(99, 102, 241, 0.6);
 }
 
+/* Minimize tab on the bar's top edge: collapses the overlay to one row of
+   controls parked at the top, beside the map button, so plaques under the
+   artworks stay visible. */
+#overlay-collapse {
+    position: absolute;
+    top: -23px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 44px;
+    height: 22px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--bg-overlay);
+    border: var(--border-light);
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    color: var(--text-light);
+    cursor: pointer;
+}
+
+#overlay-collapse:hover {
+    background-color: var(--bg-popup);
+}
+
+#overlay-collapse svg {
+    transition: transform 0.2s;
+}
+
+/* Up = send the bar to the top; down = bring it back. */
+#permanent-overlay.collapsed #overlay-collapse svg {
+    transform: rotate(180deg);
+}
+
+/* Map button: top/left 20px, 44px wide; the bar sits 12px to its right. */
+#permanent-overlay.collapsed {
+    top: 20px;
+    bottom: auto;
+    left: 76px;
+    transform: none;
+    width: auto;
+    height: 44px;
+    box-sizing: border-box;
+    flex-wrap: nowrap;
+    padding: 0 6px;
+    border-radius: 22px;
+}
+
+#permanent-overlay.collapsed #overlay-collapse {
+    position: static;
+    order: 99;
+    transform: none;
+    width: 34px;
+    height: 34px;
+    margin-left: 5px;
+    border: var(--border-btn);
+    border-radius: 50%;
+    background-color: var(--bg-btn);
+}
+
+#permanent-overlay.collapsed #overlay-collapse:hover {
+    background-color: var(--bg-btn-hover);
+}
+
+#permanent-overlay.collapsed #artwork-section,
+#permanent-overlay.collapsed #navigation-section > p,
+#permanent-overlay.collapsed #plaques-label,
+#permanent-overlay.collapsed #overlay-attribution {
+    display: none !important;
+}
+
+#permanent-overlay.collapsed .overlay-section {
+    padding: 0 8px;
+}
+
 /* ==========================================================================
    5. Content Toggling
    ========================================================================== */
@@ -243,6 +319,25 @@
     .nav-button,
     .help-button {
         font-size: 16px;
+    }
+
+    #permanent-overlay.collapsed {
+        top: 12px;
+        bottom: auto;
+        left: 58px;
+        width: auto;
+        height: 38px;
+        padding: 0 4px;
+        border-radius: 19px;
+    }
+
+    #permanent-overlay.collapsed .nav-button {
+        height: 30px;
+    }
+
+    #permanent-overlay.collapsed #overlay-collapse {
+        width: 30px;
+        height: 30px;
     }
 
     .help-image {
