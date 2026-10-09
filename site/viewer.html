@@ -187,6 +187,28 @@
         #map-close:hover {
             color: #fafafa;
         }
+        #map-about {
+            width: 100%;
+            max-width: 900px;
+            padding: 8px 32px 8px;
+            box-sizing: border-box;
+        }
+        #map-about-title {
+            margin: 0 0 8px;
+            color: #fafafa;
+            font-size: 1.5rem;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            line-height: 1.25;
+        }
+        #map-about-description {
+            margin: 0;
+            max-width: 65ch;
+            color: #a1a1aa;
+            font-size: 0.9375rem;
+            line-height: 1.6;
+            white-space: pre-line;
+        }
         #map-grid {
             width: 100%;
             max-width: 960px;
@@ -274,6 +296,12 @@
             }
             #map-header {
                 padding: 16px 16px 4px;
+            }
+            #map-about {
+                padding: 4px 16px 4px;
+            }
+            #map-about-title {
+                font-size: 1.25rem;
             }
             #map-grid {
                 grid-template-columns: repeat(2, 1fr);
@@ -592,6 +620,10 @@
             <span id="map-title">Gallery Map</span>
             <button id="map-close" onclick="toggleMap()">&times;</button>
         </div>
+        <div id="map-about" style="display:none;">
+            <h2 id="map-about-title"></h2>
+            <p id="map-about-description"></p>
+        </div>
         <div id="map-grid"></div>
     </div>
 
@@ -608,10 +640,25 @@
         }
     }
 
+    // Exhibition title/description from Technical; the block stays hidden when
+    // neither is set, so older galleries show the map exactly as before.
+    function populateMapAbout() {
+        var about = document.getElementById('map-about');
+        var technical = config_file_content.Technical || {};
+        var title = technical.title || '';
+        var description = technical.description || '';
+        document.getElementById('map-about-title').textContent = title;
+        document.getElementById('map-about-title').style.display = title ? '' : 'none';
+        document.getElementById('map-about-description').textContent = description;
+        document.getElementById('map-about-description').style.display = description ? '' : 'none';
+        about.style.display = (title || description) ? '' : 'none';
+    }
+
     function populateMap() {
         var grid = document.getElementById('map-grid');
         if (!grid || typeof config_file_content === 'undefined') return;
         grid.innerHTML = '';
+        populateMapAbout();
 
         for (var galleryName in config_file_content) {
             if (galleryName === 'Technical') continue;

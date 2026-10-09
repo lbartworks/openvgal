@@ -2243,6 +2243,8 @@
     }
   },
   "Technical": {
+    "title": "Example exhibition",
+    "description": "Placeholder description to preview the map. A real exhibition would describe its theme, the artist, and the works on show.",
     "ambientLight": 0.5,
     "pointLight": 50,
     "show_plaques": false,
