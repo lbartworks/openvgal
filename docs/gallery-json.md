@@ -162,8 +162,8 @@ A reserved `Technical` block carries gallery-wide defaults. These are fallbacks 
 | `pointLight` | Default intensity for template point lights that don't encode their own `_I{value}`. |
 | `verticalPosition` | Vertical placement hint used during layout. |
 | `style` | Catalog style key the gallery was built on (`classic`, `dark`, `modern`). How the pack builder knows which templates to ship: styles share shape GLBs, so the filenames alone cannot identify one. Written by the generator on every manifest; older files fall back to matching `root.template`. |
-| `title` | Optional exhibition title, shown at the top of the viewer's gallery map. |
-| `description` | Optional exhibition description, shown under the title in the gallery map. Newlines are kept. Neither field set → the map shows only the halls, as before. |
+| `title` | Optional exhibition title, at most 120 characters, shown at the top of the viewer's gallery map. Set from the builder's **Exhibition title** field, or by the host in embed mode (`docs/embed.md`). Hosted storage rejects a longer title. |
+| `description` | Optional exhibition description, at most 1,000 characters (the builder's cap), shown under the title in the gallery map. Newlines are kept. The map clamps it to four lines with a "more" toggle. Neither field set → the map shows only the halls, as before. |
 | `skip_hub` | `true` when the gallery was built without an entrance hall. A record of what was built, not a runtime switch — the viewer reads the structure, not this flag. |
 
 ---

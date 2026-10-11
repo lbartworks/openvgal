@@ -5,10 +5,16 @@
 var GallerySettings = (function() {
   var _mounted = false;
   var _rows = {};
+  // Caps from OIP-0005: the backend rejects a longer title; the description cap
+  // is the builder's own (the viewer clamps whatever it gets).
+  var TITLE_MAX = 120;
+  var DESCRIPTION_MAX = 1000;
   var _state = {
     show_plaques: false,
     show_frames: true,
-    skip_hub: false
+    skip_hub: false,
+    title: '',
+    description: ''
   };
 
   function _injectStyles() {
@@ -74,6 +80,30 @@ var GallerySettings = (function() {
       '.gs-switch input:checked + .gs-slider::before {',
       '  transform: translateX(16px);',
       '  background: oklch(0.78 0.065 68);',
+      '}',
+      '.gs-text-row {',
+      '  padding: 0.5rem 0;',
+      '}',
+      '.gs-text-row input, .gs-text-row textarea {',
+      '  display: block;',
+      '  width: 100%;',
+      '  box-sizing: border-box;',
+      '  margin-top: 0.35rem;',
+      '  padding: 0.4rem 0.5rem;',
+      '  font: inherit;',
+      '  font-size: 0.82rem;',
+      '  color: var(--ink, #18181b);',
+      '  background: var(--paper, #fff);',
+      '  border: 1px solid var(--rule, #d4d4d8);',
+      '  border-radius: 4px;',
+      '}',
+      '.gs-text-row textarea {',
+      '  resize: vertical;',
+      '  min-height: 4.5rem;',
+      '}',
+      '.gs-text-row input:focus, .gs-text-row textarea:focus {',
+      '  outline: none;',
+      '  border-color: var(--ink-3, #71717a);',
       '}'
     ].join('\n');
     document.head.appendChild(style);
@@ -99,6 +129,10 @@ var GallerySettings = (function() {
       '<span class="section-title">Gallery settings</span>';
 
     section.appendChild(header);
+    section.appendChild(_textRow('gs-title', 'title', 'Exhibition title',
+      'Shown at the top of the gallery map', TITLE_MAX, false));
+    section.appendChild(_textRow('gs-description', 'description', 'Exhibition description',
+      'Shown under the title in the gallery map', DESCRIPTION_MAX, true));
     section.appendChild(_toggleRow('gs-show-plaques', 'show_plaques',
       'Show artwork plaques',
       'Display title and subtitle labels below each artwork'));
@@ -110,6 +144,27 @@ var GallerySettings = (function() {
       'Open straight into the gallery. Single folder only, and the brand sign in the hall goes with it'));
     containerEl.appendChild(section);
     _mounted = true;
+  }
+
+  function _textRow(id, key, label, hint, maxLength, multiline) {
+    var row = document.createElement('div');
+    row.className = 'gs-text-row';
+    row.id = id + '-row';
+    var labelEl = document.createElement('label');
+    labelEl.htmlFor = id;
+    labelEl.innerHTML = '<div class="gs-toggle-label">' + label + '</div>' +
+      '<div class="gs-toggle-hint">' + hint + '</div>';
+    var field = document.createElement(multiline ? 'textarea' : 'input');
+    if (!multiline) field.type = 'text';
+    field.id = id;
+    field.maxLength = maxLength;
+    field.value = _state[key];
+    field.addEventListener('input', function() {
+      _state[key] = this.value;
+    });
+    row.appendChild(labelEl);
+    row.appendChild(field);
+    return row;
   }
 
   function _toggleRow(id, key, label, hint) {
@@ -161,6 +216,13 @@ var GallerySettings = (function() {
     if (cbF) cbF.checked = _state.show_frames;
     var cbH = document.getElementById('gs-skip-hub');
     if (cbH) cbH.checked = _state.skip_hub;
+    _state.title = typeof technicalObj.title === 'string' ? technicalObj.title.slice(0, TITLE_MAX) : '';
+    _state.description = typeof technicalObj.description === 'string'
+      ? technicalObj.description.slice(0, DESCRIPTION_MAX) : '';
+    var inT = document.getElementById('gs-title');
+    if (inT) inT.value = _state.title;
+    var inD = document.getElementById('gs-description');
+    if (inD) inD.value = _state.description;
   }
 
   function getValues() {
@@ -171,10 +233,20 @@ var GallerySettings = (function() {
     };
   }
 
+  // Kept apart from getValues: the generator copies getValues into Technical
+  // wholesale, while these are applied at export so later edits still land.
+  function getExhibition() {
+    return {
+      title: _state.title.trim(),
+      description: _state.description.trim()
+    };
+  }
+
   return {
     mount: mount,
     load: load,
     getValues: getValues,
+    getExhibition: getExhibition,
     setAvailable: setAvailable
   };
 })();

@@ -44,6 +44,10 @@
         <option value="">(no flavor field — old host)</option>
       </select>
     </label>
+    <label>
+      host title
+      <input id="hostTitle" placeholder="(omitted)" style="width: 8rem" />
+    </label>
     <button id="export" disabled>Request export</button>
     <button id="reload">Reload iframe</button>
     <button id="clear">Clear log</button>
@@ -151,9 +155,12 @@
       // against the pre-flavor contract.
       const msg = { type: 'openvgal:export-request' };
       if (flavorSel.value) msg.flavor = flavorSel.value;
+      const hostTitle = document.getElementById('hostTitle').value;
+      if (hostTitle) msg.title = hostTitle;
       frame.contentWindow.postMessage(msg, '*');
       entry('→ openvgal:export-request', 'flavor: <code>' +
-        (flavorSel.value || '(omitted)') + '</code>');
+        (flavorSel.value || '(omitted)') + '</code>, title: <code>' +
+        (msg.title || '(omitted)') + '</code>');
     });
     document.getElementById('reload').addEventListener('click', () => {
       exportBtn.disabled = true;

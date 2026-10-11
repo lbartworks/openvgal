@@ -129,7 +129,8 @@
     body.embed-mode #resultSection .stats,
     body.embed-mode #resultSection details,
     body.embed-mode #downloadBtn,
-    body.embed-mode #downloadZipBtn { display: none; }
+    body.embed-mode #downloadZipBtn,
+    body.embed-mode #gs-title-row { display: none; }
     body.embed-mode .page-wrapper { padding-top: 1rem; }
 
     /* --- SECTIONS --- */
@@ -870,7 +871,8 @@
           // Parent clicked a Save action. Run the same zip-build path the
           // Export button ran; deliverZip posts openvgal:zip-ready back.
           // The host names the flavor (docs/embed.md); absent/unknown = cloud.
-          buildAndDeliverZip(msg.flavor);
+          // It also owns the exhibition title and may send it here.
+          buildAndDeliverZip(msg.flavor, msg.title);
         }
       });
       // Post our content height so the parent can size the iframe to fit (no
@@ -1069,8 +1071,29 @@
       generateBtn.disabled = false;
     });
 
+    // Exhibition title/description go into Technical at the point of use, not at
+    // Generate, so an edit made after Generate (or after Customize) still lands.
+    // An empty field removes the key: absent means "no opinion" to the backend
+    // (OIP-0005). In embed mode the host owns the title — its field is hidden —
+    // so the title is touched only when the export-request carries one.
+    function applyExhibition(config, hostTitle) {
+      if (!config || !config.Technical) return;
+      var t = config.Technical;
+      var ex = GallerySettings.getExhibition();
+      if (EMBED_MODE) {
+        if (typeof hostTitle === 'string') t.title = hostTitle;
+      } else if (ex.title) {
+        t.title = ex.title;
+      } else {
+        delete t.title;
+      }
+      if (ex.description) t.description = ex.description;
+      else delete t.description;
+    }
+
     downloadBtn.addEventListener('click', function() {
       if (generatedJSON) {
+        applyExhibition(generatedJSON);
         downloadJSON(generatedJSON);
         if (!EMBED_MODE) GalleryPage.openReadyPage(generatedJSON);
       }
@@ -1106,12 +1129,13 @@
     //
     // requestedFlavor is honoured in embed mode only — see the flavor pick
     // below. Standalone callers pass nothing.
-    async function buildAndDeliverZip(requestedFlavor) {
+    async function buildAndDeliverZip(requestedFlavor, hostTitle) {
       if (!generatedJSON) {
         // Silently doing nothing leaves an embed host hanging on its request.
         if (EMBED_MODE) postExportFailed('No gallery has been generated yet.');
         return;
       }
+      applyExhibition(generatedJSON, hostTitle);
 
       // Open the ready page synchronously inside the click stack so mobile
       // browsers don't treat it as a deferred popup. Keeps tab order: download
@@ -1509,7 +1533,7 @@
 
     GalleryPage.setupPreview({
       previewBtn: previewBtn,
-      getJSON: function() { return generatedJSON; },
+      getJSON: function() { applyExhibition(generatedJSON); return generatedJSON; },
       getFileMap: function() { return window.openvgal_fileMap; }
     });
 

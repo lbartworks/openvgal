@@ -209,6 +209,26 @@
             line-height: 1.6;
             white-space: pre-line;
         }
+        #map-about-description.clamped {
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 4;
+            line-clamp: 4;
+            overflow: hidden;
+        }
+        #map-about-more {
+            margin: 4px 0 0;
+            padding: 0;
+            background: none;
+            border: none;
+            color: #a5b4fc;
+            font: inherit;
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+        #map-about-more:hover {
+            color: #c7d2fe;
+        }
         #map-grid {
             width: 100%;
             max-width: 960px;
@@ -623,6 +643,7 @@
         <div id="map-about" style="display:none;">
             <h2 id="map-about-title"></h2>
             <p id="map-about-description"></p>
+            <button id="map-about-more" type="button" style="display:none;" onclick="expandMapAbout()">more</button>
         </div>
         <div id="map-grid"></div>
     </div>
@@ -635,6 +656,7 @@
         if (isHidden) {
             populateMap();
             modal.style.display = 'flex';
+            updateMapAboutMore();
         } else {
             modal.style.display = 'none';
         }
@@ -649,9 +671,24 @@
         var description = technical.description || '';
         document.getElementById('map-about-title').textContent = title;
         document.getElementById('map-about-title').style.display = title ? '' : 'none';
-        document.getElementById('map-about-description').textContent = description;
-        document.getElementById('map-about-description').style.display = description ? '' : 'none';
+        var descEl = document.getElementById('map-about-description');
+        descEl.textContent = description;
+        descEl.style.display = description ? '' : 'none';
+        descEl.classList.add('clamped');
         about.style.display = (title || description) ? '' : 'none';
+    }
+
+    // The clamp is CSS; "more" shows only when it actually cut text, which can
+    // only be measured once the modal is visible.
+    function updateMapAboutMore() {
+        var descEl = document.getElementById('map-about-description');
+        var cut = descEl.style.display !== 'none' && descEl.scrollHeight > descEl.clientHeight + 1;
+        document.getElementById('map-about-more').style.display = cut ? '' : 'none';
+    }
+
+    function expandMapAbout() {
+        document.getElementById('map-about-description').classList.remove('clamped');
+        document.getElementById('map-about-more').style.display = 'none';
     }
 
     function populateMap() {

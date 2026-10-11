@@ -25,6 +25,9 @@ When `?embed=1` is present:
 - The step-3 **Customize** editor announces itself with `openvgal:customize`
   (`open: true` / `open: false`) so the host can hide its own save actions while
   the editor's Apply/Cancel row owns the screen.
+- The **Exhibition title** field in Gallery settings is hidden: the host owns
+  the title and sends it on `openvgal:export-request`. The **Exhibition
+  description** field stays visible.
 
 The **host names the flavor** on `openvgal:export-request`; absent or unknown
 means `cloud`, so a host that never sends the field gets the kernel it always
@@ -223,7 +226,8 @@ fields may be added later.
 ```js
 {
   type: 'openvgal:export-request',
-  flavor?: 'full' | 'cdn' | 'cloud'  // default: 'cloud'
+  flavor?: 'full' | 'cdn' | 'cloud', // default: 'cloud'
+  title?: string                     // exhibition title, at most 120 characters
 }
 ```
 
@@ -231,6 +235,11 @@ Asks the child to build the ZIP. Sent when the user clicks a parent-owned Save
 action (e.g. "Save as draft" or "Save local copy"). `flavor` names the pack that
 action wants — a draft upload wants `cloud`, handing the artist their gallery
 wants `full`. Absent or unrecognised values mean `cloud`.
+
+`title`, when it is a string, is written to `Technical.title` in the exported
+`building_v2.json` as-is (`""` included). When absent, the export carries no
+`Technical.title` key. The child does not trim or cap it; the host should keep
+it within 120 characters, the limit hosted storage accepts.
 
 The child replies with exactly one `openvgal:zip-ready` or
 `openvgal:export-failed`. Only meaningful after `openvgal:gallery-ready`; if no
@@ -261,7 +270,7 @@ It iframes `site/create/index.html?embed=1` and logs the child→parent messages
 arrives the harness enables its **Request export** button, which posts
 `openvgal:export-request` with the flavor chosen in the **export flavor**
 dropdown — including a *(no flavor field)* option that reproduces an old host —
-and prompts the child to reply (with a download link to sanity-check the ZIP).
+plus a `title` when the **host title** box is filled, and prompts the child to reply (with a download link to sanity-check the ZIP).
 Open the ZIP to confirm it matches the flavor asked for: `cloud` holds only
 `building_v2.json` and the images at `room/filename`, while `full` also carries
 `viewer.html`, `templates/`, `materials/` and `babylon.js`.
