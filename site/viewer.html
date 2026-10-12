@@ -623,6 +623,14 @@
     })();
     </script>
     <script src='openvgal-viewer.js'></script>
+    <script>
+    // Tour recorder PoC: opt-in with ?record=1
+    if (new URLSearchParams(window.location.search).has('record')) {
+        var tr = document.createElement('script');
+        tr.src = 'tour-recorder.js';
+        document.body.appendChild(tr);
+    }
+    </script>
 
     <!-- Navigation Map -->
     <button id="map-button" onclick="toggleMap()" title="Gallery Map" style="display:none;">
