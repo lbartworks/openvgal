@@ -54,6 +54,24 @@
 		return m !== exclude && m.isVisible && m.isEnabled() && !m.name.startsWith('Occupancy_');
 	}
 
+	// A wall blocks a straight path along its whole width; a lamp, plaque or label
+	// only clips part of it. Cut only when centre and both side rays are blocked.
+	const PATH_HALF_WIDTH = 0.35;
+	function isWallBetween(from, to, scene) {
+		const gap = to.subtract(from);
+		const len = gap.length();
+		if (len < 0.01) return false;
+		const dir = gap.scale(1 / len);
+		const side = BABYLON.Vector3.Cross(dir, BABYLON.Vector3.Up());
+		if (side.lengthSquared() < 1e-6) return false;
+		side.normalize().scaleInPlace(PATH_HALF_WIDTH);
+		for (const off of [BABYLON.Vector3.Zero(), side, side.scale(-1)]) {
+			const hit = scene.pickWithRay(new BABYLON.Ray(from.add(off), dir, len), m => isBlocker(m, null));
+			if (!hit || !hit.hit) return false;
+		}
+		return true;
+	}
+
 	// Camera pose that frames an artwork head-on, pulled back to fit the vertical frame
 	// and clamped so it never lands behind the opposite wall.
 	function shotFor(mesh, scene) {
@@ -115,12 +133,8 @@
 		let fromAng = { yaw: cam.rotation.y, pitch: cam.rotation.x };
 		for (const s of shots) {
 			const toAng = anglesTo(s.pos, s.center);
-			const gap = s.pos.subtract(fromPos);
-			const len = gap.length();
-			const hit = len > 0.01
-				? scene.pickWithRay(new BABYLON.Ray(fromPos, gap.normalize(), len), m => isBlocker(m, null))
-				: null;
-			if (hit && hit.hit) {
+			const len = s.pos.subtract(fromPos).length();
+			if (isWallBetween(fromPos, s.pos, scene)) {
 				segs.push({ kind: 'cut', pos: s.pos, ang: toAng });
 			} else {
 				const dur = Math.min(Math.max(len / TRAVEL_SPEED, MIN_TRAVEL_S), MAX_TRAVEL_S);
