@@ -625,9 +625,18 @@
     <script src='openvgal-viewer.js'></script>
     <script>
     // Tour recorder PoC: opt-in with ?record=1
+    // Loaded from the CDN so ZIP-hosted galleries get it too; local copy is the fallback (dev).
     if (new URLSearchParams(window.location.search).has('record')) {
         var tr = document.createElement('script');
-        tr.src = 'tour-recorder.js';
+        var trCdn = (typeof cdn_base !== 'undefined' && cdn_base) ? cdn_base : '';
+        tr.src = trCdn ? trCdn + '/core/tour-recorder.js' : 'tour-recorder.js';
+        tr.onerror = function () {
+            if (!trCdn) return;
+            trCdn = '';
+            var local = document.createElement('script');
+            local.src = 'tour-recorder.js';
+            document.body.appendChild(local);
+        };
         document.body.appendChild(tr);
     }
     </script>
