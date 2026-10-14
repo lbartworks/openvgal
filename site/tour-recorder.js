@@ -54,9 +54,14 @@
 		return m !== exclude && m.isVisible && m.isEnabled() && !m.name.startsWith('Occupancy_');
 	}
 
-	// A wall blocks a straight path along its whole width; a lamp, plaque or label
-	// only clips part of it. Cut only when centre and both side rays are blocked.
+	// A wall blocks a straight path along its whole width and height; a lamp, plaque,
+	// label or bench only clips part of it. Cut only when centre and both side rays
+	// hit something wall-sized.
 	const PATH_HALF_WIDTH = 0.35;
+	const WALL_MIN_HEIGHT = 1.8;
+	function isWallMesh(m) {
+		return 2 * m.getBoundingInfo().boundingBox.extendSizeWorld.y >= WALL_MIN_HEIGHT;
+	}
 	function isWallBetween(from, to, scene) {
 		const gap = to.subtract(from);
 		const len = gap.length();
@@ -65,10 +70,13 @@
 		const side = BABYLON.Vector3.Cross(dir, BABYLON.Vector3.Up());
 		if (side.lengthSquared() < 1e-6) return false;
 		side.normalize().scaleInPlace(PATH_HALF_WIDTH);
+		const walls = [];
 		for (const off of [BABYLON.Vector3.Zero(), side, side.scale(-1)]) {
-			const hit = scene.pickWithRay(new BABYLON.Ray(from.add(off), dir, len), m => isBlocker(m, null));
+			const hit = scene.pickWithRay(new BABYLON.Ray(from.add(off), dir, len), m => isBlocker(m, null) && isWallMesh(m));
 			if (!hit || !hit.hit) return false;
+			walls.push(hit.pickedMesh.name);
 		}
+		console.info('[tour] wall between shots, cutting:', walls.join(', '));
 		return true;
 	}
 
@@ -202,20 +210,68 @@
 			wrapLines(ctx, title, OUT_W - 160, 2).forEach((l, i) => ctx.fillText(l, OUT_W / 2, 140 + i * 84));
 		}
 
-		ctx.textAlign = 'right';
-		ctx.textBaseline = 'bottom';
+		// Bottom-centre lockup: brand mark + wordmark, URL beneath, over a soft shade.
+		const foot = ctx.createLinearGradient(0, OUT_H - 380, 0, OUT_H);
+		foot.addColorStop(0, 'rgba(0,0,0,0)');
+		foot.addColorStop(1, 'rgba(0,0,0,0.55)');
+		ctx.shadowColor = 'transparent';
+		ctx.fillStyle = foot;
+		ctx.fillRect(0, OUT_H - 380, OUT_W, 380);
+
+		const MARK = 64, GAP = 18, baseY = OUT_H - 150;
+		ctx.font = '600 52px Inter, sans-serif';
+		ctx.letterSpacing = '1px';
+		const wordW = ctx.measureText('OpenVGAL').width;
+		const x0 = (OUT_W - (MARK + GAP + wordW)) / 2;
 		ctx.shadowColor = 'rgba(0,0,0,0.6)';
-		ctx.shadowBlur = 12;
-		ctx.fillStyle = 'rgba(250,250,250,0.9)';
-		ctx.font = '600 44px Inter, sans-serif';
-		ctx.fillText('OpenVGAL', OUT_W - 56, OUT_H - 96);
-		ctx.fillStyle = 'rgba(165,180,252,0.9)';
-		ctx.font = '400 30px Inter, sans-serif';
-		ctx.fillText('openvgal.com', OUT_W - 56, OUT_H - 56);
+		ctx.shadowBlur = 14;
+		drawMark(ctx, x0, baseY - MARK / 2, MARK);
+		ctx.textAlign = 'left';
+		ctx.textBaseline = 'middle';
+		ctx.fillStyle = '#fafafa';
+		ctx.fillText('OpenVGAL', x0 + MARK + GAP, baseY + 2);
+
+		ctx.textAlign = 'center';
+		ctx.textBaseline = 'top';
+		ctx.font = '500 28px Inter, sans-serif';
+		ctx.letterSpacing = '6px';
+		ctx.fillStyle = '#a5b4fc';
+		ctx.fillText('OPENVGAL.COM', OUT_W / 2, baseY + MARK / 2 + 26);
+		ctx.letterSpacing = '0px';
 		dt.update();
 		const layer = new BABYLON.Layer('tour_wm', null, scene, false);
 		layer.texture = dt;
 		return layer;
+	}
+
+	// Canonical "open threshold" mark (see site/index.html #ovg-mark), drawn on a 256 grid.
+	function drawMark(ctx, x, y, size) {
+		const poly = (pts, fill) => {
+			ctx.beginPath();
+			for (let i = 0; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]);
+			ctx.closePath();
+			ctx.fillStyle = fill;
+			ctx.fill();
+		};
+		ctx.save();
+		ctx.translate(x, y);
+		ctx.scale(size / 256, size / 256);
+		poly([35.84, 35.84, 220.16, 35.84, 220.16, 220.16, 35.84, 220.16], '#fbfaf7');
+		ctx.shadowColor = 'transparent';
+		poly([35.84, 220.16, 220.16, 220.16, 161.18, 153.5, 94.82, 153.5], '#d1ad84');
+		ctx.strokeStyle = '#0f1016';
+		ctx.lineWidth = 4.84;
+		ctx.beginPath();
+		ctx.moveTo(35.84, 35.84); ctx.lineTo(94.82, 87.14);
+		ctx.moveTo(220.16, 35.84); ctx.lineTo(161.18, 87.14);
+		ctx.moveTo(35.84, 220.16); ctx.lineTo(94.82, 153.5);
+		ctx.moveTo(220.16, 220.16); ctx.lineTo(161.18, 153.5);
+		ctx.stroke();
+		ctx.lineWidth = 5.76;
+		ctx.strokeRect(94.82, 87.14, 66.36, 66.36);
+		ctx.lineWidth = 6.91;
+		ctx.strokeRect(35.84, 35.84, 184.32, 184.32);
+		ctx.restore();
 	}
 
 	function pickMimeType() {
@@ -239,11 +295,14 @@
 		};
 
 		// Vertical frame: fixed render size, canvas shown letterboxed so the user sees the shot.
+		// Pinned to the viewport centre so page flow/margins can't shift the preview.
+		canvas.style.position = 'fixed';
+		canvas.style.top = '0';
+		canvas.style.left = '50%';
+		canvas.style.transform = 'translateX(-50%)';
 		canvas.style.width = 'auto';
-		canvas.style.height = '100vh';
+		canvas.style.height = '100%';
 		canvas.style.aspectRatio = OUT_W + ' / ' + OUT_H;
-		canvas.style.margin = '0 auto';
-		canvas.style.display = 'block';
 		engine.setSize(OUT_W, OUT_H);
 
 		cam.detachControl();
@@ -314,11 +373,15 @@
 		const slug = (r.title || 'tour').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'tour';
 		const file = new File(r.chunks, 'openvgal-' + slug + (type === 'video/mp4' ? '.mp4' : '.webm'), { type });
 
-		// Phones: navigator.share needs a fresh user gesture, so the button becomes "Share video"
-		// and the next click opens the share sheet. Desktops: save the file.
+		// Phones: open the share sheet straight away. Browsers may refuse because the
+		// tap that started the recording is too old; then the button becomes
+		// "Share video" and the next tap shares. Desktops: save the file.
 		if (IS_MOBILE && navigator.canShare && navigator.canShare({ files: [file] })) {
-			pendingShare = { file, title: r.title };
-			setButton('share');
+			navigator.share({ files: [file], title: r.title || 'OpenVGAL', text: r.title || '' })
+				.catch(err => {
+					if (err.name === 'NotAllowedError') { pendingShare = { file, title: r.title }; setButton('share'); }
+					else if (err.name !== 'AbortError') download(file);
+				});
 		} else {
 			download(file);
 		}
