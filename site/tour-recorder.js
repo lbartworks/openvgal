@@ -426,7 +426,9 @@
 		button.title = 'Record a vertical tour of 3 artworks';
 		// Top-right, mirroring the map button (top-left); the overlay owns the bottom edge.
 		const inset = window.matchMedia('(max-width: 600px)').matches ? 12 : 20;
-		button.style.cssText = 'position:fixed;top:' + inset + 'px;right:' + inset + 'px;z-index:25;'
+		// Generator preview: the parent's "Close Preview" button owns the top-right corner (top 12, ~37 high).
+		const top = window.openvgal_preview_mode ? 60 : inset;
+		button.style.cssText = 'position:fixed;top:' + top + 'px;right:' + inset + 'px;z-index:25;'
 			+ 'display:flex;align-items:center;gap:8px;height:44px;padding:0 18px;border-radius:999px;cursor:pointer;'
 			+ 'background:rgba(0,0,0,0.75);color:#fafafa;border:1px solid rgba(255,255,255,0.15);font:500 14px Inter,sans-serif;';
 		button.id = 'tour-record-btn';
