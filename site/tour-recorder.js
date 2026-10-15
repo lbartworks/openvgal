@@ -430,9 +430,10 @@
 			+ 'display:flex;align-items:center;gap:8px;height:44px;padding:0 18px;border-radius:999px;cursor:pointer;'
 			+ 'background:rgba(0,0,0,0.75);color:#fafafa;border:1px solid rgba(255,255,255,0.15);font:500 14px Inter,sans-serif;';
 		button.id = 'tour-record-btn';
-		// Phones: the minimized overlay bar spans the top row, so drop below it (bar: top 12 + 38 high).
+		// Phones: the minimized overlay bar spans the top row, so drop below it (bar: top 12 + 38 high)
+		// and align with the bar's left edge (left 58).
 		const css = document.createElement('style');
-		css.textContent = '@media screen and (max-width: 600px) { body:has(#permanent-overlay.collapsed) #tour-record-btn { top: 58px !important; } }';
+		css.textContent = '@media screen and (max-width: 600px) { body:has(#permanent-overlay.collapsed) #tour-record-btn { top: 58px !important; left: 58px !important; right: auto !important; } }';
 		document.head.appendChild(css);
 		button.innerHTML = '<i style="width:10px;height:10px;border-radius:50%;display:inline-block;"></i><span></span>';
 		button.addEventListener('click', () => {
