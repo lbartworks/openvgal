@@ -129,8 +129,7 @@
     body.embed-mode #resultSection .stats,
     body.embed-mode #resultSection details,
     body.embed-mode #downloadBtn,
-    body.embed-mode #downloadZipBtn,
-    body.embed-mode #gs-title-row { display: none; }
+    body.embed-mode #downloadZipBtn { display: none; }
     body.embed-mode .page-wrapper { padding-top: 1rem; }
 
     /* --- SECTIONS --- */
@@ -1074,14 +1073,14 @@
     // Exhibition title/description go into Technical at the point of use, not at
     // Generate, so an edit made after Generate (or after Customize) still lands.
     // An empty field removes the key: absent means "no opinion" to the backend
-    // (OIP-0005). In embed mode the host owns the title — its field is hidden —
-    // so the title is touched only when the export-request carries one.
+    // (OIP-0005). Same in every mode; a title on an embed host's export-request
+    // is an override and wins.
     function applyExhibition(config, hostTitle) {
       if (!config || !config.Technical) return;
       var t = config.Technical;
       var ex = GallerySettings.getExhibition();
-      if (EMBED_MODE) {
-        if (typeof hostTitle === 'string') t.title = hostTitle;
+      if (typeof hostTitle === 'string') {
+        t.title = hostTitle;
       } else if (ex.title) {
         t.title = ex.title;
       } else {
@@ -1427,7 +1426,10 @@
               // What was actually built. A host asking for 'full' can tell a
               // real pack from a kernel returned by a builder deployed before
               // the flavor field existed, instead of shipping the kernel.
-              flavor: flavor
+              flavor: flavor,
+              // The host names its download and its gallery record from this.
+              title: config.Technical && typeof config.Technical.title === 'string'
+                ? config.Technical.title : null
             }
           }, '*');
         } catch (e) {

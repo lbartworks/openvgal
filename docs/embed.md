@@ -25,9 +25,6 @@ When `?embed=1` is present:
 - The step-3 **Customize** editor announces itself with `openvgal:customize`
   (`open: true` / `open: false`) so the host can hide its own save actions while
   the editor's Apply/Cancel row owns the screen.
-- The **Exhibition title** field in Gallery settings is hidden: the host owns
-  the title and sends it on `openvgal:export-request`. The **Exhibition
-  description** field stays visible.
 
 The **host names the flavor** on `openvgal:export-request`; absent or unknown
 means `cloud`, so a host that never sends the field gets the kernel it always
@@ -175,10 +172,15 @@ own indeterminate state; the authoritative end-of-export signals are
     count: number,      // number of artwork images in the gallery
     totalBytes: number, // blob.size
     style: string | null, // style key (e.g. 'classic'), or null if unset
-    flavor: string      // 'full' | 'cdn' | 'cloud' — what was actually built
+    flavor: string,     // 'full' | 'cdn' | 'cloud' — what was actually built
+    title: string | null // the exported Technical.title, or null when absent
   }
 }
 ```
+
+`meta.title` is the title the export carries: the builder's **Exhibition
+title** field, or the `export-request` override. The host names its download
+and its gallery record from it rather than asking for a title of its own.
 
 Sent in response to each `openvgal:export-request` — one blob per request
 (the export button is hidden in embed mode). The blob's contents are the
@@ -227,7 +229,7 @@ fields may be added later.
 {
   type: 'openvgal:export-request',
   flavor?: 'full' | 'cdn' | 'cloud', // default: 'cloud'
-  title?: string                     // exhibition title, at most 120 characters
+  title?: string                     // optional override, at most 120 characters
 }
 ```
 
@@ -236,10 +238,13 @@ action (e.g. "Save as draft" or "Save local copy"). `flavor` names the pack that
 action wants — a draft upload wants `cloud`, handing the artist their gallery
 wants `full`. Absent or unrecognised values mean `cloud`.
 
-`title`, when it is a string, is written to `Technical.title` in the exported
-`building_v2.json` as-is (`""` included). When absent, the export carries no
-`Technical.title` key. The child does not trim or cap it; the host should keep
-it within 120 characters, the limit hosted storage accepts.
+The builder owns the title: its **Exhibition title** field in Gallery settings
+fills `Technical.title` for preview and export in every mode, and an empty field
+leaves the key out. `title` is an override for hosts that keep their own. When
+it is a string, it replaces the field's value in that export as-is (`""`
+included); when absent, the field decides. The child does not trim or cap it;
+the host should keep it within 120 characters, the limit hosted storage
+accepts. Either way, `zip-ready` reports the result as `meta.title`.
 
 The child replies with exactly one `openvgal:zip-ready` or
 `openvgal:export-failed`. Only meaningful after `openvgal:gallery-ready`; if no
@@ -265,7 +270,7 @@ python -m http.server 8080
 
 It iframes `site/create/index.html?embed=1` and logs the child→parent messages
 (`openvgal:ready`, `openvgal:resize`, `openvgal:gallery-ready`,
-`openvgal:zip-ready` plus the blob size and `meta.flavor`, and
+`openvgal:zip-ready` plus the blob size and the full `meta`, and
 `openvgal:export-failed`). Build a gallery in the iframe; once `gallery-ready`
 arrives the harness enables its **Request export** button, which posts
 `openvgal:export-request` with the flavor chosen in the **export flavor**
