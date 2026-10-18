@@ -171,7 +171,8 @@ own indeterminate state; the authoritative end-of-export signals are
     totalBytes: number, // blob.size
     style: string | null, // style key (e.g. 'classic'), or null if unset
     flavor: string,     // 'full' | 'cdn' | 'cloud' — what was actually built
-    title: string | null // the exported Technical.title, or null when absent
+    title: string | null, // the exported Technical.title, or null when absent
+    hasMusic: boolean   // the pack carries the artist's own music.mp3
   }
 }
 ```
@@ -179,6 +180,12 @@ own indeterminate state; the authoritative end-of-export signals are
 `meta.title` is the title the export carries: the builder's **Exhibition
 title** field, or the `export-request` override. The host names its download
 and its gallery record from it rather than asking for a title of its own.
+
+`meta.hasMusic` is `true` when the artist added an MP3 in the builder's
+**Background music** field. The pack then has `music.mp3` at its root and
+`Technical.music` set to `"music.mp3"`. A host that publishes the pack asks for
+the rights checkbox first, and its finalize call sends `music_attested: true`
+(OIP-0006). A host that only saves the ZIP locally can ignore it.
 
 Sent in response to each `openvgal:export-request` — one blob per request
 (the export button is hidden in embed mode). The blob's contents are the

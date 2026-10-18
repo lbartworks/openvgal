@@ -859,9 +859,27 @@
       else delete t.description;
     }
 
+    // Background music (OIP-0006), applied at the same points as the exhibition
+    // fields. The builder's own MP3 always ships as music.mp3.
+    var MUSIC_FILE = 'music.mp3';
+    function applyMusic(config) {
+      if (!config || !config.Technical) return;
+      if (GallerySettings.getMusic()) config.Technical.music = MUSIC_FILE;
+      else delete config.Technical.music;
+    }
+
+    // The image file map plus the music file, keyed like the pack's entry sources.
+    function packSources() {
+      var sources = Object.assign({}, window.openvgal_fileMap || {});
+      var music = GallerySettings.getMusic();
+      if (music) sources['/' + MUSIC_FILE] = music;
+      return sources;
+    }
+
     downloadBtn.addEventListener('click', function() {
       if (generatedJSON) {
         applyExhibition(generatedJSON);
+        applyMusic(generatedJSON);
         downloadJSON(generatedJSON);
         if (!EMBED_MODE) GalleryPage.openReadyPage(generatedJSON);
       }
@@ -904,6 +922,7 @@
         return;
       }
       applyExhibition(generatedJSON, hostTitle);
+      applyMusic(generatedJSON);
 
       // Open the ready page synchronously inside the click stack so mobile
       // browsers don't treat it as a deferred popup. Keeps tab order: download
@@ -1003,6 +1022,7 @@
     async function buildPack(config, flavor, onProgress) {
       var zip = new JSZip();
       var fileMap = window.openvgal_fileMap || {};
+      var sources = packSources();
       var selectedStyle = StylePicker.getSelected();
 
       var entries = OpenVGALPack.describe(flavor, {
@@ -1038,7 +1058,7 @@
             // them costs nearly all of the packaging time for almost no saving,
             // so store them verbatim. Everything else keeps the archive-level
             // DEFLATE default set in generateAsync below.
-            zip.file(entry.path, fileMap[entry.source], { compression: 'STORE' });
+            zip.file(entry.path, sources[entry.source], { compression: 'STORE' });
           } else if (entry.binary) {
             zip.file(entry.path, await (await packFetch(entry.url)).blob());
           } else {
@@ -1106,7 +1126,10 @@
               flavor: flavor,
               // The host names its download and its gallery record from this.
               title: config.Technical && typeof config.Technical.title === 'string'
-                ? config.Technical.title : null
+                ? config.Technical.title : null,
+              // The pack carries the artist's own MP3, so a host that publishes
+              // it asks for the rights checkbox first (OIP-0006).
+              hasMusic: !!GallerySettings.getMusic()
             }
           }, '*');
         } catch (e) {
@@ -1212,8 +1235,8 @@
 
     GalleryPage.setupPreview({
       previewBtn: previewBtn,
-      getJSON: function() { applyExhibition(generatedJSON); return generatedJSON; },
-      getFileMap: function() { return window.openvgal_fileMap; }
+      getJSON: function() { applyExhibition(generatedJSON); applyMusic(generatedJSON); return generatedJSON; },
+      getFileMap: function() { return window.openvgal_fileMap && packSources(); }
     });
 
     // Any change to the source folder list invalidates a previously-built gallery:

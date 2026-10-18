@@ -9,6 +9,9 @@ var GallerySettings = (function() {
   // is the builder's own (the viewer clamps whatever it gets).
   var TITLE_MAX = 120;
   var DESCRIPTION_MAX = 1000;
+  // OIP-0006: MP3 only, at most 10 MB, the backend's own limit (10 MiB).
+  var MUSIC_MAX_BYTES = 10 * 1024 * 1024;
+  var _music = null; // the chosen File; exported as music.mp3
   var _state = {
     show_plaques: false,
     show_frames: true,
@@ -104,6 +107,33 @@ var GallerySettings = (function() {
       '.gs-text-row input:focus, .gs-text-row textarea:focus {',
       '  outline: none;',
       '  border-color: var(--ink-3, #71717a);',
+      '}',
+      '.gs-music-controls {',
+      '  display: flex;',
+      '  align-items: center;',
+      '  flex-wrap: wrap;',
+      '  gap: 0.6rem;',
+      '  margin-top: 0.35rem;',
+      '}',
+      '.gs-music-name {',
+      '  font-size: 0.78rem;',
+      '  color: var(--ink-2, #3f3f46);',
+      '  overflow-wrap: anywhere;',
+      '}',
+      '.gs-music-remove {',
+      '  background: none;',
+      '  border: none;',
+      '  padding: 0;',
+      '  font: inherit;',
+      '  font-size: 0.75rem;',
+      '  color: var(--ink-3, #71717a);',
+      '  text-decoration: underline;',
+      '  cursor: pointer;',
+      '}',
+      '.gs-music-error {',
+      '  font-size: 0.72rem;',
+      '  color: #dc2626;',
+      '  margin-top: 0.35rem;',
       '}'
     ].join('\n');
     document.head.appendChild(style);
@@ -142,6 +172,7 @@ var GallerySettings = (function() {
     section.appendChild(_toggleRow('gs-skip-hub', 'skip_hub',
       'Skip the entrance hall',
       'Open straight into the gallery. Single folder only, and the brand sign in the hall goes with it'));
+    section.appendChild(_musicRow());
     containerEl.appendChild(section);
     _mounted = true;
   }
@@ -165,6 +196,63 @@ var GallerySettings = (function() {
     row.appendChild(labelEl);
     row.appendChild(field);
     return row;
+  }
+
+  function _musicRow() {
+    var row = document.createElement('div');
+    row.className = 'gs-text-row';
+    row.id = 'gs-music-row';
+    row.innerHTML = '<div class="gs-toggle-label">Background music</div>' +
+      '<div class="gs-toggle-hint">One track that loops while visitors walk the gallery. MP3, up to 10 MB</div>' +
+      '<div class="gs-music-controls">' +
+      '<button type="button" class="btn btn-subtle" id="gs-music-pick">Upload your own MP3</button>' +
+      '<span class="gs-music-name" id="gs-music-name"></span>' +
+      '<button type="button" class="gs-music-remove" id="gs-music-remove" style="display:none;">Remove</button>' +
+      '</div>' +
+      '<input type="file" id="gs-music-input" accept=".mp3,audio/mpeg" style="display:none;">' +
+      '<div class="gs-music-error" id="gs-music-error" style="display:none;"></div>' +
+      '<div class="gs-toggle-hint">Subscribers can pick from the OpenVGAL music catalogue in the dashboard after saving.</div>';
+
+    var input = row.querySelector('#gs-music-input');
+    row.querySelector('#gs-music-pick').addEventListener('click', function() { input.click(); });
+    input.addEventListener('change', function() {
+      var file = this.files && this.files[0];
+      this.value = '';
+      if (!file) return;
+      if (!/\.mp3$/i.test(file.name)) {
+        _showMusicError('Only MP3 files can be used.');
+        return;
+      }
+      if (file.size > MUSIC_MAX_BYTES) {
+        _showMusicError('That file is ' + (file.size / (1024 * 1024)).toFixed(1) +
+          ' MB. The limit is 10 MB.');
+        return;
+      }
+      _music = file;
+      _showMusicError('');
+      _renderMusic();
+    });
+    row.querySelector('#gs-music-remove').addEventListener('click', function() {
+      _music = null;
+      _showMusicError('');
+      _renderMusic();
+    });
+    return row;
+  }
+
+  function _showMusicError(message) {
+    var el = document.getElementById('gs-music-error');
+    if (!el) return;
+    el.textContent = message;
+    el.style.display = message ? '' : 'none';
+  }
+
+  function _renderMusic() {
+    var name = document.getElementById('gs-music-name');
+    var remove = document.getElementById('gs-music-remove');
+    if (!name || !remove) return;
+    name.textContent = _music ? _music.name : '';
+    remove.style.display = _music ? '' : 'none';
   }
 
   function _toggleRow(id, key, label, hint) {
@@ -222,10 +310,16 @@ var GallerySettings = (function() {
     };
   }
 
+  // The chosen MP3 File, or null.
+  function getMusic() {
+    return _music;
+  }
+
   return {
     mount: mount,
     getValues: getValues,
     getExhibition: getExhibition,
+    getMusic: getMusic,
     setAvailable: setAvailable
   };
 })();
