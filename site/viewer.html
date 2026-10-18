@@ -121,7 +121,7 @@
 
 
         /* Navigation Map */
-        #map-button {
+        #map-button, #music-button {
             position: fixed;
             top: 20px;
             left: 20px;
@@ -140,7 +140,14 @@
             justify-content: center;
             transition: background 0.2s, border-color 0.2s, color 0.2s;
         }
-        #map-button:hover {
+        /* Background music toggle (OIP-0006): same look, under the map button. */
+        #music-button {
+            top: 72px;
+        }
+        #music-button .music-off { display: none; }
+        #music-button.off .music-off { display: inline; }
+        #music-button.off { color: #71717a; }
+        #map-button:hover, #music-button:hover {
             background: color-mix(in oklab, oklch(0.78 0.065 68) 22%, transparent);
             border-color: color-mix(in oklab, oklch(0.78 0.065 68) 50%, transparent);
             color: oklch(0.78 0.065 68);
@@ -308,11 +315,14 @@
             margin: 0;
         }
         @media screen and (max-width: 600px) {
-            #map-button {
+            #map-button, #music-button {
                 top: 12px;
                 left: 12px;
                 width: 38px;
                 height: 38px;
+            }
+            #music-button {
+                top: 58px;
             }
             #map-header {
                 padding: 16px 16px 4px;
@@ -652,6 +662,16 @@
         </svg>
     </button>
 
+    <button id="music-button" onclick="toggleMusic()" title="Music" aria-pressed="true" style="display:none;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 18V5l12-2v13"/>
+            <circle cx="6" cy="18" r="3"/>
+            <circle cx="18" cy="16" r="3"/>
+            <line class="music-off" x1="3" y1="3" x2="21" y2="21"/>
+        </svg>
+    </button>
+
     <div id="map-modal">
         <div id="map-header">
             <span id="map-title">Gallery Map</span>
@@ -795,9 +815,62 @@
         window.location.search = params.toString();
     }
 
+    // Background music (OIP-0006): Technical.music names one looping track. A
+    // relative value is a file beside the images; anything absolute is streamed
+    // as-is. Browsers block sound until the visitor's first click or key press,
+    // so the button starts "on" and the track starts at that first interaction.
+    var galleryMusic = null;
+    var musicOn = true;
+    var MUSIC_START_EVENTS = ['pointerdown', 'keydown', 'touchend'];
+
+    function musicSrc(music) {
+        if (/^([a-z][a-z0-9+.-]*:|\/\/)/i.test(music)) return music;
+        var path = '/' + music.replace(/^(\.\/|\/)+/, '');
+        // Same resolution as the images, so the preview's blob URLs apply too.
+        return (typeof window.resolveImageUrl === 'function')
+            ? window.resolveImageUrl(path)
+            : window.openvgal_location + path;
+    }
+
+    function setupMusic() {
+        var music = (config_file_content.Technical || {}).music;
+        if (typeof music !== 'string' || !music) return;
+        galleryMusic = new Audio(musicSrc(music));
+        galleryMusic.loop = true;
+        MUSIC_START_EVENTS.forEach(function(type) {
+            window.addEventListener(type, startMusicOnInteraction, true);
+        });
+        document.getElementById('music-button').style.display = 'flex';
+    }
+
+    function playMusic() {
+        galleryMusic.play().then(function() {
+            MUSIC_START_EVENTS.forEach(function(type) {
+                window.removeEventListener(type, startMusicOnInteraction, true);
+            });
+        }).catch(function() {});
+    }
+
+    function startMusicOnInteraction(e) {
+        // The button's own click toggles; starting here too would undo it.
+        if (e.target && e.target.closest && e.target.closest('#music-button')) return;
+        if (musicOn && galleryMusic.paused) playMusic();
+    }
+
+    function toggleMusic() {
+        if (!galleryMusic) return;
+        musicOn = !musicOn;
+        if (musicOn) playMusic();
+        else galleryMusic.pause();
+        var button = document.getElementById('music-button');
+        button.classList.toggle('off', !musicOn);
+        button.setAttribute('aria-pressed', musicOn ? 'true' : 'false');
+    }
+
     (function waitForConfig() {
         if (typeof config_file_content !== 'undefined' && config_file_content) {
             document.getElementById('map-button').style.display = 'flex';
+            setupMusic();
         } else {
             setTimeout(waitForConfig, 200);
         }

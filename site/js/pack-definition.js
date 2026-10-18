@@ -36,6 +36,7 @@
  *   binary     (remote) true if the bytes must not be treated as text
  *   transform  (remote, optional) pure fn(text) -> text applied before writing
  *   source     (image) the manifest-relative path, e.g. '/room/file.jpg'
+ *              (also '/music.mp3' for Technical.music, see musicPath)
  *   content    (inline) the exact text to write
  *   label      progress message for this entry
  */
@@ -339,7 +340,25 @@
       '</body></html>';
   }
 
+  // Technical.music (OIP-0006): a relative value is the artist's own file at
+  // the gallery root and travels with the pack; an absolute one is a streamed
+  // catalogue track that must never leave OpenVGAL, so it is dropped.
+  function isAbsoluteUrl(value) {
+    return /^([a-z][a-z0-9+.-]*:|\/\/)/i.test(value);
+  }
+
+  function musicPath(config) {
+    var music = config && config.Technical && config.Technical.music;
+    if (typeof music !== 'string' || !music || isAbsoluteUrl(music)) return null;
+    return music.replace(/^(\.\/|\/)+/, '');
+  }
+
   function manifestText(config) {
+    var music = config && config.Technical && config.Technical.music;
+    if (typeof music === 'string' && isAbsoluteUrl(music)) {
+      config = JSON.parse(JSON.stringify(config));
+      delete config.Technical.music;
+    }
     return JSON.stringify(config, null, 2);
   }
 
@@ -401,8 +420,13 @@
     });
   }
 
-  function imageEntries(imagePaths) {
-    return imagePaths.map(imageEntry);
+  // The music file rides along as an image entry ('/music.mp3'): every caller
+  // already fetches those from the gallery's location (or its own file map).
+  function imageEntries(imagePaths, config) {
+    var entries = imagePaths.map(imageEntry);
+    var music = musicPath(config);
+    if (music) entries.push(imageEntry('/' + music));
+    return entries;
   }
 
   /**
@@ -425,7 +449,7 @@
   function describe(flavor, opts) {
     opts = opts || {};
     var config = opts.config;
-    var images = imageEntries(opts.imagePaths || []);
+    var images = imageEntries(opts.imagePaths || [], config);
     var cdnBase = opts.cdnBase || '';
 
     if (flavor === 'full') {
@@ -469,6 +493,7 @@
     readmeFull: readmeFull,
     readmeCdn: readmeCdn,
     cdnIndexHtml: cdnIndexHtml,
+    musicPath: musicPath,
     describe: describe
   };
 })(typeof window !== 'undefined' ? window : globalThis);
