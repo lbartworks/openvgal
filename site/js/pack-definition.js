@@ -419,7 +419,6 @@
    *   galleryName  {string}   optional, only to name the gallery in errors
    *   cdnBase      {string}   prefix for templates/materials, no trailing slash
    *   viewerBase   {string}   prefix for engine files, WITH trailing slash
-   *   update       {boolean}  cdn flavor only: kernel-only update package
    * @returns {object[]} ordered entries
    * @throws  {Error}    'full' flavor whose style cannot be resolved
    */
@@ -450,11 +449,7 @@
         .concat(images);
     }
 
-    // cdn: an update package is the kernel alone; otherwise a thin-client pack.
-    if (opts.update) {
-      return [inlineEntry('building_v2.json', manifestText(config), 'Added')]
-        .concat(images);
-    }
+    // cdn: the thin-client pack.
     return [].concat(
       [inlineEntry('index.html', cdnIndexHtml(cdnBase), 'Created')],
       [inlineEntry('building_v2.json', manifestText(config), 'Added')],

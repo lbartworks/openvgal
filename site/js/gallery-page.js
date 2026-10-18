@@ -1,10 +1,8 @@
 /**
  * OpenVGAL Gallery Page Helpers
  *
- * Shared page-level logic for site/create/index.html, which runs in two
- * output modes (standard self-contained ZIP and ?cdn=1 thin client). The
- * drop-zone, gallery list, preview overlay, and stats logic stay in this
- * module so both modes share one implementation.
+ * Shared page-level logic for site/create/index.html: the drop-zone, gallery
+ * list, preview overlay, and stats logic.
  *
  * Depends on screenImageFiles / groupFilesByFolder from gallery-generator.js.
  */
@@ -12,7 +10,6 @@ var GalleryPage = (function() {
 
   var SVG_ICONS = {
     folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>',
-    lock:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>',
     remove: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>'
   };
 
@@ -134,8 +131,7 @@ var GalleryPage = (function() {
   }
 
   // Append editable rows for each gallery to `container`. Caller is responsible
-  // for clearing the container before calling, and for rendering any read-only
-  // rows (e.g. imported rooms in ?cdn=1 mode) separately.
+  // for clearing the container before calling.
   // `onChange` runs after a row is renamed or removed.
   function renderGalleryItems(container, galleries, opts) {
     var onChange = (opts && opts.onChange) || function() {};

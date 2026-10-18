@@ -42,10 +42,6 @@ The ZIP uses relative paths (`openvgal_location = '.'`), so it works in any subf
 
 After **Download ZIP** (or the JSON-only download), the generator opens `/ready.html?name=<firstRoom>` in a new tab — a lightweight post-save page with a free-hosting walkthrough, a coming-soon "host it for me" CTA (`/hosting.html`), and Web-Share / X / Facebook / Instagram-caption-copy buttons. The window is opened synchronously inside the click handler so mobile browsers don't drop it as a deferred popup.
 
-### CDN-first mode
-
-`/create?cdn=1` produces a lighter ZIP containing only images + configuration; templates, materials, and viewer code load from `cdn.openvgal.com` at runtime. Do **not** ship a ZIP downloaded with `?cdn=1&dev=1` — that bakes `CDN_BASE = '/cdn'` into the thin client and won't work outside dev.
-
 ---
 
 ## Customize editor
@@ -88,8 +84,6 @@ http://localhost:8080/site/create/index.html?dev=1
 ```
 
 Use this when iterating on `Occupancy_*` planes, fixture geometry, materials, or any other template-time asset the generator consumes before the viewer runs. Workflow: edit `cdn/templates/*.glb` in Blender → save → drop image folders → Build → Preview. No CDN upload.
-
-> **Caveat:** a ZIP downloaded with `?cdn=1&dev=1` bakes `CDN_BASE = '/cdn'` into the thin-client output and won't work outside dev. Use `?cdn=1` alone when producing a real CDN ZIP.
 
 ---
 

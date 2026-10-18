@@ -1,6 +1,6 @@
 /**
  * OpenVGAL Gallery Settings Panel
- * Shared module consumed by create/index.html (both standard and ?cdn=1 modes).
+ * Shared module consumed by create/index.html.
  */
 var GallerySettings = (function() {
   var _mounted = false;
@@ -205,26 +205,6 @@ var GallerySettings = (function() {
     entry.checkbox.disabled = !available;
   }
 
-  function load(technicalObj) {
-    if (!technicalObj) return;
-    _state.show_plaques = technicalObj.show_plaques !== false;
-    _state.show_frames = technicalObj.show_frames !== false;
-    _state.skip_hub = technicalObj.skip_hub === true;
-    var cbP = document.getElementById('gs-show-plaques');
-    if (cbP) cbP.checked = _state.show_plaques;
-    var cbF = document.getElementById('gs-show-frames');
-    if (cbF) cbF.checked = _state.show_frames;
-    var cbH = document.getElementById('gs-skip-hub');
-    if (cbH) cbH.checked = _state.skip_hub;
-    _state.title = typeof technicalObj.title === 'string' ? technicalObj.title.slice(0, TITLE_MAX) : '';
-    _state.description = typeof technicalObj.description === 'string'
-      ? technicalObj.description.slice(0, DESCRIPTION_MAX) : '';
-    var inT = document.getElementById('gs-title');
-    if (inT) inT.value = _state.title;
-    var inD = document.getElementById('gs-description');
-    if (inD) inD.value = _state.description;
-  }
-
   function getValues() {
     return {
       show_plaques: _state.show_plaques,
@@ -244,7 +224,6 @@ var GallerySettings = (function() {
 
   return {
     mount: mount,
-    load: load,
     getValues: getValues,
     getExhibition: getExhibition,
     setAvailable: setAvailable

@@ -107,7 +107,7 @@ For a deeper dive into the JSON format, the layout algorithm, the material syste
 The main web application:
 - `index.html` -- Landing page
 - `viewer.html` -- 3D gallery viewer (Babylon.js), includes gallery map
-- `create/index.html` -- Browser-based gallery generator (self-contained ZIP, or CDN-first thin client with `?cdn=1`)
+- `create/index.html` -- Browser-based gallery generator (self-contained ZIP)
 - `create/customize.html`, `customize.js` -- Per-artwork editor (size + metadata) lazy-loaded from the generator
 - `ready.html` -- Post-download "your gallery is ready" page (hosting links + share buttons)
 - `hosting.html` -- Coming-soon placeholder for the managed hosting service

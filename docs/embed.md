@@ -40,8 +40,6 @@ got. The three flavors are ADR-0008's:
 - **`cdn`** — the thin client: kernel plus an `index.html` that loads the viewer
   from `cdn.openvgal.com`.
 
-`?cdn=1` has no effect on the export in embed mode — the request decides.
-
 ## URL
 
 ```
