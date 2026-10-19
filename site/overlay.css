@@ -188,6 +188,28 @@
     box-shadow: 0 0 8px rgba(99, 102, 241, 0.6);
 }
 
+/* Background music toggle: shown only when the viewer found Technical.music. */
+#music-button {
+    display: none;
+    padding: 0 8px;
+}
+
+body.has-music #music-button {
+    display: inline-flex;
+}
+
+#music-button svg {
+    display: block;
+}
+
+#music-button .music-off {
+    display: none;
+}
+
+#music-button.off .music-off {
+    display: inline;
+}
+
 /* Minimize tab on the bar's top edge: collapses the overlay to one row of
    controls parked at the top, beside the map button, so plaques under the
    artworks stay visible. */
