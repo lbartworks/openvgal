@@ -1,7 +1,7 @@
 <img width="2560" height="1212" alt="styles-dark" src="https://github.com/user-attachments/assets/768f9b2c-78d0-4b6b-94d2-6837a303baed" />
 
 
-# OpenVGAL v4.3.18
+# OpenVGAL v4.4.0
 
 Open-source 3D virtual gallery platform built on [Babylon.js](https://www.babylonjs.com/). Create interactive WebGL art galleries from your images, download a ZIP, host it anywhere. Version 4 is a massive upgrade with more realistic light and updated templates leaveraging the new light system.
 
@@ -153,6 +153,14 @@ Note: the `file://` protocol will not work in Chrome due to cross-origin iframe 
 ---
 
 ## Changelog
+
+**v4.4 (October 2026)**
+- Tour recorder: record a vertical clip that travels between artworks, then share or download it — available on every gallery and in the generator preview
+- Exhibition title and description fields in the generator, shown in the gallery map
+- Background music: set a track in the builder; it plays in the gallery with a toggle in the overlay
+- The overlay can collapse to a top bar beside the map button
+- Numbered filenames (`001_` to `999_`) set the order images are placed in; the builder reports whether the sequence was recognized fully or partially, and the preview shows the numbers in the titles so placement can be checked
+- Plaques and door titles fit their artwork or door width, and school templates use far fewer lightmaps, fixing crashes on older iPhones
 
 **v4.3 (September 2026)**
 - Two new gallery styles: School and Warm

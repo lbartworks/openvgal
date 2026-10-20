@@ -490,6 +490,28 @@ function orderBySequence(files) {
   };
 }
 
+/**
+ * Preview-only copy of a manifest with each image's sequence prefix put back
+ * in front of its title, so the user can see which number landed where.
+ * The saved manifest keeps clean titles.
+ */
+function withSequencePrefixes(config) {
+  const copy = JSON.parse(JSON.stringify(config));
+  for (const room in copy) {
+    if (room === 'Technical') continue;
+    for (const key in copy[room]) {
+      const item = copy[room][key];
+      if (!item || item.resource_type !== 'image' || typeof item.metadata !== 'string') continue;
+      const m = SEQUENCE_PREFIX.exec(item.resource.split('/').pop());
+      if (!m) continue;
+      const parts = /^(ID\s*#\d+\s*)?([\s\S]*)$/.exec(item.metadata);
+      if (parts[2].indexOf(m[0]) === 0) continue;
+      item.metadata = (parts[1] || '') + m[0] + parts[2];
+    }
+  }
+  return copy;
+}
+
 // Compute default cm dimensions for a fresh image (longest edge = 120 cm).
 function defaultCmDims(natWidth, natHeight) {
   const aspectRatio = natHeight / natWidth;
@@ -789,6 +811,7 @@ if (typeof module !== 'undefined' && module.exports) {
     isSupportedImageHeader,
     groupFilesByFolder,
     orderBySequence,
+    withSequencePrefixes,
     getImageDimensions,
     extractOccupanciesFromGLB,
     countDoorsInGLB,

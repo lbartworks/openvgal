@@ -1250,7 +1250,7 @@
 
     GalleryPage.setupPreview({
       previewBtn: previewBtn,
-      getJSON: function() { applyExhibition(generatedJSON); applyMusic(generatedJSON); return generatedJSON; },
+      getJSON: function() { applyExhibition(generatedJSON); applyMusic(generatedJSON); return withSequencePrefixes(generatedJSON); },
       getFileMap: function() { return window.openvgal_fileMap && packSources(); }
     });
 
