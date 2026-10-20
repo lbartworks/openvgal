@@ -373,6 +373,13 @@
       border-color: color-mix(in oklab, #c0392b 34%, transparent);
       color: #8c2620;
     }
+    .resolution-notice.sequence-ok {
+      background: color-mix(in oklab, var(--wood) 14%, transparent);
+      border-color: color-mix(in oklab, var(--wood) 40%, transparent);
+      color: var(--ink-2);
+    }
+    .resolution-notice .seq-line { margin: 0; }
+    .resolution-notice .seq-line + .seq-line { margin-top: 0.35rem; }
     .resolution-notice .downsize-actions {
       display: flex;
       justify-content: center;
@@ -586,6 +593,8 @@
 
       <div class="resolution-notice" id="resolutionNotice" style="display: none;"></div>
       <div class="resolution-notice rejected-notice" id="rejectedNotice" style="display: none;"></div>
+      <div class="resolution-notice sequence-ok" id="sequenceOkNotice" style="display: none;"></div>
+      <div class="resolution-notice" id="sequenceWarnNotice" style="display: none;"></div>
     </div>
 
     <!-- Gallery Settings -->
@@ -794,6 +803,12 @@
     const zipProgressText = document.getElementById('zipProgressText');
     const resolutionNotice = document.getElementById('resolutionNotice');
     const rejectedNotice = document.getElementById('rejectedNotice');
+    const sequenceOkNotice = document.getElementById('sequenceOkNotice');
+    const sequenceWarnNotice = document.getElementById('sequenceWarnNotice');
+
+    const CHECK_SVG =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+      '<path d="M20 6L9 17l-5-5"/></svg>';
 
     GalleryPage.setupDropZone({
       dropZone: document.getElementById('dropZone'),
@@ -1498,9 +1513,59 @@
       rejectedNotice.style.display = 'flex';
     }
 
+    // Filename sequence ("001_name.jpg") per room: confirmed when every image is
+    // numbered, warned when some are not or a number repeats. Rooms with no
+    // numbered file say nothing — that is the normal, unordered case.
+    function renderSequenceNotice() {
+      var ok = [], warn = [];
+      galleries.forEach(function(g) {
+        var s = g.sequence;
+        if (!s) return;
+        var p = document.createElement('div');
+        p.className = 'seq-line';
+        var head = document.createElement('strong');
+        head.textContent = g.name; // folder names are user data — never innerHTML
+        p.appendChild(head);
+        if (s.unnumbered.length === 0 && s.duplicates.length === 0) {
+          p.appendChild(document.createTextNode(': sequence recognized for all ' + s.total + ' images.'));
+          ok.push(p);
+          return;
+        }
+        p.appendChild(document.createTextNode(
+          ': sequence partially recognized (' + s.numbered + ' of ' + s.total + ' numbered).'));
+        [[s.unnumbered, 'Without number, placed at the end:'],
+         [s.duplicates, 'Same number used more than once, ordered by name:']].forEach(function(pair) {
+          if (pair[0].length === 0) return;
+          var label = document.createElement('span');
+          label.className = 'downsize-note';
+          label.textContent = pair[1];
+          p.appendChild(label);
+          var list = document.createElement('ul');
+          pair[0].forEach(function(name) {
+            var li = document.createElement('li');
+            li.textContent = name;
+            list.appendChild(li);
+          });
+          p.appendChild(list);
+        });
+        warn.push(p);
+      });
+      [[sequenceOkNotice, ok, CHECK_SVG], [sequenceWarnNotice, warn, WARN_SVG]].forEach(function(set) {
+        var el = set[0];
+        el.innerHTML = '';
+        if (set[1].length === 0) { el.style.display = 'none'; return; }
+        var body = document.createElement('div');
+        set[1].forEach(function(p) { body.appendChild(p); });
+        el.innerHTML = set[2];
+        el.appendChild(body);
+        el.style.display = 'flex';
+      });
+    }
+
     function updateGalleryList() {
       markResultStaleIfGenerated();
       checkImageResolutions(); // async, fire-and-forget; reads galleries directly
+      renderSequenceNotice();
       var items = galleryList.querySelectorAll('.gallery-item');
       items.forEach(function(item) { item.remove(); });
 

@@ -4,7 +4,7 @@
  * Shared page-level logic for site/create/index.html: the drop-zone, gallery
  * list, preview overlay, and stats logic.
  *
- * Depends on screenImageFiles / groupFilesByFolder from gallery-generator.js.
+ * Depends on screenImageFiles / groupFilesByFolder / orderBySequence from gallery-generator.js.
  */
 var GalleryPage = (function() {
 
@@ -46,11 +46,14 @@ var GalleryPage = (function() {
     if (exists) return [];
     var screened = await screenImageFiles(group.files);
     if (screened.accepted.length > 0) {
+      // Ordered once here so every style and every re-generate packs the same sequence.
+      var ordered = orderBySequence(screened.accepted);
       galleries.push({
         name: group.name,
         folderName: group.name,
         path: group.path,
-        files: screened.accepted
+        files: ordered.files,
+        sequence: ordered.sequence
       });
     }
     return screened.rejected;

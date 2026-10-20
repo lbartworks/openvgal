@@ -447,6 +447,49 @@ function groupFilesByFolder(files) {
   return Object.values(groups);
 }
 
+// "1_" to "999_" at the start of a filename fixes the image's place in its
+// folder's sequence. Four digits are not a prefix, so "2024_dusk.jpg" stays
+// unnumbered instead of jumping to the end.
+const SEQUENCE_PREFIX = /^(\d{1,3})_(?=.)/;
+
+function sequenceNumber(name) {
+  const m = SEQUENCE_PREFIX.exec(name);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+/**
+ * Order one folder's files by numeric prefix; unnumbered files follow in name
+ * order. A folder with no numbered file keeps its order and reports nothing.
+ *
+ * @param {File[]} files
+ * @returns {{files: File[], sequence: null|{numbered: number, total: number,
+ *            unnumbered: string[], duplicates: string[]}}}
+ */
+function orderBySequence(files) {
+  const byName = function(a, b) { return a.name.localeCompare(b.name, undefined, { numeric: true }); };
+  const numbered = [];
+  const unnumbered = [];
+  files.forEach(function(f) { (sequenceNumber(f.name) === null ? unnumbered : numbered).push(f); });
+  if (numbered.length === 0) return { files: files, sequence: null };
+
+  numbered.sort(function(a, b) { return (sequenceNumber(a.name) - sequenceNumber(b.name)) || byName(a, b); });
+  unnumbered.sort(byName);
+  const duplicates = numbered.filter(function(f, i) {
+    const n = sequenceNumber(f.name);
+    return (i > 0 && sequenceNumber(numbered[i - 1].name) === n) ||
+           (i < numbered.length - 1 && sequenceNumber(numbered[i + 1].name) === n);
+  });
+  return {
+    files: numbered.concat(unnumbered),
+    sequence: {
+      numbered: numbered.length,
+      total: files.length,
+      unnumbered: unnumbered.map(function(f) { return f.name; }),
+      duplicates: duplicates.map(function(f) { return f.name; })
+    }
+  };
+}
+
 // Compute default cm dimensions for a fresh image (longest edge = 120 cm).
 function defaultCmDims(natWidth, natHeight) {
   const aspectRatio = natHeight / natWidth;
@@ -571,6 +614,7 @@ async function buildGalleryJSON(galleries, onProgress, styleConfig, options) {
     if (items.length === 0) continue;
 
     const rooms = await packIntoRooms(items, catalog, styleKey, null, cdnBase, scriptBase);
+    const folderBaseNames = new Set(items.map(function(it) { return it.name.replace(/\.[^/.]+$/, ''); }));
 
     let lastParent = nextHubParent();
     rooms.forEach(function(room, subIdx) {
@@ -584,17 +628,21 @@ async function buildGalleryJSON(galleries, onProgress, styleConfig, options) {
       room.indices.forEach(function(itemIdx, k) {
         const item = items[itemIdx];
         const baseName = item.name.replace(/\.[^/.]+$/, '');
+        // The sequence prefix is ordering, not title. Keep it when the stripped
+        // name is taken: another file in the folder, or a key already in the room.
+        let key = baseName.replace(SEQUENCE_PREFIX, '');
+        if (key !== baseName && (folderBaseNames.has(key) || key in building[galleryName])) key = baseName;
         const resourcePath = '/' + folderName + '/' + item.name;
         const pos = room.positions[k];
         const vec = room.vectors[k];
-        building[galleryName][baseName] = {
+        building[galleryName][key] = {
           resource: resourcePath,
           resource_type: 'image',
           width: item.cmWidth.toFixed(2),
           height: item.cmHeight.toFixed(2),
           location: '[' + pos[0].toFixed(3) + ',' + pos[1].toFixed(3) + ',' + pos[2].toFixed(3) + ']',
           vector: '[' + vec[0].toFixed(1) + ',' + vec[1].toFixed(1) + ']',
-          metadata: 'ID #' + uniqueId + ' ' + baseName
+          metadata: 'ID #' + uniqueId + ' ' + key
         };
         uniqueId++;
       });
@@ -740,6 +788,7 @@ if (typeof module !== 'undefined' && module.exports) {
     screenImageFiles,
     isSupportedImageHeader,
     groupFilesByFolder,
+    orderBySequence,
     getImageDimensions,
     extractOccupanciesFromGLB,
     countDoorsInGLB,
