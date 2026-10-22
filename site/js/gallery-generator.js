@@ -654,7 +654,7 @@ async function buildGalleryJSON(galleries, onProgress, styleConfig, options) {
         // name is taken: another file in the folder, or a key already in the room.
         let key = baseName.replace(SEQUENCE_PREFIX, '');
         if (key !== baseName && (folderBaseNames.has(key) || key in building[galleryName])) key = baseName;
-        const resourcePath = '/' + folderName + '/' + item.name;
+        const resourcePath = ('/' + folderName + '/' + item.name).normalize('NFC');
         const pos = room.positions[k];
         const vec = room.vectors[k];
         building[galleryName][key] = {
@@ -780,7 +780,9 @@ function buildFileMap(galleries, config) {
     const folderName = gallery.folderName || gallery.name;
     const imageFiles = filterImageFiles(gallery.files);
     for (const file of imageFiles) {
-      const path = '/' + folderName + '/' + file.name;
+      // NFC: macOS file pickers give decomposed names (e + U+0301); servers and
+      // unzip tools usually store composed ones, so the manifest URL must match.
+      const path = ('/' + folderName + '/' + file.name).normalize('NFC');
       if (wanted && !wanted.has(path)) continue;
       fileMap[path] = file;
     }
