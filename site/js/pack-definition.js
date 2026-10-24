@@ -284,6 +284,8 @@
       '## Attribution\n\n' +
       'This pack resolves `overlay.html` locally, so removing the\n' +
       '`Made with OpenVGal` link from that file removes it from your gallery (MIT licence).\n\n' +
+      '## Show it off\n' +
+      'Once your gallery is online, add it to the showcase: https://openvgal.com/showcase\n\n' +
       '## Need Help?\n\n' +
       'Visit https://openvgal.com for documentation and support.\n\n' +
       'Generated with OpenVGAL Generator\n';
@@ -318,6 +320,8 @@
       '## Need the self-contained version?\n\n' +
       'Visit https://openvgal.com/create/ for a ZIP that includes all code and\n' +
       'works offline (no CDN dependency).\n\n' +
+      '## Show it off\n' +
+      'Once your gallery is online, add it to the showcase: https://openvgal.com/showcase\n\n' +
       '## Need Help?\n\n' +
       'Visit https://openvgal.com for documentation and support.\n\n' +
       'Generated with OpenVGAL Generator (CDN-first mode)\n';
