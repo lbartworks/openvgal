@@ -541,7 +541,6 @@ async function buildGalleryJSON(galleries, onProgress, styleConfig, options) {
   const settings = (typeof GallerySettings !== 'undefined') ? GallerySettings.getValues() : {};
 
   const building = {};
-  let uniqueId = 0;
 
   const topLevelCount = galleries.filter(function(g) {
     return filterImageFiles(g.files).length > 0;
@@ -664,9 +663,8 @@ async function buildGalleryJSON(galleries, onProgress, styleConfig, options) {
           height: item.cmHeight.toFixed(2),
           location: '[' + pos[0].toFixed(3) + ',' + pos[1].toFixed(3) + ',' + pos[2].toFixed(3) + ']',
           vector: '[' + vec[0].toFixed(1) + ',' + vec[1].toFixed(1) + ']',
-          metadata: 'ID #' + uniqueId + ' ' + key
+          metadata: key
         };
-        uniqueId++;
       });
 
       lastParent = galleryName;

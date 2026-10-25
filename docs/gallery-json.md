@@ -140,7 +140,7 @@ When a template is furnished automatically, the generator writes both of these f
 
 - The title shows in the hover overlay and on the artwork plaque.
 - The subtitle appears on a second line in both places.
-- The generator may prefix an `ID #N` token; the Customize editor preserves it so plaque and overlay code keep working.
+- Older galleries may carry a legacy `ID #N` prefix; it is stripped on display and preserved by the Customize editor.
 
 ---
 

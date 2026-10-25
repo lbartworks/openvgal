@@ -46,7 +46,7 @@ function getArtworkPose(idx){
 	return {
 		position: camera_position,
 		target: target_position,
-		title: "Title:  " + gallery[dict_items[idx]]["metadata"],
+		title: "Title:  " + String(gallery[dict_items[idx]]["metadata"]).replace(/^ID\s*#\d+\s*/, ""),
 		idx: idx,
 		count: n_items
 	};

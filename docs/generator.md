@@ -50,7 +50,7 @@ After **Download ZIP** (or the JSON-only download), the generator opens `/ready.
 
 Per artwork it exposes:
 
-- **Title and subtitle**, written back into `metadata` as `"<title>\n<subtitle>"` (the existing `ID #N` prefix is preserved so plaque and overlay code keep working).
+- **Title and subtitle**, written back into `metadata` as `"<title>\n<subtitle>"` (a legacy `ID #N` prefix from older galleries is preserved, and ignored on display).
 - **Size:** S / M / L bucket buttons (60 / 120 / 180 cm longest edge) plus a free slider capped at 250 cm. Display unit toggles cm ↔ inches; aspect ratio is preserved from the source image.
 
 Sizes are stored as cm strings in `width` / `height`. Re-laying-out after a size change calls `relayoutRoom`, which feeds the same `packIntoRooms` packer and emits new `location` / `vector` strings.
