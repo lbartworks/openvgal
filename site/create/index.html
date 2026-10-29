@@ -107,6 +107,7 @@
     body.embed-mode #downloadBtn,
     body.embed-mode #downloadZipBtn { display: none; }
     body.embed-mode .page-wrapper { padding-top: 1rem; }
+    .privacy-note { margin-top: 1.5rem; font-size: 0.75rem; color: #71717a; text-align: center; }
 
     /* --- SECTIONS --- */
     .section {
@@ -678,6 +679,8 @@
       </details>
     </div>
 
+    <p class="privacy-note">The public demo at demo.openvgal.com counts visits and finished builds anonymously, without cookies. A copy you host yourself sends nothing.</p>
+
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -686,6 +689,7 @@
   <script src="../js/style-picker.js"></script>
   <script src="../js/gallery-generator.js"></script>
   <script src="../js/gallery-page.js"></script>
+  <script src="../js/demo-stats.js"></script>
   <script>
     // CDN Configuration - templates and materials are served from Cloudflare CDN.
     // Dev mode (?dev=1): pull templates/materials from local /cdn instead.
@@ -1147,6 +1151,8 @@
               hasMusic: !!GallerySettings.getMusic()
             }
           }, '*');
+          // Listener errors are reported, not thrown, so this can't reach the catch.
+          window.dispatchEvent(new CustomEvent('openvgal:gallery-built'));
         } catch (e) {
           // postMessage either delivered or threw, so nothing reached the
           // parent — it is still waiting. Close its request out.
@@ -1163,6 +1169,7 @@
       a.download = filename;
       document.body.appendChild(a);
       a.click();
+      window.dispatchEvent(new CustomEvent('openvgal:gallery-built'));
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       onProgress(100, 'Download complete!');

@@ -1,7 +1,7 @@
 <img width="2560" height="1212" alt="styles-dark" src="https://github.com/user-attachments/assets/768f9b2c-78d0-4b6b-94d2-6837a303baed" />
 
 
-# OpenVGAL v4.4.5
+# OpenVGAL v4.4.6
 
 Open-source 3D virtual gallery platform built on [Babylon.js](https://www.babylonjs.com/). Create interactive WebGL art galleries from your images, download a ZIP, host it anywhere. Version 4 is a massive upgrade with more realistic light and updated templates leaveraging the new light system.
 
@@ -149,6 +149,20 @@ npx serve site
 Then open `http://localhost:8000` (or the port shown in your terminal) to access the landing page, viewer, and generator.
 
 Note: the `file://` protocol will not work in Chrome due to cross-origin iframe restrictions. You need an HTTP server.
+
+---
+
+## Usage Statistics
+
+The public demo at demo.openvgal.com counts visits and finished builds anonymously, without cookies. A copy you host yourself sends nothing.
+
+To count builds in your own analytics, listen for the `openvgal:gallery-built` event. The builder fires it on `window` once per finished gallery ZIP (after the download starts, or after the ZIP is handed to the host in embed mode), with no detail:
+
+```js
+window.addEventListener('openvgal:gallery-built', () => {
+  // report to your analytics here
+});
+```
 
 ---
 
