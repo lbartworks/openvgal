@@ -40,6 +40,83 @@
 		// still reports "fine" because of its trackpad, so this does not catch desktops.
 		|| (window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
 
+	//on-screen move joystick: a camera input, so detachControl() (tour recorder)
+	//hides and silences it. Knob distance from centre = speed, capped at the ring.
+	function createMoveJoystick() {
+		const RING = 120, KNOB = 48, MAX_R = (RING - KNOB) / 2, DEADZONE = 0.1;
+		const CURVE = 3, MAX_SPEED = 1.6;	//speed = d + (MAX_SPEED-1)*d^CURVE (x camera.speed): linear low end, boosted edge
+		const TURN_SPEED = 1.2;	//rad/s at full curve value 1 (edge = TURN_SPEED * MAX_SPEED)
+		const curve = function (d) { return Math.min(d, 1) + (MAX_SPEED - 1) * Math.pow(Math.min(d, 1), CURVE); };
+		const ring = document.createElement('div');
+		ring.id = 'move-joystick';
+		ring.style.cssText = 'position:fixed;left:24px;bottom:120px;z-index:20;'
+			+ 'width:' + RING + 'px;height:' + RING + 'px;border-radius:50%;'
+			+ 'background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.25);'
+			+ 'touch-action:none;user-select:none;-webkit-user-select:none;display:none;';
+		const knob = document.createElement('div');
+		knob.style.cssText = 'position:absolute;left:' + (RING - KNOB) / 2 + 'px;top:' + (RING - KNOB) / 2 + 'px;'
+			+ 'width:' + KNOB + 'px;height:' + KNOB + 'px;border-radius:50%;'
+			+ 'background:rgba(250,250,250,0.85);pointer-events:none;';
+		ring.appendChild(knob);
+		document.body.appendChild(ring);
+
+		let pointerId = null, dx = 0, dy = 0;	//dx,dy in -1..1 (dy negative = forward)
+
+		function update(e) {
+			const r = ring.getBoundingClientRect();
+			let x = e.clientX - (r.left + RING / 2), y = e.clientY - (r.top + RING / 2);
+			const len = Math.hypot(x, y);
+			if (len > MAX_R) { x *= MAX_R / len; y *= MAX_R / len; }
+			knob.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+			dx = x / MAX_R; dy = y / MAX_R;
+		}
+		function release(e) {
+			if (e.pointerId !== pointerId) return;
+			pointerId = null; dx = 0; dy = 0;
+			knob.style.transform = '';
+		}
+		ring.addEventListener('pointerdown', function (e) {
+			if (pointerId !== null) return;
+			if (typeof stopCinematicVisit === 'function') stopCinematicVisit();
+			pointerId = e.pointerId;
+			ring.setPointerCapture(pointerId);
+			update(e);
+			e.preventDefault();
+		});
+		ring.addEventListener('pointermove', function (e) { if (e.pointerId === pointerId) update(e); });
+		ring.addEventListener('pointerup', release);
+		ring.addEventListener('pointercancel', release);
+
+		return {
+			camera: null,
+			getClassName: function () { return 'FreeCameraMoveJoystickInput'; },
+			getSimpleName: function () { return 'moveJoystick'; },
+			attachControl: function () { ring.style.display = 'block'; },
+			detachControl: function () {
+				ring.style.display = 'none';
+				if (pointerId !== null) release({ pointerId: pointerId });
+			},
+			checkInputs: function () {
+				const cam = this.camera;
+				if (!cam || pointerId === null) return;
+				//vertical axis walks, horizontal axis turns; each axis has its own deadzone
+				//so pushing straight ahead does not drift the heading
+				const fwd = Math.abs(dy) < DEADZONE ? 0 : -Math.sign(dy) * curve(Math.abs(dy));
+				const turn = Math.abs(dx) < DEADZONE ? 0 : Math.sign(dx) * curve(Math.abs(dx));
+				if (fwd) {
+					//same path as FreeCameraKeyboardMoveInput
+					const dir = new BABYLON.Vector3(0, 0, fwd * cam._computeLocalCameraSpeed());
+					cam.getViewMatrix().invertToRef(cam._cameraTransformMatrix);
+					BABYLON.Vector3.TransformNormalToRef(dir, cam._cameraTransformMatrix, cam._transformedDirection);
+					cam.cameraDirection.addInPlace(cam._transformedDirection);
+				}
+				//cameraRotation decays by inertia each frame, so feed (1 - inertia) of the target rate
+				if (turn) cam.cameraRotation.y += turn * TURN_SPEED * (1 - cam.inertia)
+					* cam.getEngine().getDeltaTime() / 1000 * cam._calculateHandednessMultiplier();
+			}
+		};
+	}
+
 	//loads the gallery file and updates the loading bar
 	var loadAsset = async(file, scene)=>{
 		return new Promise((res,rej)=>{
@@ -281,6 +358,10 @@
 				camera.keysLeft.push(65);
 				camera.keysDown.push(83);
 				camera.keysRight.push(68);
+			}
+			// --- Move joystick (experimental). Enable with ?joystick=1 ---
+			if (new URLSearchParams(window.location.search).has('joystick')) {
+				camera.inputs.add(createMoveJoystick());
 			}
 
 
