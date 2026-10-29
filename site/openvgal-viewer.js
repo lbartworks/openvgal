@@ -49,16 +49,54 @@
 		const curve = function (d) { return Math.min(d, 1) + (MAX_SPEED - 1) * Math.pow(Math.min(d, 1), CURVE); };
 		const ring = document.createElement('div');
 		ring.id = 'move-joystick';
-		ring.style.cssText = 'position:fixed;left:24px;bottom:120px;z-index:20;'
+		ring.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:20;'
 			+ 'width:' + RING + 'px;height:' + RING + 'px;border-radius:50%;'
-			+ 'background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.25);'
+			//dark fill + light rim + dark halo: readable over both light and dark walls
+			+ 'background:rgba(0,0,0,0.22);border:1.5px solid rgba(255,255,255,0.6);'
+			+ 'box-shadow:0 0 0 1px rgba(0,0,0,0.25);'
 			+ 'touch-action:none;user-select:none;-webkit-user-select:none;display:none;';
 		const knob = document.createElement('div');
 		knob.style.cssText = 'position:absolute;left:' + (RING - KNOB) / 2 + 'px;top:' + (RING - KNOB) / 2 + 'px;'
 			+ 'width:' + KNOB + 'px;height:' + KNOB + 'px;border-radius:50%;'
-			+ 'background:rgba(250,250,250,0.85);pointer-events:none;';
+			+ 'background:rgba(250,250,250,0.85);box-shadow:0 1px 4px rgba(0,0,0,0.35);pointer-events:none;';
+		//four chevrons just inside the rim, only so it reads as a joystick; knob passes over them
+		const c = RING / 2, e = 12, w = 6, h = 4;	//edge inset, chevron half-width, depth
+		const chevron = function (deg) {
+			return '<polyline transform="rotate(' + deg + ' ' + c + ' ' + c + ')" points="'
+				+ (c - w) + ',' + (e + h) + ' ' + c + ',' + e + ' ' + (c + w) + ',' + (e + h) + '"/>';
+		};
+		ring.insertAdjacentHTML('beforeend', '<svg width="' + RING + '" height="' + RING + '" '
+			+ 'style="position:absolute;left:0;top:0;pointer-events:none;" fill="none" '
+			+ 'stroke="rgba(255,255,255,0.7)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+			+ chevron(0) + chevron(90) + chevron(180) + chevron(270) + '</svg>');
 		ring.appendChild(knob);
 		document.body.appendChild(ring);
+
+		//bottom-right corner, lifted just above the overlay bar when the bar sits at
+		//the bottom and reaches under the joystick (full width on phones)
+		const GAP = 16;
+		function place() {
+			const bar = document.getElementById('permanent-overlay');
+			let bottom = GAP;
+			if (bar) {
+				const r = bar.getBoundingClientRect();
+				if (r.height && r.top > window.innerHeight / 2 && r.right > window.innerWidth - RING - GAP)
+					bottom = window.innerHeight - r.top + GAP / 2;
+			}
+			ring.style.bottom = bottom + 'px';
+		}
+		//overlay.html is fetched async: wait for the bar, then follow its size (collapse, wrap)
+		function watchBar(bar) {
+			if (typeof ResizeObserver === 'function') new ResizeObserver(place).observe(bar);
+			place();
+		}
+		const existingBar = document.getElementById('permanent-overlay');
+		if (existingBar) watchBar(existingBar);
+		else new MutationObserver(function (_, obs) {
+			const bar = document.getElementById('permanent-overlay');
+			if (bar) { obs.disconnect(); watchBar(bar); }
+		}).observe(document.body, { childList: true });
+		window.addEventListener('resize', place);
 
 		let pointerId = null, dx = 0, dy = 0;	//dx,dy in -1..1 (dy negative = forward)
 
