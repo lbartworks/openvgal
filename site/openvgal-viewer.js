@@ -75,7 +75,7 @@
 		document.body.appendChild(ring);
 
 		//sits beside the ?ui=2 button row, on its right, vertically centred on it
-		const GAP = 16, SIDE_GAP = PHONE ? 12 : 32;
+		const GAP = 16, SIDE_GAP = PHONE ? 20 : 32;
 		const getBar = function () {
 			return document.getElementById('ovg-controls') || document.getElementById('permanent-overlay');
 		};

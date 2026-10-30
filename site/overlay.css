@@ -597,13 +597,13 @@ body.ovg-sheet-open #ovg-sheet {
         height: 38px;
     }
 
-    /* Row + joystick (100px ring, 12px gap) centred as one group; the row is raised
+    /* Row + joystick (100px ring, 20px gap) centred as one group; the row is raised
        so its middle lines up with the ring's (ring bottom 12). */
     #ovg-controls {
         right: auto;
         left: 50%;
         bottom: 43px;
-        transform: translateX(calc(-50% - 56px));
+        transform: translateX(calc(-50% - 60px));
     }
 
     #ovg-made-with {
