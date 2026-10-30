@@ -372,3 +372,256 @@ body.has-music #music-button {
         max-height: 80vh;
     }
 }
+/* ==========================================================================
+   7. New layout (?ui=2): built by buildNewUi() in overlay.js
+   ========================================================================== */
+
+body.ovg-ui2 #permanent-overlay {
+    display: none;
+}
+
+/* Same glass as #map-button so the three top controls read as one set. */
+.ovg-btn,
+#ovg-made-with,
+#ovg-volume-pop,
+#ovg-sheet {
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #d4d4d8;
+    font-family: 'Inter', sans-serif;
+}
+
+.ovg-btn {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.ovg-btn:hover {
+    color: #fafafa;
+    border-color: rgba(165, 180, 252, 0.5);
+}
+
+.ovg-btn svg {
+    display: block;
+}
+
+#ovg-made-with {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 25;
+    height: 44px;
+    box-sizing: border-box;
+    padding: 0 16px 0 12px;
+    border-radius: 22px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+#ovg-made-with:hover {
+    color: #fafafa;
+}
+
+#ovg-made-with svg {
+    width: 20px;
+    height: 20px;
+}
+
+#ovg-controls {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 25;
+    display: flex;
+    gap: 8px;
+}
+
+#ovg-volume {
+    position: relative;
+    display: none;
+}
+
+body.has-music #ovg-volume {
+    display: block;
+}
+
+#ovg-volume-btn .vol-off,
+#ovg-volume-btn.off .vol-on {
+    display: none;
+}
+
+#ovg-volume-btn.off .vol-off {
+    display: inline;
+}
+
+/* Vertical slider: a horizontal range rotated -90deg, so the left (mute) end
+   sits at the bottom. Rotation is used over writing-mode for older Safari. */
+#ovg-volume-pop {
+    display: none;
+    position: absolute;
+    bottom: 52px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 44px;
+    height: 140px;
+    box-sizing: border-box;
+    border-radius: 22px;
+}
+
+#ovg-volume.open #ovg-volume-pop {
+    display: block;
+}
+
+#ovg-volume-range {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 110px;
+    margin: 0;
+    transform: translate(-50%, -50%) rotate(-90deg);
+    accent-color: #818cf8;
+    cursor: pointer;
+}
+
+/* Artwork sheet: bottom third, modal. Desktop keeps the old bar's footprint. */
+#ovg-sheet-backdrop,
+#ovg-sheet {
+    display: none;
+}
+
+body.ovg-sheet-open #ovg-sheet-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: rgba(0, 0, 0, 0.25);
+}
+
+body.ovg-sheet-open #ovg-sheet {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    /* Desktop: right-side panel; the artwork stays visible in the centre. */
+    top: 20px;
+    right: 20px;
+    bottom: 20px;
+    width: 440px;
+    max-width: calc(100% - 40px);
+    box-sizing: border-box;
+    padding: 12px;
+    border-radius: 15px;
+    z-index: 41;
+}
+
+#ovg-sheet-close {
+    flex: 0 0 auto;
+    align-self: flex-end;
+    width: 44px;
+    height: 44px;
+}
+
+#ovg-sheet-close svg {
+    width: 24px;
+    height: 24px;
+}
+
+#ovg-sheet-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 8px 8px 4px;
+}
+
+#ovg-sheet-title {
+    margin: 0 0 6px;
+    font-size: 20px;
+    font-weight: 600;
+    color: #fafafa;
+}
+
+#ovg-sheet-subtitle,
+#ovg-sheet-dims {
+    margin: 0;
+    font-size: 15px;
+    color: #a1a1aa;
+}
+
+#ovg-sheet-dims {
+    margin-top: 4px;
+}
+
+/* Desktop: top trio and bottom row grouped at the centre. The badge gets a fixed
+   width so the map and record buttons can sit either side of it. Record button
+   styles are inline (tour-recorder.js), hence !important; its top is left alone
+   (the generator preview moves it down). */
+@media screen and (min-width: 601px) {
+    #ovg-made-with {
+        width: 190px;
+        justify-content: center;
+    }
+
+    body.ovg-ui2 #map-button {
+        left: auto;
+        right: calc(50% + 103px);
+    }
+
+    body.ovg-ui2 #tour-record-btn {
+        left: calc(50% + 103px) !important;
+        right: auto !important;
+    }
+
+    /* Raised so its middle lines up with the joystick's (120px ring at bottom 16). */
+    #ovg-controls {
+        right: auto;
+        left: 50%;
+        bottom: 54px;
+        transform: translateX(-50%);
+    }
+}
+
+@media screen and (max-width: 600px) {
+    .ovg-btn {
+        width: 38px;
+        height: 38px;
+    }
+
+    #ovg-made-with {
+        top: 12px;
+        height: 38px;
+        padding: 0 9px;
+    }
+
+    /* Icon only: the words would collide with the record button. */
+    #ovg-made-with span {
+        display: none;
+    }
+
+    #ovg-volume-pop {
+        width: 38px;
+        bottom: 46px;
+    }
+
+    body.ovg-sheet-open #ovg-sheet {
+        top: auto;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        max-width: none;
+        height: 33vh;
+        height: 33dvh;
+        border-radius: 15px 15px 0 0;
+        border-bottom: none;
+    }
+}

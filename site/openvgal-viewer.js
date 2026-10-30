@@ -72,28 +72,40 @@
 		ring.appendChild(knob);
 		document.body.appendChild(ring);
 
-		//bottom-right corner, lifted just above the overlay bar when the bar sits at
-		//the bottom and reaches under the joystick (full width on phones)
+		//follows the ?ui=2 button row: beside it on the right when the row is centred
+		//(desktop), just above it, right-aligned, when the row hugs the right edge (phones)
 		const GAP = 16;
+		const getBar = function () {
+			return document.getElementById('ovg-controls') || document.getElementById('permanent-overlay');
+		};
 		function place() {
-			const bar = document.getElementById('permanent-overlay');
-			let bottom = GAP;
+			const bar = getBar();
+			let bottom = GAP, right = GAP;
 			if (bar) {
 				const r = bar.getBoundingClientRect();
-				if (r.height && r.top > window.innerHeight / 2 && r.right > window.innerWidth - RING - GAP)
-					bottom = window.innerHeight - r.top + GAP / 2;
+				if (r.height) {
+					const centred = Math.abs(r.left + r.width / 2 - window.innerWidth / 2) < 2;
+					if (centred) {
+						bottom = window.innerHeight - r.bottom - (RING - r.height) / 2;
+						right = window.innerWidth - r.right - 2 * GAP - RING;
+					} else {
+						bottom = window.innerHeight - r.top + GAP / 2;
+						right = window.innerWidth - r.right;
+					}
+				}
 			}
 			ring.style.bottom = bottom + 'px';
+			ring.style.right = right + 'px';
 		}
 		//overlay.html is fetched async: wait for the bar, then follow its size (collapse, wrap)
 		function watchBar(bar) {
 			if (typeof ResizeObserver === 'function') new ResizeObserver(place).observe(bar);
 			place();
 		}
-		const existingBar = document.getElementById('permanent-overlay');
+		const existingBar = getBar();
 		if (existingBar) watchBar(existingBar);
 		else new MutationObserver(function (_, obs) {
-			const bar = document.getElementById('permanent-overlay');
+			const bar = getBar();
 			if (bar) { obs.disconnect(); watchBar(bar); }
 		}).observe(document.body, { childList: true });
 		window.addEventListener('resize', place);
@@ -397,8 +409,8 @@
 				camera.keysDown.push(83);
 				camera.keysRight.push(68);
 			}
-			// --- Move joystick (experimental). Enable with ?joystick=1 ---
-			if (new URLSearchParams(window.location.search).has('joystick')) {
+			// --- Move joystick: part of the new overlay layout (?ui=2) ---
+			if (new URLSearchParams(window.location.search).get('ui') === '2') {
 				camera.inputs.add(createMoveJoystick());
 			}
 

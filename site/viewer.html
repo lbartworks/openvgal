@@ -849,6 +849,15 @@
         button.setAttribute('aria-pressed', musicOn ? 'true' : 'false');
     }
 
+    // Volume slider (?ui=2 overlay): 0 mutes, anything above plays at that level.
+    function setMusicVolume(v) {
+        if (!galleryMusic) return;
+        galleryMusic.volume = v;
+        musicOn = v > 0;
+        if (musicOn) { if (galleryMusic.paused) playMusic(); }
+        else galleryMusic.pause();
+    }
+
     (function waitForConfig() {
         if (typeof config_file_content !== 'undefined' && config_file_content) {
             document.getElementById('map-button').style.display = 'flex';
