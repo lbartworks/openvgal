@@ -380,6 +380,38 @@ body.ovg-ui2 #permanent-overlay {
     display: none;
 }
 
+/* Help popup: the ?ui=2 text is longer, so cap the height and scroll the text,
+   keeping the language row and Close button inside the frame. */
+body.ovg-ui2 #help-popup {
+    max-height: calc(100vh - 40px);
+    max-height: calc(100dvh - 40px);
+    box-sizing: border-box;
+    flex-direction: column;
+}
+
+body.ovg-ui2 #help-popup .help-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+body.ovg-ui2 #help-popup .close-button {
+    flex: 0 0 auto;
+    align-self: center;
+}
+
+@media screen and (max-width: 600px) {
+    body.ovg-ui2 #help-popup .help-content {
+        margin: 12px 0;
+        font-size: 14px;
+        line-height: 1.45;
+    }
+
+    body.ovg-ui2 #help-popup .close-button {
+        margin-top: 4px;
+    }
+}
+
 /* Same glass as #map-button so the three top controls read as one set. */
 .ovg-btn,
 #ovg-made-with,

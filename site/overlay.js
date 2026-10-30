@@ -429,7 +429,8 @@ function closeArtworkSheet() {
 // Help popup functionality
 function toggleHelp() {
     const helpPopup = document.getElementById('help-popup');
-    helpPopup.style.display = helpPopup.style.display === 'none' ? 'block' : 'none';
+    // ?ui=2: flex so the help text scrolls and Close stays in the frame (overlay.css)
+    helpPopup.style.display = helpPopup.style.display === 'none' ? (NEW_UI ? 'flex' : 'block') : 'none';
 }
 
 // Minimize/restore the overlay; the choice persists across rooms and visits.
