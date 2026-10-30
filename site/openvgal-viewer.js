@@ -43,7 +43,9 @@
 	//on-screen move joystick: a camera input, so detachControl() (tour recorder)
 	//hides and silences it. Knob distance from centre = speed, capped at the ring.
 	function createMoveJoystick() {
-		const RING = 120, KNOB = 48, MAX_R = (RING - KNOB) / 2, DEADZONE = 0.1;
+		//phones: smaller ring so it fits beside the ?ui=2 button row (sizes match overlay.css)
+		const PHONE = window.matchMedia('(max-width: 600px)').matches;
+		const RING = PHONE ? 100 : 120, KNOB = PHONE ? 40 : 48, MAX_R = (RING - KNOB) / 2, DEADZONE = 0.1;
 		const CURVE = 3, MAX_SPEED = 1.6;	//speed = d + (MAX_SPEED-1)*d^CURVE (x camera.speed): linear low end, boosted edge
 		const TURN_SPEED = 1.2;	//rad/s at full curve value 1 (edge = TURN_SPEED * MAX_SPEED)
 		const curve = function (d) { return Math.min(d, 1) + (MAX_SPEED - 1) * Math.pow(Math.min(d, 1), CURVE); };
@@ -72,9 +74,8 @@
 		ring.appendChild(knob);
 		document.body.appendChild(ring);
 
-		//follows the ?ui=2 button row: beside it on the right when the row is centred
-		//(desktop), just above it, right-aligned, when the row hugs the right edge (phones)
-		const GAP = 16;
+		//sits beside the ?ui=2 button row, on its right, vertically centred on it
+		const GAP = 16, SIDE_GAP = PHONE ? 12 : 32;
 		const getBar = function () {
 			return document.getElementById('ovg-controls') || document.getElementById('permanent-overlay');
 		};
@@ -84,14 +85,8 @@
 			if (bar) {
 				const r = bar.getBoundingClientRect();
 				if (r.height) {
-					const centred = Math.abs(r.left + r.width / 2 - window.innerWidth / 2) < 2;
-					if (centred) {
-						bottom = window.innerHeight - r.bottom - (RING - r.height) / 2;
-						right = window.innerWidth - r.right - 2 * GAP - RING;
-					} else {
-						bottom = window.innerHeight - r.top + GAP / 2;
-						right = window.innerWidth - r.right;
-					}
+					bottom = window.innerHeight - r.bottom - (RING - r.height) / 2;
+					right = window.innerWidth - r.right - SIDE_GAP - RING;
 				}
 			}
 			ring.style.bottom = bottom + 'px';

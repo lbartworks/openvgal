@@ -597,15 +597,29 @@ body.ovg-sheet-open #ovg-sheet {
         height: 38px;
     }
 
+    /* Row + joystick (100px ring, 12px gap) centred as one group; the row is raised
+       so its middle lines up with the ring's (ring bottom 12). */
+    #ovg-controls {
+        right: auto;
+        left: 50%;
+        bottom: 43px;
+        transform: translateX(calc(-50% - 56px));
+    }
+
     #ovg-made-with {
         top: 12px;
         height: 38px;
-        padding: 0 9px;
+        padding: 0 6px;
     }
 
     /* Icon only: the words would collide with the record button. */
     #ovg-made-with span {
         display: none;
+    }
+
+    #ovg-made-with svg {
+        width: 26px;
+        height: 26px;
     }
 
     #ovg-volume-pop {
