@@ -329,6 +329,133 @@
     color: var(--ink);
   }
 
+  /* Info fields (gallery level) */
+  .cz-fields {
+    background: var(--room);
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .cz-fields-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+  .cz-fields-title { font-size: 0.88rem; font-weight: 600; color: var(--ink); }
+  .cz-fields-hint { font-size: 0.72rem; color: var(--ink-3); line-height: 1.5; }
+  .cz-fields-list { display: flex; flex-direction: column; gap: 0.35rem; }
+  .cz-field-item { display: flex; flex-direction: column; gap: 0.3rem; }
+  .cz-field-line { display: flex; align-items: center; gap: 0.35rem; }
+  .cz-fields input[type="text"] {
+    flex: 1;
+    min-width: 0;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    color: var(--ink);
+    padding: 0.4rem 0.55rem;
+    border-radius: 5px;
+    font-size: 0.8rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .cz-fields input[type="text"]:focus { border-color: var(--wood-deep); }
+  .cz-icon-btn {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    color: var(--ink-2);
+    width: 28px;
+    height: 28px;
+    border-radius: 5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.15s;
+  }
+  .cz-icon-btn svg { width: 12px; height: 12px; }
+  .cz-icon-btn:hover:not(:disabled) { background: var(--paper-2); color: var(--ink); border-color: var(--ink-3); }
+  .cz-icon-btn:disabled, .cz-mini-btn:disabled { opacity: 0.4; cursor: default; }
+  .cz-confirm {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    font-size: 0.74rem;
+    color: var(--ink-2);
+    background: var(--paper-2);
+    border: 1px solid var(--rule-soft);
+    border-radius: 6px;
+    padding: 0.4rem 0.55rem;
+  }
+  .cz-confirm[hidden] { display: none; }
+  .cz-confirm span { flex: 1; min-width: 140px; }
+
+  /* Info (per artwork) */
+  .cz-info { margin-top: 0.1rem; }
+  .cz-info > summary {
+    cursor: pointer;
+    font-size: 0.74rem;
+    color: var(--ink-2);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    list-style: none;
+    user-select: none;
+  }
+  .cz-info > summary::-webkit-details-marker { display: none; }
+  .cz-info > summary .cz-chev { width: 12px; height: 12px; margin-left: 0; transform: rotate(-90deg); }
+  .cz-info[open] > summary .cz-chev { transform: none; }
+  .cz-info-label { font-weight: 600; color: var(--ink); }
+  .cz-info-budget {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .cz-info-body { display: flex; flex-direction: column; gap: 0.45rem; padding-top: 0.5rem; }
+  .cz-info-field { display: flex; flex-direction: column; gap: 0.2rem; }
+  .cz-info-field label { font-size: 0.7rem; color: var(--ink-3); font-weight: 500; }
+  .cz-root textarea {
+    width: 100%;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    color: var(--ink);
+    padding: 0.4rem 0.55rem;
+    border-radius: 5px;
+    font-size: 0.78rem;
+    font-family: inherit;
+    line-height: 1.5;
+    outline: none;
+    resize: none;
+    overflow: hidden;
+    min-height: 2.2rem;
+    transition: border-color 0.15s;
+  }
+  .cz-root textarea:focus { border-color: var(--wood-deep); }
+
+  /* Batch info */
+  .cz-batch-info-section { grid-template-columns: minmax(0, 1fr); }
+  .cz-batch-info-line { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+  .cz-batch select {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    color: var(--ink);
+    padding: 0.35rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.76rem;
+    font-family: inherit;
+    outline: none;
+  }
+  .cz-batch-result { font-size: 0.72rem; color: var(--ink-3); }
+
   /* Footer */
   .cz-footer {
     display: flex;
@@ -373,7 +500,16 @@
     </div>
   </div>
   <div class="cz-hint">
-    Add titles and subtitles, set print sizes per artwork. Edits stay local until you save.
+    Add titles, subtitles and info, set print sizes per artwork. Edits stay local until you save.
+  </div>
+
+  <div class="cz-fields">
+    <div class="cz-fields-head">
+      <span class="cz-fields-title">Info fields</span>
+      <button class="cz-mini-btn" data-cz-add-field type="button">+ Add field</button>
+    </div>
+    <div class="cz-fields-hint">Extra text for each artwork's info sheet. Up to 5 fields; each artwork holds up to 2,000 characters in all.</div>
+    <div class="cz-fields-list" data-cz-fields-list></div>
   </div>
 
   <div class="cz-accordion" data-cz-accordion></div>
@@ -408,6 +544,19 @@
         <input type="text" class="cz-batch-title" placeholder="Title prefix (e.g. Series A —)">
               <input type="text" class="cz-batch-subtitle" placeholder="Subtitle for all">
           </div>
+          <div class="cz-batch-section cz-batch-info-section">
+            <div class="cz-batch-info-line">
+              <select class="cz-batch-field" aria-label="Info field"></select>
+              <button class="cz-mini-btn" data-batch-apply-field type="button">Apply</button>
+              <span class="cz-batch-result" data-batch-field-result></span>
+            </div>
+            <textarea class="cz-batch-field-value" rows="2" placeholder="Value for all"></textarea>
+            <div class="cz-confirm" data-batch-field-confirm hidden>
+              <span data-batch-field-confirm-text></span>
+              <button class="cz-mini-btn" data-batch-field-confirm-yes type="button">Replace</button>
+              <button class="cz-mini-btn" data-batch-field-confirm-no type="button">Cancel</button>
+            </div>
+          </div>
           <div class="cz-batch-section cz-batch-action-section">
             <div class="cz-batch-buttons">
               <button class="cz-mini-btn" data-batch-apply-prefix type="button">Apply prefix</button>
@@ -432,6 +581,22 @@
   </div>
 </template>
 
+<template data-cz-field-template>
+  <div class="cz-field-item">
+    <div class="cz-field-line">
+      <input type="text" class="cz-field-label" maxlength="24" aria-label="Field label">
+      <button class="cz-icon-btn" data-field-up type="button" aria-label="Move up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg></button>
+      <button class="cz-icon-btn" data-field-down type="button" aria-label="Move down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></button>
+      <button class="cz-icon-btn" data-field-delete type="button" aria-label="Delete field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="cz-confirm" data-field-confirm hidden>
+      <span data-field-confirm-text></span>
+      <button class="cz-mini-btn" data-field-confirm-yes type="button">Delete</button>
+      <button class="cz-mini-btn" data-field-confirm-no type="button">Cancel</button>
+    </div>
+  </div>
+</template>
+
 <template data-cz-row-template>
   <div class="cz-row">
     <img class="cz-thumb" alt="">
@@ -439,6 +604,15 @@
       <div class="cz-filename"></div>
       <input type="text" class="cz-title" placeholder="Title">
       <input type="text" class="cz-subtitle" placeholder="Subtitle (optional)">
+      <details class="cz-info">
+        <summary>
+          <svg class="cz-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          <span class="cz-info-label">Info</span>
+          <span class="cz-info-count"></span>
+          <span class="cz-info-budget"></span>
+        </summary>
+        <div class="cz-info-body"></div>
+      </details>
       <div class="cz-size-row">
         <span class="cz-size-readout"></span>
         <span class="cz-bucket-group">

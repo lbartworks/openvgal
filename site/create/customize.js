@@ -22,31 +22,79 @@ function _isGalleryRoom(key, value) {
   return value && typeof value === 'object' && value.parent;
 }
 
-// Parse current metadata into { title, subtitle } preserving ID prefix logic.
+// Info field limits (docs/gallery-json.md § Metadata). Same values as
+// METADATA_MAX_FIELDS / METADATA_MAX_CHARS in room_builder_aux.js.
+const MAX_INFO_FIELDS = 5;
+const MAX_LABEL_CHARS = 24;
+const MAX_ARTWORK_CHARS = 2000;
+const DEFAULT_INFO_FIELDS = [{ id: 'f1', label: 'Description' }];
+
+// Code points, as the docs count them.
+function _cp(s) {
+  return Array.from(s || '').length;
+}
+function _truncateCp(s, max) {
+  const chars = Array.from(s || '');
+  return chars.length > max ? chars.slice(0, Math.max(0, max)).join('') : s;
+}
+
+// Parse current metadata into { title, subtitle, fields }, using the same
+// rules as readArtworkMetadata in room_builder_aux.js but without its display
+// clamping, so the editor sees the stored text.
 // Format produced by gallery-generator.js: "ID #N <baseName>"
 // Plaque builder splits on \n: line 1 = title, line 2 = subtitle.
 function _parseMetadata(metadata) {
-  if (!metadata) return { title: '', subtitle: '' };
+  if (!metadata) return { title: '', subtitle: '', fields: {} };
   if (typeof metadata === 'object') {
+    const fields = {};
+    if (metadata.fields && typeof metadata.fields === 'object') {
+      Object.keys(metadata.fields).forEach((id) => {
+        if (typeof metadata.fields[id] === 'string') fields[id] = metadata.fields[id];
+      });
+    }
     return {
       title: typeof metadata.title === 'string' ? metadata.title : '',
       subtitle: typeof metadata.subtitle === 'string' ? metadata.subtitle : '',
+      fields,
     };
   }
   const stripped = String(metadata).replace(/^ID\s*#\d+\s*/, '');
   const lines = stripped.split('\n');
-  return { title: lines[0] || '', subtitle: lines[1] || '' };
+  return { title: lines[0] || '', subtitle: lines[1] || '', fields: {} };
 }
 
-// Re-emit metadata string keeping the original ID prefix (if any) so existing
-// downstream code (overlay, plaque) keeps working.
-// Object metadata (info fields) keeps its other keys; only title/subtitle change.
-function _composeMetadata(originalMetadata, title, subtitle) {
-  if (originalMetadata && typeof originalMetadata === 'object') {
-    return Object.assign({}, originalMetadata, {
+// Writes the string form when no field has a value, the object form otherwise.
+// `values` maps listed field ids to their edited text; `removedIds` are fields
+// deleted from the gallery. Unknown object keys and unlisted ids are kept.
+function _composeMetadata(originalMetadata, title, subtitle, values, removedIds) {
+  const isObject = originalMetadata && typeof originalMetadata === 'object';
+  const fields = {};
+  if (isObject && originalMetadata.fields && typeof originalMetadata.fields === 'object') {
+    Object.assign(fields, originalMetadata.fields);
+  }
+  (removedIds || []).forEach((id) => { delete fields[id]; });
+  Object.keys(values || {}).forEach((id) => {
+    const v = (values[id] || '').trim();
+    if (v) fields[id] = v;
+    else delete fields[id];
+  });
+  const hasValue = Object.keys(fields).some((id) => typeof fields[id] === 'string' && fields[id].trim());
+  const hasUnknownKeys = isObject &&
+    Object.keys(originalMetadata).some((k) => k !== 'title' && k !== 'subtitle' && k !== 'fields');
+
+  if (hasValue || hasUnknownKeys) {
+    const out = Object.assign({}, isObject ? originalMetadata : {}, {
       title: (title || '').trim(),
       subtitle: (subtitle || '').trim(),
     });
+    if (Object.keys(fields).length) out.fields = fields;
+    else delete out.fields;
+    return out;
+  }
+  if (isObject) {
+    const t = (title || '').trim();
+    const s = (subtitle || '').trim();
+    return s ? t + '\n' + s : t;
   }
   const idMatch = String(originalMetadata || '').match(/^(ID\s*#\d+\s*)/);
   const prefix = idMatch ? idMatch[1] : '';
@@ -114,6 +162,131 @@ export function mountCustomize(hostEl, opts) {
 
   const galleryKeys = Object.keys(working).filter((k) => _isGalleryRoom(k, working[k]));
 
+  // Gallery-level info fields. Technical.info_fields is only written back when
+  // the gallery already had it, the list was edited, or some artwork has a value,
+  // so a gallery that never uses info fields exports exactly as before.
+  const technical = working.Technical && typeof working.Technical === 'object' ? working.Technical : null;
+  const hadInfoFields = !!(technical && Array.isArray(technical.info_fields));
+  const infoFields = (hadInfoFields ? technical.info_fields : DEFAULT_INFO_FIELDS)
+    .filter((f) => f && typeof f.id === 'string' && typeof f.label === 'string')
+    .slice(0, MAX_INFO_FIELDS)
+    .map((f) => ({ id: f.id, label: f.label }));
+  let infoFieldsDirty = false;
+  const removedFieldIds = [];
+  // Highest fN seen in the list or in any artwork's values; new ids go above it.
+  let lastFieldNum = 0;
+  function _noteFieldId(id) {
+    const m = /^f(\d+)$/.exec(id);
+    if (m) lastFieldNum = Math.max(lastFieldNum, Number(m[1]));
+  }
+  infoFields.forEach((f) => _noteFieldId(f.id));
+  galleryKeys.forEach((roomName) => {
+    const room = working[roomName];
+    Object.keys(room).filter((k) => _isImage(room[k])).forEach((k) => {
+      Object.keys(_parseMetadata(room[k].metadata).fields).forEach(_noteFieldId);
+    });
+  });
+
+  // Row/room renderers that depend on the field list; re-run after list edits.
+  const fieldListeners = [];
+  function _fieldsChanged() {
+    infoFieldsDirty = true;
+    renderFieldList();
+    fieldListeners.forEach((fn) => fn());
+  }
+
+  function _filledText(s) {
+    return typeof s === 'string' && s.trim() !== '';
+  }
+  function _artworkChars(state) {
+    let n = _cp(state.title) + _cp(state.subtitle);
+    infoFields.forEach((f) => { n += _cp(state.values[f.id]); });
+    return n;
+  }
+
+  const fieldsList = hostEl.querySelector('[data-cz-fields-list]');
+  const fieldTemplate = hostEl.querySelector('[data-cz-field-template]');
+  const addFieldBtn = hostEl.querySelector('[data-cz-add-field]');
+
+  function renderFieldList() {
+    fieldsList.innerHTML = '';
+    infoFields.forEach((field, idx) => {
+      const node = fieldTemplate.content.firstElementChild.cloneNode(true);
+      const labelInput = node.querySelector('.cz-field-label');
+      labelInput.maxLength = MAX_LABEL_CHARS;
+      labelInput.value = field.label;
+      labelInput.addEventListener('input', () => {
+        field.label = labelInput.value;
+        infoFieldsDirty = true;
+        fieldListeners.forEach((fn) => fn());
+      });
+      labelInput.addEventListener('change', () => {
+        if (!labelInput.value.trim()) {
+          field.label = 'Field';
+          labelInput.value = field.label;
+        } else {
+          field.label = labelInput.value.trim();
+        }
+        fieldListeners.forEach((fn) => fn());
+      });
+
+      const up = node.querySelector('[data-field-up]');
+      const down = node.querySelector('[data-field-down]');
+      up.disabled = idx === 0;
+      down.disabled = idx === infoFields.length - 1;
+      up.addEventListener('click', () => {
+        infoFields.splice(idx - 1, 0, infoFields.splice(idx, 1)[0]);
+        _fieldsChanged();
+      });
+      down.addEventListener('click', () => {
+        infoFields.splice(idx + 1, 0, infoFields.splice(idx, 1)[0]);
+        _fieldsChanged();
+      });
+
+      const confirmEl = node.querySelector('[data-field-confirm]');
+      const removeField = () => {
+        Object.values(rowState).forEach((s) => {
+          if (s.values[field.id] !== undefined) {
+            delete s.values[field.id];
+            s.textDirty = true;
+          }
+        });
+        removedFieldIds.push(field.id);
+        infoFields.splice(infoFields.indexOf(field), 1);
+        _fieldsChanged();
+      };
+      node.querySelector('[data-field-delete]').addEventListener('click', () => {
+        const withValue = Object.values(rowState).filter((s) => _filledText(s.values[field.id])).length;
+        if (!withValue) { removeField(); return; }
+        node.querySelector('[data-field-confirm-text]').textContent =
+          'Delete "' + field.label + '" and its ' + withValue + ' value' + (withValue === 1 ? '' : 's') + '?';
+        confirmEl.hidden = false;
+      });
+      node.querySelector('[data-field-confirm-yes]').addEventListener('click', removeField);
+      node.querySelector('[data-field-confirm-no]').addEventListener('click', () => { confirmEl.hidden = true; });
+
+      fieldsList.appendChild(node);
+    });
+    addFieldBtn.disabled = infoFields.length >= MAX_INFO_FIELDS;
+  }
+
+  addFieldBtn.addEventListener('click', () => {
+    if (infoFields.length >= MAX_INFO_FIELDS) return;
+    lastFieldNum++;
+    infoFields.push({ id: 'f' + lastFieldNum, label: 'Field ' + (infoFields.length + 1) });
+    _fieldsChanged();
+    const inputs = fieldsList.querySelectorAll('.cz-field-label');
+    const last = inputs[inputs.length - 1];
+    if (last) { last.focus(); last.select(); }
+  });
+
+  function _autoGrow(ta) {
+    ta.style.height = 'auto';
+    ta.style.height = ta.scrollHeight + 'px';
+  }
+
+  renderFieldList();
+
   // Build accordion entries.
   galleryKeys.forEach((roomName, roomIdx) => {
     const room = working[roomName];
@@ -137,6 +310,7 @@ export function mountCustomize(hostEl, opts) {
         itemKey,
         title: parsed.title,
         subtitle: parsed.subtitle,
+        values: parsed.fields,
         sizeCm: initialSize,
         unit: 'cm',
         sizeDirty: false,
@@ -165,13 +339,65 @@ export function mountCustomize(hostEl, opts) {
       titleInput.value = state.title;
       subtitleInput.value = state.subtitle;
 
+      // Info disclosure: summary counts filled fields and the shared budget.
+      const info = rowNode.querySelector('.cz-info');
+      const infoCount = rowNode.querySelector('.cz-info-count');
+      const infoBudget = rowNode.querySelector('.cz-info-budget');
+      const infoBody = rowNode.querySelector('.cz-info-body');
+
+      function refreshInfoSummary() {
+        const filled = infoFields.filter((f) => _filledText(state.values[f.id])).length;
+        infoCount.textContent = filled + ' of ' + infoFields.length + ' filled';
+        infoBudget.textContent = _artworkChars(state).toLocaleString('en-US') + ' / ' +
+          MAX_ARTWORK_CHARS.toLocaleString('en-US');
+      }
+      // Caps an edit at what the rest of this artwork's text leaves free.
+      function capToBudget(el, current) {
+        const room = MAX_ARTWORK_CHARS - (_artworkChars(state) - _cp(current));
+        const capped = _truncateCp(el.value, room);
+        if (capped !== el.value) el.value = capped;
+        return capped;
+      }
+
+      function renderInfoFields() {
+        infoBody.innerHTML = '';
+        infoFields.forEach((field) => {
+          const wrap = document.createElement('div');
+          wrap.className = 'cz-info-field';
+          const label = document.createElement('label');
+          label.textContent = field.label;
+          const ta = document.createElement('textarea');
+          ta.rows = 1;
+          ta.value = state.values[field.id] || '';
+          ta.addEventListener('input', () => {
+            state.values[field.id] = capToBudget(ta, state.values[field.id]);
+            state.textDirty = true;
+            _autoGrow(ta);
+            refreshInfoSummary();
+          });
+          wrap.appendChild(label);
+          wrap.appendChild(ta);
+          infoBody.appendChild(wrap);
+        });
+        if (info.open) infoBody.querySelectorAll('textarea').forEach(_autoGrow);
+        refreshInfoSummary();
+      }
+      info.addEventListener('toggle', () => {
+        if (info.open) infoBody.querySelectorAll('textarea').forEach(_autoGrow);
+      });
+      renderInfoFields();
+      fieldListeners.push(renderInfoFields);
+      state.renderInfo = renderInfoFields;
+
       titleInput.addEventListener('input', () => {
-        state.title = titleInput.value;
+        state.title = capToBudget(titleInput, state.title);
         state.textDirty = true;
+        refreshInfoSummary();
       });
       subtitleInput.addEventListener('input', () => {
-        state.subtitle = subtitleInput.value;
+        state.subtitle = capToBudget(subtitleInput, state.subtitle);
         state.textDirty = true;
+        refreshInfoSummary();
       });
 
       const slider = rowNode.querySelector('.cz-slider');
@@ -252,9 +478,11 @@ export function mountCustomize(hostEl, opts) {
       allRowNodes().forEach((rn) => {
         const s = rowState[rn.dataset.stateKey];
         const titleInput = rn.querySelector('.cz-title');
-        s.title = (prefix + (s.title || '')).trim();
+        const room = MAX_ARTWORK_CHARS - (_artworkChars(s) - _cp(s.title));
+        s.title = _truncateCp((prefix + (s.title || '')).trim(), room);
         s.textDirty = true;
         titleInput.value = s.title;
+        s.renderInfo();
       });
     });
 
@@ -263,10 +491,83 @@ export function mountCustomize(hostEl, opts) {
       allRowNodes().forEach((rn) => {
         const s = rowState[rn.dataset.stateKey];
         const subInput = rn.querySelector('.cz-subtitle');
-        s.subtitle = sub;
+        const room = MAX_ARTWORK_CHARS - (_artworkChars(s) - _cp(s.subtitle));
+        s.subtitle = _truncateCp(sub, room);
         s.textDirty = true;
-        subInput.value = sub;
+        subInput.value = s.subtitle;
+        s.renderInfo();
       });
+    });
+
+    // Batch info field: copy one value into every artwork of this room.
+    const batchField = roomNode.querySelector('.cz-batch-field');
+    const batchFieldValue = roomNode.querySelector('.cz-batch-field-value');
+    const batchFieldApply = roomNode.querySelector('[data-batch-apply-field]');
+    const batchFieldResult = roomNode.querySelector('[data-batch-field-result]');
+    const batchFieldConfirm = roomNode.querySelector('[data-batch-field-confirm]');
+
+    function renderBatchField() {
+      const selected = batchField.value;
+      batchField.innerHTML = '';
+      infoFields.forEach((f) => {
+        const opt = document.createElement('option');
+        opt.value = f.id;
+        opt.textContent = f.label;
+        batchField.appendChild(opt);
+      });
+      if (infoFields.some((f) => f.id === selected)) batchField.value = selected;
+      refreshBatchFieldButton();
+    }
+    function refreshBatchFieldButton() {
+      const field = infoFields.find((f) => f.id === batchField.value);
+      batchFieldApply.textContent = field ? 'Apply ' + field.label : 'Apply';
+      batchFieldApply.disabled = !field || !batchFieldValue.value.trim();
+      batchFieldConfirm.hidden = true;
+    }
+    batchField.addEventListener('change', refreshBatchFieldButton);
+    batchFieldValue.addEventListener('input', () => {
+      _autoGrow(batchFieldValue);
+      refreshBatchFieldButton();
+    });
+    renderBatchField();
+    fieldListeners.push(renderBatchField);
+
+    function applyBatchField() {
+      const id = batchField.value;
+      const value = batchFieldValue.value;
+      let copied = 0, skipped = 0;
+      allRowNodes().forEach((rn) => {
+        const s = rowState[rn.dataset.stateKey];
+        if (_artworkChars(s) - _cp(s.values[id]) + _cp(value) > MAX_ARTWORK_CHARS) {
+          skipped++;
+          return;
+        }
+        s.values[id] = value;
+        s.textDirty = true;
+        s.renderInfo();
+        copied++;
+      });
+      batchFieldConfirm.hidden = true;
+      batchFieldResult.textContent = 'Copied to ' + copied + ' artwork' + (copied === 1 ? '' : 's') +
+        (skipped ? ', skipped ' + skipped + ' over 2,000 characters' : '') + '.';
+    }
+    batchFieldApply.addEventListener('click', () => {
+      const id = batchField.value;
+      const value = batchFieldValue.value;
+      if (!id || !value.trim()) return;
+      batchFieldResult.textContent = '';
+      const different = Array.from(allRowNodes()).filter((rn) => {
+        const v = rowState[rn.dataset.stateKey].values[id];
+        return _filledText(v) && v !== value;
+      }).length;
+      if (!different) { applyBatchField(); return; }
+      roomNode.querySelector('[data-batch-field-confirm-text]').textContent =
+        'Replace ' + different + ' different value' + (different === 1 ? '' : 's') + '?';
+      batchFieldConfirm.hidden = false;
+    });
+    roomNode.querySelector('[data-batch-field-confirm-yes]').addEventListener('click', applyBatchField);
+    roomNode.querySelector('[data-batch-field-confirm-no]').addEventListener('click', () => {
+      batchFieldConfirm.hidden = true;
     });
 
     roomNode.querySelectorAll('[data-batch-size]').forEach((btn) => {
@@ -315,6 +616,11 @@ export function mountCustomize(hostEl, opts) {
   // Returns true if any size changed (callers use this to decide whether to relayout).
   function commitEditsToWorking() {
     let sizesChanged = false;
+    const anyValue = Object.values(rowState).some((s) =>
+      infoFields.some((f) => _filledText(s.values[f.id])));
+    if (technical && (hadInfoFields || infoFieldsDirty || anyValue)) {
+      technical.info_fields = infoFields.map((f) => ({ id: f.id, label: f.label.trim() || 'Field' }));
+    }
     galleryKeys.forEach((roomName) => {
       const room = working[roomName];
       if (!room) return;
@@ -325,7 +631,11 @@ export function mountCustomize(hostEl, opts) {
         const entry = room[itemKey];
         if (!entry) return;
         if (s.textDirty) {
-          entry.metadata = _composeMetadata(entry.metadata, s.title, s.subtitle);
+          const listed = {};
+          infoFields.forEach((f) => {
+            if (s.values[f.id] !== undefined) listed[f.id] = s.values[f.id];
+          });
+          entry.metadata = _composeMetadata(entry.metadata, s.title, s.subtitle, listed, removedFieldIds);
           s.textDirty = false;
         }
         if (s.sizeDirty) {
