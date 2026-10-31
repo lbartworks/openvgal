@@ -501,9 +501,15 @@ function withSequencePrefixes(config) {
     if (room === 'Technical') continue;
     for (const key in copy[room]) {
       const item = copy[room][key];
-      if (!item || item.resource_type !== 'image' || typeof item.metadata !== 'string') continue;
+      if (!item || item.resource_type !== 'image' || !item.metadata) continue;
       const m = SEQUENCE_PREFIX.exec(item.resource.split('/').pop());
       if (!m) continue;
+      if (typeof item.metadata === 'object') {
+        const title = typeof item.metadata.title === 'string' ? item.metadata.title : '';
+        if (title.indexOf(m[0]) !== 0) item.metadata.title = m[0] + title;
+        continue;
+      }
+      if (typeof item.metadata !== 'string') continue;
       const parts = /^(ID\s*#\d+\s*)?([\s\S]*)$/.exec(item.metadata);
       if (parts[2].indexOf(m[0]) === 0) continue;
       item.metadata = (parts[1] || '') + m[0] + parts[2];

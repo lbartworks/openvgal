@@ -101,7 +101,7 @@ A door connects the current hall to another hall. The `resource` names the desti
 | `width`, `height` | Real-world dimensions in **centimetres**. See [Sizes and units](#sizes-and-units). |
 | `location` | `[x, y, z]` position. **Z is up** in this file. See [Coordinate conventions](#coordinate-conventions). |
 | `vector` | `[x, y]` normal — the vector to indicate from what direction should be visible. |
-| `metadata` | Hover/plaque text. Title and subtitle are split on `\n`. |
+| `metadata` | Hover/plaque text: a `"Title\nSubtitle"` string, or an object with info fields. See [Metadata](#metadata-title-subtitle-and-info-fields). |
 
 Supported image formats: `jpg`, `jpeg`, `png`, `webp`.
 
@@ -130,17 +130,56 @@ When a template is furnished automatically, the generator writes both of these f
 
 ---
 
-## Metadata: title and subtitle
+## Metadata: title, subtitle and info fields
 
-`metadata` is a single string. A newline (`\n`) separates the **title** from the **subtitle**:
+`metadata` is either a string or an object.
+
+**String** (the original form; valid forever, never migrated). A newline (`\n`) separates the **title** from the **subtitle**:
 
 ```json
 "metadata": "Beach bike\nOil on canvas, 2021"
 ```
 
-- The title shows in the hover overlay and on the artwork plaque.
-- The subtitle appears on a second line in both places.
-- Older galleries may carry a legacy `ID #N` prefix; it is stripped on display and preserved by the Customize editor.
+Older galleries may carry a legacy `ID #N ` prefix; it is stripped on display and preserved by the Customize editor.
+
+**Object**, used when the gallery declares info fields and at least one has a value:
+
+```json
+"metadata": {
+  "title": "Beach bike",
+  "subtitle": "Oil on canvas, 2021",
+  "fields": { "f1": "Painted on site.\nPrivate collection." }
+}
+```
+
+An object `title` never carries the `ID #N` prefix.
+
+**Info fields** are declared per gallery in `Technical.info_fields`, an ordered list of up to 5 entries:
+
+```json
+"Technical": {
+  "info_fields": [
+    { "id": "f1", "label": "Description" },
+    { "id": "f2", "label": "Provenance" }
+  ]
+}
+```
+
+- `label`: at most 24 characters.
+- `id`: generated `f1`, `f2`, … and never reused within a gallery, so renaming a label keeps every artwork's value.
+
+**Rules for editors**
+
+- Write the string form when no field has a value, the object form otherwise.
+- Keep unknown keys, and `fields` values whose id isn't listed, through a load/save round-trip.
+- Limits (enforced by editors, not by hosted storage): 5 fields, 24-character labels, and 2,000 characters per artwork across title + subtitle + all field values, counted as code points (`Array.from(s).length`).
+- Values are plain text. Line breaks are kept; no markup, no Markdown, no auto-linking.
+
+**What the viewer shows**
+
+- Title and subtitle: hover overlay and artwork plaque, as before.
+- Info fields: only in the artwork sheet of the `?ui=2` layout, below the subtitle. Each listed field with a non-empty value, in list order, as a small label heading over its text, line breaks preserved.
+- The viewer ignores unknown keys and unlisted field ids, renders at most the first 5 listed fields, and stops rendering an artwork's text after 2,000 characters.
 
 ---
 
@@ -165,6 +204,7 @@ A reserved `Technical` block carries gallery-wide defaults. These are fallbacks 
 | `title` | Optional exhibition title, at most 120 characters, shown at the top of the viewer's gallery map. Set from the builder's **Exhibition title** field in every mode; an embed host may override it on export (`docs/embed.md`). Hosted storage rejects a longer title. |
 | `description` | Optional exhibition description, at most 1,000 characters (the builder's cap), shown under the title in the gallery map. Newlines are kept. The map clamps it to four lines with a "more" toggle. Neither field set → the map shows only the halls, as before. |
 | `music` | Optional background track, one per gallery. A relative value (`"music.mp3"`) is an MP3 at the gallery root, resolved against the gallery's location like the images, and an exported pack bundles it. An absolute URL is streamed as-is and removed from exported packs. The viewer shows a music-note toggle only when the field is set; the track starts at the visitor's first click or key press and loops. The builder writes `"music.mp3"` from its **Background music** field. |
+| `info_fields` | Optional ordered list of up to 5 `{ "id", "label" }` entries shown in the `?ui=2` artwork sheet. See [Metadata](#metadata-title-subtitle-and-info-fields). |
 | `skip_hub` | `true` when the gallery was built without an entrance hall. A record of what was built, not a runtime switch — the viewer reads the structure, not this flag. |
 
 ---

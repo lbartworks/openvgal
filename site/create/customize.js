@@ -27,6 +27,12 @@ function _isGalleryRoom(key, value) {
 // Plaque builder splits on \n: line 1 = title, line 2 = subtitle.
 function _parseMetadata(metadata) {
   if (!metadata) return { title: '', subtitle: '' };
+  if (typeof metadata === 'object') {
+    return {
+      title: typeof metadata.title === 'string' ? metadata.title : '',
+      subtitle: typeof metadata.subtitle === 'string' ? metadata.subtitle : '',
+    };
+  }
   const stripped = String(metadata).replace(/^ID\s*#\d+\s*/, '');
   const lines = stripped.split('\n');
   return { title: lines[0] || '', subtitle: lines[1] || '' };
@@ -34,7 +40,14 @@ function _parseMetadata(metadata) {
 
 // Re-emit metadata string keeping the original ID prefix (if any) so existing
 // downstream code (overlay, plaque) keeps working.
+// Object metadata (info fields) keeps its other keys; only title/subtitle change.
 function _composeMetadata(originalMetadata, title, subtitle) {
+  if (originalMetadata && typeof originalMetadata === 'object') {
+    return Object.assign({}, originalMetadata, {
+      title: (title || '').trim(),
+      subtitle: (subtitle || '').trim(),
+    });
+  }
   const idMatch = String(originalMetadata || '').match(/^(ID\s*#\d+\s*)/);
   const prefix = idMatch ? idMatch[1] : '';
   const t = (title || '').trim();

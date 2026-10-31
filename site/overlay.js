@@ -47,15 +47,28 @@ function getArtworkPose(idx){
 	const camera_distance = window.innerWidth>600 ? 4 : 6;
 	const camera_position = target_position.add(target_vector.scale(camera_distance));
 	const item = gallery[dict_items[idx]];
+	const meta = artworkMetadata(item);
 
 	return {
 		position: camera_position,
 		target: target_position,
-		title: "Title:  " + String(item["metadata"]).replace(/^ID\s*#\d+\s*/, ""),
+		title: "Title:  " + meta.title + (meta.subtitle ? "\n" + meta.subtitle : ""),
+		meta: meta,
 		item: item,
 		idx: idx,
 		count: n_items
 	};
+}
+
+// readArtworkMetadata lives in room_builder_aux.js; the fallback covers a pairing
+// with an older copy of it (string metadata only, no info fields).
+function artworkMetadata(item) {
+	const technical = config_file_content && config_file_content.Technical;
+	if (typeof readArtworkMetadata === 'function') {
+		return readArtworkMetadata(item.metadata, technical && technical.info_fields);
+	}
+	const lines = (typeof item.metadata === 'string' ? item.metadata : '').replace(/^ID\s*#\d+\s*/, '').split('\n');
+	return { title: lines[0] || '', subtitle: lines[1] || '', fields: [] };
 }
 
 function manual_move(){
@@ -397,7 +410,7 @@ function buildNewUi() {
 		+ '<section id="ovg-sheet" role="dialog" aria-modal="true" aria-labelledby="ovg-sheet-title">'
 		+ '<button type="button" id="ovg-sheet-close" class="ovg-btn" aria-label="Close">'
 		+ '<svg ' + ICON_ATTRS + '><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'
-		+ '<div id="ovg-sheet-body"><h2 id="ovg-sheet-title"></h2><p id="ovg-sheet-subtitle"></p><p id="ovg-sheet-dims"></p></div>'
+		+ '<div id="ovg-sheet-body"><h2 id="ovg-sheet-title"></h2><p id="ovg-sheet-subtitle"></p><div id="ovg-sheet-fields" hidden></div><p id="ovg-sheet-dims"></p></div>'
 		+ '</section>');
 	document.getElementById('ovg-sheet-backdrop').addEventListener('pointerdown', closeArtworkSheet);
 	document.getElementById('ovg-sheet-close').addEventListener('click', closeArtworkSheet);
@@ -407,10 +420,20 @@ function buildNewUi() {
 function openArtworkSheet(idx) {
 	const pose = getArtworkPose(idx);
 	if (!pose || !document.getElementById('ovg-sheet')) return;
-	document.getElementById('ovg-sheet-title').innerText = pose.title.replace(/^Title:\s*/, '');
+	document.getElementById('ovg-sheet-title').textContent = pose.meta.title;
 	const sub = document.getElementById('ovg-sheet-subtitle');
-	sub.innerText = typeof pose.item.subtitle === 'string' ? pose.item.subtitle : '';
-	sub.hidden = !sub.innerText;
+	sub.textContent = pose.meta.subtitle;
+	sub.hidden = !sub.textContent;
+	const fields = document.getElementById('ovg-sheet-fields');
+	fields.replaceChildren();
+	pose.meta.fields.forEach(f => {
+		const label = document.createElement('h3');
+		label.textContent = f.label;
+		const text = document.createElement('p');
+		text.textContent = f.text;
+		fields.append(label, text);
+	});
+	fields.hidden = !pose.meta.fields.length;
 	// width/height are the artwork's real size in cm.
 	const w = Number(pose.item.width), h = Number(pose.item.height);
 	const dims = document.getElementById('ovg-sheet-dims');

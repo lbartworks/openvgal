@@ -98,16 +98,52 @@ var text3D_builder=function(name, item_position, vector, parent, scene, maxWidth
 
 }
 
+// Artwork `metadata` is either "Title\nSubtitle" (legacy "ID #N " prefix stripped)
+// or { title, subtitle, fields: { id: text } } (docs/gallery-json.md § Metadata).
+// Returns { title, subtitle, fields: [{ label, text }] }: fields follow the order of
+// infoFields (Technical.info_fields, first 5 only) and skip empty values. Output
+// stops after 2,000 code points across title, subtitle and field texts.
+var METADATA_MAX_FIELDS = 5;
+var METADATA_MAX_CHARS = 2000;
+
+function readArtworkMetadata(metadata, infoFields) {
+	var title = '', subtitle = '', values = {};
+	if (typeof metadata === 'string') {
+		var lines = metadata.replace(/^ID\s*#\d+\s*/, '').split('\n');
+		title = lines[0] || '';
+		subtitle = lines[1] || '';
+	} else if (metadata && typeof metadata === 'object') {
+		if (typeof metadata.title === 'string') title = metadata.title;
+		if (typeof metadata.subtitle === 'string') subtitle = metadata.subtitle;
+		if (metadata.fields && typeof metadata.fields === 'object') values = metadata.fields;
+	}
+
+	var budget = METADATA_MAX_CHARS;
+	function clamp(s) {
+		var chars = Array.from(s).slice(0, budget);
+		budget -= chars.length;
+		return chars.join('');
+	}
+
+	var result = { title: clamp(title), subtitle: clamp(subtitle), fields: [] };
+	var listed = Array.isArray(infoFields) ? infoFields.slice(0, METADATA_MAX_FIELDS) : [];
+	listed.forEach(function(f) {
+		if (!f || typeof f.id !== 'string' || typeof f.label !== 'string') return;
+		var value = values[f.id];
+		if (typeof value !== 'string' || !value.trim() || budget <= 0) return;
+		result.fields.push({ label: f.label, text: clamp(value) });
+	});
+	return result;
+}
+
 var plaque_builder = function(name, item_position, item_size, vector, metadata, scene) {
 	// Renders an optional museum-style plaque below artwork using DynamicTexture
-	// metadata format: "ID #N Title\nSubtitle" — ID prefix is stripped for display
 
-	var plaqueText = metadata.replace(/^ID\s*#\d+\s*/, '');
-	if (!plaqueText.trim()) return;
+	var meta = readArtworkMetadata(metadata);
+	if (!(meta.title + meta.subtitle).trim()) return;
 
-	var lines = plaqueText.split('\n');
-	var titleText = lines[0] || '';
-	var subtitleText = lines.length > 1 ? lines[1] : '';
+	var titleText = meta.title;
+	var subtitleText = meta.subtitle;
 
 	// Plaque height is a fixed physical size, matching what an M-bucket artwork
 	// (120 cm longest edge = 2.5 babylon m) used to produce — the text is drawn

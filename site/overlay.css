@@ -594,6 +594,27 @@ body.ovg-sheet-open #ovg-sheet {
     margin-top: 4px;
 }
 
+#ovg-sheet-fields h3 {
+    margin: 14px 0 2px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #71717a;
+}
+
+#ovg-sheet-fields p {
+    margin: 0;
+    font-size: 15px;
+    color: #d4d4d8;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+#ovg-sheet-fields:not([hidden]) + #ovg-sheet-dims {
+    margin-top: 14px;
+}
+
 /* Desktop: top trio and bottom row grouped at the centre. The badge gets a fixed
    width so the map and record buttons can sit either side of it. Record button
    styles are inline (tour-recorder.js), hence !important; its top is left alone
