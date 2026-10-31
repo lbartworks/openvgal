@@ -166,7 +166,7 @@ An object `title` never carries the `ID #N` prefix.
 ```
 
 - `label`: at most 24 characters.
-- `id`: generated `f1`, `f2`, … and never reused within a gallery, so renaming a label keeps every artwork's value.
+- `id`: a new field gets `f(N+1)`, where `N` is the highest `fN` in `Technical.info_fields` or in any artwork's `fields`. An id can therefore return only once no artwork holds a value under it. Renaming a label keeps the id, so every artwork's value stays.
 
 **Rules for editors**
 
