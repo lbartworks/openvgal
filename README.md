@@ -3,7 +3,7 @@
 
 # OpenVGAL v5.0.0
 
-Open-source 3D virtual gallery platform built on [Babylon.js](https://www.babylonjs.com/). Create interactive WebGL art galleries from your images, download a ZIP, host it anywhere. Version 4 is a massive upgrade with more realistic light and updated templates leaveraging the new light system.
+Open-source 3D virtual gallery platform built on [Babylon.js](https://www.babylonjs.com/). Create interactive WebGL art galleries from your images, download a ZIP, host it anywhere. Version 5 brings a new, lighter viewer interface with an artwork info sheet and an on-screen joystick, built on the baked lighting introduced in version 4.
 
 **Website:** [openvgal.com](https://openvgal.com) &nbsp;|&nbsp; **Clone of this repository:** [demo.openvgal.com](https://demo.openvgal.com) &nbsp;|&nbsp; **Create a gallery:** [openvgal.com/create](https://openvgal.com/create) &nbsp;|&nbsp; **Live demo:** [nostromophoto.com/virtual/virtual.html](https://nostromophoto.com/virtual/virtual.html)
 
@@ -14,8 +14,8 @@ Open-source 3D virtual gallery platform built on [Babylon.js](https://www.babylo
 >
 > [![Sponsor OpenVGAL](https://img.shields.io/badge/Sponsor_OpenVGAL-%E2%9D%A4-ff69b4?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/lbartworks)
 
-> [!IMPORTANT]
-> **v4 introduces some non-backwards compatibility changes.** While the main structure of the spaces (the .json file) has not been modified in v4, there are many important changes in the templates with v4. The upgrade is quality is massive and it did not make sense to keep the backwards compatibility. Change always comes with a tag
+> [!NOTE]
+> **v5 changes the viewer interface, not your galleries.** Galleries built with v4 keep working as they are. Galleries viewed online get the new interface automatically; a downloaded ZIP keeps the interface it was built with until you download it again from the generator. Galleries made before v4 still need to be re-created.
 
 ---
 
