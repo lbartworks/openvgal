@@ -558,61 +558,79 @@ body.ovg-sheet-open #ovg-sheet {
     z-index: 41;
 }
 
+/* Close floats over the body's top-right so the title starts at the top. */
 #ovg-sheet-close {
-    flex: 0 0 auto;
-    align-self: flex-end;
-    width: 44px;
-    height: 44px;
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 1;
+    width: 40px;
+    height: 40px;
+    background: rgba(0, 0, 0, 0.35);
 }
 
 #ovg-sheet-close svg {
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
 }
 
 #ovg-sheet-body {
     flex: 1 1 auto;
     overflow-y: auto;
-    padding: 8px 8px 4px;
+    padding: 14px 12px 8px;
 }
 
 #ovg-sheet-title {
-    margin: 0 0 6px;
-    font-size: 20px;
+    margin: 0;
+    padding-right: 48px;
+    font-size: 22px;
     font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
     color: #fafafa;
+    overflow-wrap: anywhere;
 }
 
-#ovg-sheet-subtitle,
-#ovg-sheet-dims {
-    margin: 0;
+#ovg-sheet-subtitle {
+    margin: 6px 0 0;
+    padding-right: 48px;
     font-size: 15px;
+    line-height: 1.45;
     color: #a1a1aa;
 }
 
-#ovg-sheet-dims {
-    margin-top: 4px;
+#ovg-sheet-fields {
+    margin-top: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-#ovg-sheet-fields h3 {
-    margin: 14px 0 2px;
-    font-size: 12px;
+.ovg-sheet-field {
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.ovg-sheet-field:last-child {
+    border-bottom: none;
+}
+
+.ovg-sheet-field h3 {
+    margin: 0 0 4px;
+    font-size: 11px;
     font-weight: 600;
-    letter-spacing: 0.04em;
+    line-height: 1.3;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     color: #71717a;
 }
 
-#ovg-sheet-fields p {
+.ovg-sheet-field p {
     margin: 0;
-    font-size: 15px;
+    font-size: 14.5px;
+    line-height: 1.6;
     color: #d4d4d8;
+    font-variant-numeric: tabular-nums;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
-}
-
-#ovg-sheet-fields:not([hidden]) + #ovg-sheet-dims {
-    margin-top: 14px;
 }
 
 /* Desktop: top trio and bottom row grouped at the centre. The badge gets a fixed

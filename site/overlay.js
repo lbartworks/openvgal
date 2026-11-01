@@ -410,7 +410,7 @@ function buildNewUi() {
 		+ '<section id="ovg-sheet" role="dialog" aria-modal="true" aria-labelledby="ovg-sheet-title">'
 		+ '<button type="button" id="ovg-sheet-close" class="ovg-btn" aria-label="Close">'
 		+ '<svg ' + ICON_ATTRS + '><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'
-		+ '<div id="ovg-sheet-body"><h2 id="ovg-sheet-title"></h2><p id="ovg-sheet-subtitle"></p><div id="ovg-sheet-fields" hidden></div><p id="ovg-sheet-dims"></p></div>'
+		+ '<div id="ovg-sheet-body"><h2 id="ovg-sheet-title"></h2><p id="ovg-sheet-subtitle"></p><div id="ovg-sheet-fields" hidden></div></div>'
 		+ '</section>');
 	document.getElementById('ovg-sheet-backdrop').addEventListener('pointerdown', closeArtworkSheet);
 	document.getElementById('ovg-sheet-close').addEventListener('click', closeArtworkSheet);
@@ -426,19 +426,21 @@ function openArtworkSheet(idx) {
 	sub.hidden = !sub.textContent;
 	const fields = document.getElementById('ovg-sheet-fields');
 	fields.replaceChildren();
-	pose.meta.fields.forEach(f => {
+	const rows = pose.meta.fields.slice();
+	// width/height are the artwork's real size in cm.
+	const w = Number(pose.item.width), h = Number(pose.item.height);
+	if (w > 0 && h > 0) rows.push({ label: 'Dimensions', text: w + ' × ' + h + ' cm' });
+	rows.forEach(f => {
+		const row = document.createElement('div');
+		row.className = 'ovg-sheet-field';
 		const label = document.createElement('h3');
 		label.textContent = f.label;
 		const text = document.createElement('p');
 		text.textContent = f.text;
-		fields.append(label, text);
+		row.append(label, text);
+		fields.append(row);
 	});
-	fields.hidden = !pose.meta.fields.length;
-	// width/height are the artwork's real size in cm.
-	const w = Number(pose.item.width), h = Number(pose.item.height);
-	const dims = document.getElementById('ovg-sheet-dims');
-	dims.innerText = w > 0 && h > 0 ? w + ' × ' + h + ' cm' : '';
-	dims.hidden = !dims.innerText;
+	fields.hidden = !rows.length;
 	document.getElementById('ovg-sheet-body').scrollTop = 0;
 	document.body.classList.add('ovg-sheet-open');
 }
