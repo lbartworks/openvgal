@@ -21,14 +21,16 @@ The viewer is a Babylon.js app that:
 
 - **Keyboard/mouse:** arrow keys to move, mouse to look.
 - **Touch:** 1-finger drag to move forward, 2-finger to rotate.
+- **Joystick:** on-screen, beside the button row: up/down to walk, left/right to turn; the further it is pushed, the faster.
 - **Doors:** click to navigate between halls.
 
 **Overlay UI (`overlay.js`):**
 
-- Artwork metadata on hover.
-- Navigation arrows for the automatic tour.
+- Top: map button, "Made with OpenVGal" badge, tour record button.
+- Bottom button row: help, previous/next artwork, cinematic visit, music volume (only when the gallery has music).
+- Artwork sheet: clicking an artwork flies to it and opens its title, subtitle, info fields and dimensions.
 - Multi-language help (English, Spanish, Japanese, Chinese).
-- Extensible action buttons (purchase, mint, favourite — disabled by default).
+- Plaques follow the gallery's `show_plaques` setting; visitors can't toggle them.
 
 ---
 
