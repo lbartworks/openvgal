@@ -1,13 +1,11 @@
 // Overlay functionality
-// New overlay layout (experimental). Enable with ?ui=2
-const NEW_UI = new URLSearchParams(window.location.search).get('ui') === '2';
 
 // callbacks
 function CB_artwork_picked(index) {
 	return function() {
 		manual_navigation_idx = index;
 		manual_move();
-		if (NEW_UI) openArtworkSheet(manual_navigation_idx);
+		openArtworkSheet(manual_navigation_idx);
 	};
 }
 
@@ -15,7 +13,7 @@ function CB_artwork_picked(index) {
 //rest of utility functions
 
 // Compute the camera pose for artwork `idx` in the current gallery.
-// Returns { position, target, title, idx, count } or null when unavailable.
+// Returns { position, target, meta, item, idx, count } or null when unavailable.
 // Single source of truth shared by manual_move() and the cinematic tour, so the
 // two navigation paths can never drift apart. Keeps the Z/Y axis swap ([0],[2],[1]).
 function getArtworkPose(idx){
@@ -52,7 +50,6 @@ function getArtworkPose(idx){
 	return {
 		position: camera_position,
 		target: target_position,
-		title: "Title:  " + meta.title + (meta.subtitle ? "\n" + meta.subtitle : ""),
 		meta: meta,
 		item: item,
 		idx: idx,
@@ -81,8 +78,6 @@ function manual_move(){
 	const camera = scene.activeCamera;
 	camera.position = pose.position;
 	camera.setTarget(pose.target);
-
-	showInfoBox(pose.title);
 }
 
 function manual_move_backward(){
@@ -193,7 +188,6 @@ function cinematicLeg(){
 		function(){
 			// onAnimationEnd — also fires on .stop(), so guard on active state
 			if (!cinematic_active) return;
-			showInfoBox(pose.title);
 			manual_navigation_idx = idx;   // ◀/▶ continue from here after the tour
 			cinematic_last_idx = idx;
 			if (cinematicArtworkCount() <= 1){
@@ -222,7 +216,7 @@ function cinematicCancelPointer(){
 }
 
 function setCinematicButtonState(active){
-	// Icon-only buttons (old bar + ?ui=2 row): toggle the active glow and update
+	// Icon-only buttons: toggle the active glow and update
 	// the tooltip/label, but never touch textContent (that would wipe the inline SVG).
 	document.querySelectorAll('.cinematic-button').forEach(btn => {
 		btn.classList.toggle('active', active);
@@ -286,26 +280,17 @@ function CB_cinematic_visit(){
 	else startCinematicVisit();
 }
 
-// show metadata or other info
-function showInfoBox(title) {
-    const el = document.getElementById("artwork-info");
-    if (el) el.innerText = title;
-}
-
 function hideInfoBox() {
     // Stop any running cinematic tour before the room swaps, so artwork indices
     // from the old gallery can't leak into the new one.
     if (typeof stopCinematicVisit === 'function') stopCinematicVisit();
-    const el = document.getElementById("artwork-info");
-    if (el) el.innerText = "";
     closeArtworkSheet();
 }
 
 
 // ==========================================================================
-//  New overlay layout (?ui=2): top badge, bottom-right button row, artwork sheet.
-//  Built here rather than in overlay.html: older standard ZIPs fetch overlay.html
-//  from the CDN but keep their bundled overlay.css, so its markup must not change.
+//  Overlay layout: top badge, bottom button row, artwork sheet.
+//  overlay.html holds only the help popup; the controls are built here.
 // ==========================================================================
 
 const ICON_ATTRS = 'viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" '
@@ -313,60 +298,21 @@ const ICON_ATTRS = 'viewBox="0 0 24 24" width="20" height="20" fill="none" strok
 const SPEAKER_ICON = '<svg ' + ICON_ATTRS + '><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>'
 	+ '<g class="vol-on"><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></g>'
 	+ '<g class="vol-off"><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></g></svg>';
+const CINEMATIC_ICON = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"> <circle cx="6.75" cy="8" r="2.7"/> <circle cx="11.55" cy="7.6" r="3.2"/> <rect x="2.75" y="11" width="13" height="8.5" rx="1.8"/> <polygon points="15.75 13.2 21.25 10.8 21.25 19.7 15.75 17.3"/> </svg>';
+// Canonical "open threshold" mark.
+const LOGO_MARK = '<svg viewBox="0 0 256 256" aria-hidden="true" focusable="false"><polygon points="35.84,35.84 220.16,35.84 161.18,87.14 94.82,87.14" fill="oklch(0.985 0.004 80)"/><polygon points="35.84,35.84 94.82,87.14 94.82,153.5 35.84,220.16" fill="oklch(0.995 0.002 80)"/><polygon points="220.16,35.84 161.18,87.14 161.18,153.5 220.16,220.16" fill="oklch(0.995 0.002 80)"/><polygon points="35.84,220.16 220.16,220.16 161.18,153.5 94.82,153.5" fill="oklch(0.78 0.065 68)"/><rect x="94.82" y="87.14" width="66.36" height="66.36" fill="oklch(0.985 0.004 80)"/><line x1="35.84" y1="35.84" x2="94.82" y2="87.14" stroke="oklch(0.16 0.01 270)" stroke-width="4.84"/><line x1="220.16" y1="35.84" x2="161.18" y2="87.14" stroke="oklch(0.16 0.01 270)" stroke-width="4.84"/><line x1="35.84" y1="220.16" x2="94.82" y2="153.5" stroke="oklch(0.16 0.01 270)" stroke-width="4.84"/><line x1="220.16" y1="220.16" x2="161.18" y2="153.5" stroke="oklch(0.16 0.01 270)" stroke-width="4.84"/><rect x="94.82" y="87.14" width="66.36" height="66.36" fill="none" stroke="oklch(0.16 0.01 270)" stroke-width="5.76"/><rect x="35.84" y="35.84" width="184.32" height="184.32" fill="none" stroke="oklch(0.16 0.01 270)" stroke-width="6.91"/></svg>';
 
-// Help text for the ?ui=2 layout (joystick, new buttons). Swapped in at runtime so
-// the classic overlay keeps its own help; move into overlay.html once ?ui=2 is default.
-const HELP_KB = '<img src="icons/keyboard_move.png" alt="Keyboard Movement" class="help-image"><img src="icons/keyboard_pan.png" alt="Keyboard Pan" class="help-image">';
-const HELP_JOYSTICK = '<svg class="help-image" width="64" height="64" viewBox="0 0 64 64" fill="none" stroke="currentColor" '
-	+ 'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Joystick">'
-	+ '<circle cx="32" cy="32" r="28"/><circle cx="32" cy="32" r="10" fill="currentColor" stroke="none"/>'
-	+ '<polyline points="28 13 32 9 36 13"/><polyline points="28 51 32 55 36 51"/>'
-	+ '<polyline points="13 28 9 32 13 36"/><polyline points="51 28 55 32 51 36"/></svg>';
-const HELP_TOUCH = '<img src="icons/touch_move.png" alt="Touch Movement" class="help-image"><img src="icons/touch_pan.png" alt="Touch Pan" class="help-image">';
-const helpIcons = imgs => '<div style="text-align:center;margin:10px 0 14px;">' + imgs + HELP_JOYSTICK + '</div>';
-const UI2_HELP = {
-	eng: 'You can move around the gallery in several ways:'
-		+ '<br><br>1) On a computer, use the arrow keys to move and drag the mouse to look around. You can also drag the joystick at the bottom: up/down to walk, left/right to turn;' + helpIcons(HELP_KB)
-		+ '2) On a phone or tablet, drag one finger to move and two fingers to turn, or use the joystick the same way: up/down to walk, left/right to turn. The further you push it, the faster you go;' + helpIcons(HELP_TOUCH)
-		+ '3) Use the arrow buttons to jump to the previous or next artwork, or the cinematic button for an automatic visit. Click an artwork to fly to it and see its details.'
-		+ '<br><br>To go to a gallery click on the corresponding door.',
-	spa: 'Puedes moverte por la galería de varias formas:'
-		+ '<br><br>1) En un ordenador, usa las teclas de flecha para moverte y arrastra el ratón para mirar alrededor. También puedes arrastrar el joystick de abajo: arriba/abajo para caminar, izquierda/derecha para girar;' + helpIcons(HELP_KB)
-		+ '2) En un móvil o tablet, arrastra un dedo para avanzar y dos dedos para girar, o usa el joystick de la misma forma: arriba/abajo para caminar, izquierda/derecha para girar. Cuanto más lo empujes, más rápido irás;' + helpIcons(HELP_TOUCH)
-		+ '3) Usa los botones de flecha para ir a la obra anterior o siguiente, o el botón cinemático para una visita automática. Haz clic en una obra para acercarte y ver sus detalles.'
-		+ '<br><br>Para ir a una galería, haz clic en la puerta correspondiente.',
-	jap: 'ギャラリー内はいくつかの方法で移動できます：'
-		+ '<br><br>1) パソコンでは矢印キーで移動し、マウスをドラッグして周りを見渡せます。画面下のジョイスティックも使えます：上下で歩き、左右で回転します；' + helpIcons(HELP_KB)
-		+ '2) スマートフォンやタブレットでは、1本の指でドラッグして移動、2本の指で回転できます。ジョイスティックも同様に使えます：上下で歩き、左右で回転します。強く倒すほど速く進みます；' + helpIcons(HELP_TOUCH)
-		+ '3) 矢印ボタンで前後の作品へ移動し、シネマティックボタンで自動見学ができます。作品をクリックするとその作品へ移動し、詳細が表示されます。'
-		+ '<br><br>ギャラリーに行くには、対応するドアをクリックしてください。',
-	cn: '您可以通过几种方式在画廊中移动：'
-		+ '<br><br>1) 在电脑上，使用方向键移动，拖动鼠标环顾四周。也可以拖动底部的摇杆：上下行走，左右转向；' + helpIcons(HELP_KB)
-		+ '2) 在手机或平板上，用一根手指拖动前进，用两根手指拖动旋转，或以同样方式使用摇杆：上下行走，左右转向。推得越远，移动越快；' + helpIcons(HELP_TOUCH)
-		+ '3) 使用箭头按钮跳转到上一件或下一件作品，或使用电影模式按钮进行自动参观。点击作品即可飞到其面前并查看详情。'
-		+ '<br><br>要进入画廊，请点击相应的门。'
-};
-
-function buildNewUi() {
-	document.body.classList.add('ovg-ui2');
-	for (const lang in UI2_HELP) {
-		const el = document.querySelector('#help-popup .help-text.' + lang);
-		if (el) el.innerHTML = UI2_HELP[lang];
-	}
-
-	// Top centre: "Made with OpenVGal", reusing the mark inlined in overlay.html.
+function buildUi() {
+	// Top centre: "Made with OpenVGal".
 	const badge = document.createElement('a');
 	badge.id = 'ovg-made-with';
 	badge.href = 'https://openvgal.com';
 	badge.target = '_blank';
 	badge.rel = 'noopener';
-	const mark = document.querySelector('#overlay-attribution svg');
-	if (mark) badge.appendChild(mark.cloneNode(true));
-	badge.insertAdjacentHTML('beforeend', '<span>Made with OpenVGal</span>');
+	badge.innerHTML = LOGO_MARK + '<span>Made with OpenVGal</span>';
 	document.body.appendChild(badge);
 
 	// Bottom right: help, prev/next, cinematic, volume.
-	const cinematicIcon = document.querySelector('#permanent-overlay .cinematic-button svg');
 	const controls = document.createElement('div');
 	controls.id = 'ovg-controls';
 	controls.innerHTML =
@@ -376,12 +322,11 @@ function buildNewUi() {
 		+ '<svg ' + ICON_ATTRS + '><polygon points="16 5 7 12 16 19" fill="currentColor"/></svg></button>'
 		+ '<button type="button" class="ovg-btn" title="Next artwork" aria-label="Next artwork" onclick="manual_move_forward()">'
 		+ '<svg ' + ICON_ATTRS + '><polygon points="8 5 17 12 8 19" fill="currentColor"/></svg></button>'
-		+ '<button type="button" class="ovg-btn cinematic-button" title="Cinematic visit" aria-label="Cinematic visit" onclick="CB_cinematic_visit()"></button>'
+		+ '<button type="button" class="ovg-btn cinematic-button" title="Cinematic visit" aria-label="Cinematic visit" onclick="CB_cinematic_visit()">' + CINEMATIC_ICON + '</button>'
 		+ '<div id="ovg-volume">'
 		+ '<div id="ovg-volume-pop"><input id="ovg-volume-range" type="range" min="0" max="1" step="0.05" value="1" aria-label="Music volume"></div>'
 		+ '<button type="button" id="ovg-volume-btn" class="ovg-btn" title="Music volume" aria-label="Music volume" aria-expanded="false">' + SPEAKER_ICON + '</button>'
 		+ '</div>';
-	if (cinematicIcon) controls.querySelector('.cinematic-button').appendChild(cinematicIcon.cloneNode(true));
 	document.body.appendChild(controls);
 
 	const volume = controls.querySelector('#ovg-volume');
@@ -454,30 +399,8 @@ function closeArtworkSheet() {
 // Help popup functionality
 function toggleHelp() {
     const helpPopup = document.getElementById('help-popup');
-    // ?ui=2: flex so the help text scrolls and Close stays in the frame (overlay.css)
-    helpPopup.style.display = helpPopup.style.display === 'none' ? (NEW_UI ? 'flex' : 'block') : 'none';
-}
-
-// Minimize/restore the overlay; the choice persists across rooms and visits.
-const OVERLAY_COLLAPSED_KEY = 'openvgal_overlay_collapsed';
-
-function setOverlayCollapsed(collapsed) {
-    const overlay = document.getElementById('permanent-overlay');
-    const button = document.getElementById('overlay-collapse');
-    if (!overlay) return;
-    overlay.classList.toggle('collapsed', collapsed);
-    if (button) {
-        button.setAttribute('aria-expanded', String(!collapsed));
-        button.setAttribute('aria-label', collapsed ? 'Show controls' : 'Minimize controls');
-    }
-}
-
-function toggleOverlayCollapsed() {
-    const overlay = document.getElementById('permanent-overlay');
-    if (!overlay) return;
-    const collapsed = !overlay.classList.contains('collapsed');
-    setOverlayCollapsed(collapsed);
-    try { localStorage.setItem(OVERLAY_COLLAPSED_KEY, collapsed ? '1' : '0'); } catch (e) {}
+    // flex so the help text scrolls and Close stays in the frame (overlay.css)
+    helpPopup.style.display = helpPopup.style.display === 'none' ? 'flex' : 'none';
 }
 
 function changeLanguage(lang) {
@@ -502,12 +425,8 @@ function loadOverlay() {
         document.body.insertAdjacentHTML('beforeend', html);
         const helpPopup = document.getElementById('help-popup');
         if (helpPopup) helpPopup.style.display = 'none';
-        if (NEW_UI) buildNewUi();
+        buildUi();
         hideInfoBox();
-        if (NEW_UI) return;
-        try {
-            if (localStorage.getItem(OVERLAY_COLLAPSED_KEY) === '1') setOverlayCollapsed(true);
-        } catch (e) {}
     };
 
     const fetchText = (url) => fetch(url).then(r => {

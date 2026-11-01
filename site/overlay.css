@@ -3,7 +3,6 @@
    ========================================================================== */
 
 :root {
-    --bg-overlay: rgba(0, 0, 0, 0.7);
     --bg-popup: rgba(0, 0, 0, 0.9);
     --bg-btn: rgba(255, 255, 255, 0.2);
     --bg-btn-hover: rgba(255, 255, 255, 0.4);
@@ -18,29 +17,11 @@
 }
 
 /* ==========================================================================
-   2. Main Layout Components
+   2. Help popup
    ========================================================================== */
 
-#permanent-overlay {
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 80%;
-    max-width: 900px;
-    background-color: var(--bg-overlay);
-    border: var(--border-light);
-    border-radius: var(--radius-container);
-    color: var(--text-light);
-    font-family: 'Arial', sans-serif;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 20px;
-    z-index: 20;
-}
-
+/* Height capped so the help text scrolls and the language row and Close button
+   stay inside the frame; toggleHelp() shows it as flex. */
 #help-popup {
     display: none;
     position: fixed;
@@ -49,6 +30,10 @@
     transform: translate(-50%, -50%);
     width: 80%;
     max-width: 600px;
+    max-height: calc(100vh - 40px);
+    max-height: calc(100dvh - 40px);
+    box-sizing: border-box;
+    flex-direction: column;
     background-color: var(--bg-popup);
     border: var(--border-light);
     border-radius: var(--radius-container);
@@ -58,81 +43,22 @@
     z-index: 30;
 }
 
-/* ==========================================================================
-   3. Component Sections & Containers
-   ========================================================================== */
-
-.overlay-section {
-    flex-grow: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 0 20px;
-    border-right: var(--border-light);
-    text-align: center;
-}
-
-/* Last of type, not last child: the mark is the bar's last child but no divider
-   should trail the final section. */
-.overlay-section:last-of-type {
-    border-right: none;
-}
-
-.overlay-section p {
-    margin: 0 0 10px 0;
-    font-size: 18px;
-}
-
-/* Credit line, not a fourth control: it wraps to its own row under the
-   sections, so the bar keeps the width the controls need. */
-#overlay-attribution {
-    flex: 0 0 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 0.4rem;
-    margin-top: 10px;
-    padding-top: 8px;
-    font-size: 0.7rem;
-    color: #ccc;
-    text-decoration: none;
-    white-space: nowrap;
-}
-
-#overlay-attribution svg {
-    display: block;
-    width: 18px;
-    height: 18px;
-}
-
-#overlay-attribution:hover {
-    color: var(--text-light);
-}
-
-.nav-buttons,
 .language-buttons {
     display: flex;
     justify-content: center;
     align-items: center;
-}
-
-.language-buttons {
     gap: 10px;
     margin-bottom: 20px;
 }
 
 .help-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
     margin: 20px 0;
     line-height: 1.6;
 }
 
-/* ==========================================================================
-   4. Buttons
-   ========================================================================== */
-
-/* Shared styles for all standard buttons */
-.nav-button,
-.help-button,
 .lang-button,
 .close-button {
     background-color: var(--bg-btn);
@@ -143,165 +69,29 @@
     text-align: center;
 }
 
-/* Shared hover/active state */
-.nav-button:hover,
-.help-button:hover,
 .close-button:hover,
 .lang-button.active {
     background-color: var(--bg-btn-hover);
 }
 
-/* Individual button tweaks */
-.nav-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    height: 34px;
-    padding: 0 10px;
-    margin: 0 5px;
-    font-size: 18px;
-    line-height: 1;
-}
-
-.help-button,
 .lang-button {
     padding: 8px 15px;
 }
 
 .close-button {
+    flex: 0 0 auto;
+    align-self: center;
     padding: 8px 20px;
     margin-top: 20px;
 }
 
-/* Cinematic visit: white movie-camera icon inline with the ◀/▶ arrows, indigo accent when running */
-.cinematic-button {
-    padding: 0 8px;
-}
-
-.cinematic-button svg {
-    display: block;
-}
-
-.cinematic-button.active {
-    border-color: #6366f1;
-    background-color: rgba(99, 102, 241, 0.3);
-    box-shadow: 0 0 8px rgba(99, 102, 241, 0.6);
-}
-
-/* Background music toggle: shown only when the viewer found Technical.music. */
-#music-button {
-    display: none;
-    padding: 0 8px;
-}
-
-body.has-music #music-button {
-    display: inline-flex;
-}
-
-#music-button svg {
-    display: block;
-}
-
-#music-button .music-off {
-    display: none;
-}
-
-#music-button.off .music-off {
-    display: inline;
-}
-
-/* Minimize tab on the bar's top edge: collapses the overlay to one row of
-   controls parked at the top, beside the map button, so plaques under the
-   artworks stay visible. */
-#overlay-collapse {
-    position: absolute;
-    top: -23px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 44px;
-    height: 22px;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: var(--bg-overlay);
-    border: var(--border-light);
-    border-bottom: none;
-    border-radius: 8px 8px 0 0;
-    color: var(--text-light);
-    cursor: pointer;
-}
-
-#overlay-collapse:hover {
-    background-color: var(--bg-popup);
-}
-
-#overlay-collapse svg {
-    transition: transform 0.2s;
-}
-
-/* Up = send the bar to the top; down = bring it back. */
-#permanent-overlay.collapsed #overlay-collapse svg {
-    transform: rotate(180deg);
-}
-
-/* Map button: top/left 20px, 44px wide; the bar sits 12px to its right. */
-#permanent-overlay.collapsed {
-    top: 20px;
-    bottom: auto;
-    left: 76px;
-    transform: none;
-    width: auto;
-    height: 44px;
-    box-sizing: border-box;
-    flex-wrap: nowrap;
-    padding: 0 6px;
-    border-radius: 22px;
-}
-
-#permanent-overlay.collapsed #overlay-collapse {
-    position: static;
-    order: 99;
-    transform: none;
-    width: 34px;
-    height: 34px;
-    margin-left: 5px;
-    border: var(--border-btn);
-    border-radius: 50%;
-    background-color: var(--bg-btn);
-}
-
-#permanent-overlay.collapsed #overlay-collapse:hover {
-    background-color: var(--bg-btn-hover);
-}
-
-#permanent-overlay.collapsed #artwork-section,
-#permanent-overlay.collapsed #navigation-section > p,
-#permanent-overlay.collapsed #plaques-label,
-#permanent-overlay.collapsed #overlay-attribution {
-    display: none !important;
-}
-
-#permanent-overlay.collapsed .overlay-section {
-    padding: 0 8px;
-}
-
-/* ==========================================================================
-   5. Content Toggling
-   ========================================================================== */
-
 .help-image {
-    max-width: 150px; /* Adjust as needed */
+    max-width: 150px;
     height: auto;
-    display: inline-block; /* Change to inline-block to allow images to sit next to text */
+    display: inline-block;
     vertical-align: middle;
-    margin: 0 5px; /* Adjust margin for better spacing */
+    margin: 0 5px;
 }
-
-.desktop-image {
-    display: block;
-}
-
 
 .help-text {
     display: none;
@@ -311,105 +101,36 @@ body.has-music #music-button {
     display: block;
 }
 
-/* ==========================================================================
-   6. Media Queries (Mobile First approach would be better, but preserving structure)
-   ========================================================================== */
-
 @media screen and (max-width: 600px) {
-    #permanent-overlay {
-        width: 100%;
-        bottom: 10px;
-        padding: 8px;
-        border-radius: 0;
-    }
-
-    .overlay-section {
-        padding: 0 4px;
-    }
-
-    .overlay-section p {
-        font-size: 14px;
-        margin-bottom: 8px;
-    }
-
-    /* On its own row the mark costs the bar no width, so the words stay. */
-    #overlay-attribution {
-        margin-top: 8px;
-        padding-top: 6px;
-    }
-
-    .nav-button,
-    .help-button {
-        font-size: 16px;
-    }
-
-    #permanent-overlay.collapsed {
-        top: 12px;
-        bottom: auto;
-        left: 58px;
-        width: auto;
-        height: 38px;
-        padding: 0 4px;
-        border-radius: 19px;
-    }
-
-    #permanent-overlay.collapsed .nav-button {
-        height: 30px;
-    }
-
-    #permanent-overlay.collapsed #overlay-collapse {
-        width: 30px;
-        height: 30px;
-    }
-
-    .help-image {
-        max-width: 50px; /* Adjust as needed */
-    }
-
     #help-popup {
         width: 90%;
         padding: 20px;
-        max-height: 80vh;
     }
-}
-/* ==========================================================================
-   7. New layout (?ui=2): built by buildNewUi() in overlay.js
-   ========================================================================== */
 
-body.ovg-ui2 #permanent-overlay {
-    display: none;
-}
-
-/* Help popup: the ?ui=2 text is longer, so cap the height and scroll the text,
-   keeping the language row and Close button inside the frame. */
-body.ovg-ui2 #help-popup {
-    max-height: calc(100vh - 40px);
-    max-height: calc(100dvh - 40px);
-    box-sizing: border-box;
-    flex-direction: column;
-}
-
-body.ovg-ui2 #help-popup .help-content {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-}
-
-body.ovg-ui2 #help-popup .close-button {
-    flex: 0 0 auto;
-    align-self: center;
-}
-
-@media screen and (max-width: 600px) {
-    body.ovg-ui2 #help-popup .help-content {
+    .help-content {
         margin: 12px 0;
         font-size: 14px;
         line-height: 1.45;
     }
 
-    body.ovg-ui2 #help-popup .close-button {
+    .close-button {
         margin-top: 4px;
     }
+
+    .help-image {
+        max-width: 50px;
+    }
+}
+
+/* ==========================================================================
+   3. Overlay controls: built by buildUi() in overlay.js
+   ========================================================================== */
+
+/* Cinematic visit running: indigo accent. */
+.cinematic-button.active {
+    border-color: #6366f1;
+    background-color: rgba(99, 102, 241, 0.3);
+    box-shadow: 0 0 8px rgba(99, 102, 241, 0.6);
 }
 
 /* Same glass as #map-button so the three top controls read as one set. */
@@ -635,20 +356,22 @@ body.ovg-sheet-open #ovg-sheet {
 
 /* Desktop: top trio and bottom row grouped at the centre. The badge gets a fixed
    width so the map and record buttons can sit either side of it. Record button
-   styles are inline (tour-recorder.js), hence !important; its top is left alone
-   (the generator preview moves it down). */
+   styles are inline (tour-recorder.js), hence !important. Its top is reset too:
+   the generator preview pushes it down to clear Close Preview (top-right), which
+   only matters on phones, where it still sits in that corner. */
 @media screen and (min-width: 601px) {
     #ovg-made-with {
         width: 190px;
         justify-content: center;
     }
 
-    body.ovg-ui2 #map-button {
+    body #map-button {
         left: auto;
         right: calc(50% + 103px);
     }
 
-    body.ovg-ui2 #tour-record-btn {
+    body #tour-record-btn {
+        top: 20px !important;
         left: calc(50% + 103px) !important;
         right: auto !important;
     }

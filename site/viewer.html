@@ -820,7 +820,7 @@
         MUSIC_START_EVENTS.forEach(function(type) {
             window.addEventListener(type, startMusicOnInteraction, true);
         });
-        // The overlay (and its #music-button) is injected asynchronously.
+        // The overlay (and its volume button) is injected asynchronously.
         document.body.classList.add('has-music');
     }
 
@@ -833,23 +833,10 @@
     }
 
     function startMusicOnInteraction(e) {
-        // The button's own click toggles; starting here too would undo it.
-        if (e.target && e.target.closest && e.target.closest('#music-button')) return;
         if (musicOn && galleryMusic.paused) playMusic();
     }
 
-    function toggleMusic() {
-        if (!galleryMusic) return;
-        musicOn = !musicOn;
-        if (musicOn) playMusic();
-        else galleryMusic.pause();
-        var button = document.getElementById('music-button');
-        if (!button) return;
-        button.classList.toggle('off', !musicOn);
-        button.setAttribute('aria-pressed', musicOn ? 'true' : 'false');
-    }
-
-    // Volume slider (?ui=2 overlay): 0 mutes, anything above plays at that level.
+    // Volume slider: 0 mutes, anything above plays at that level.
     function setMusicVolume(v) {
         if (!galleryMusic) return;
         galleryMusic.volume = v;

@@ -43,7 +43,7 @@
 	//on-screen move joystick: a camera input, so detachControl() (tour recorder)
 	//hides and silences it. Knob distance from centre = speed, capped at the ring.
 	function createMoveJoystick() {
-		//phones: smaller ring so it fits beside the ?ui=2 button row (sizes match overlay.css)
+		//phones: smaller ring so it fits beside the overlay button row (sizes match overlay.css)
 		const PHONE = window.matchMedia('(max-width: 600px)').matches;
 		const RING = PHONE ? 100 : 120, KNOB = PHONE ? 40 : 48, MAX_R = (RING - KNOB) / 2, DEADZONE = 0.1;
 		const CURVE = 3, MAX_SPEED = 1.6;	//speed = d + (MAX_SPEED-1)*d^CURVE (x camera.speed): linear low end, boosted edge
@@ -74,10 +74,10 @@
 		ring.appendChild(knob);
 		document.body.appendChild(ring);
 
-		//sits beside the ?ui=2 button row, on its right, vertically centred on it
+		//sits beside the overlay button row, on its right, vertically centred on it
 		const GAP = 16, SIDE_GAP = PHONE ? 20 : 32;
 		const getBar = function () {
-			return document.getElementById('ovg-controls') || document.getElementById('permanent-overlay');
+			return document.getElementById('ovg-controls');
 		};
 		function place() {
 			const bar = getBar();
@@ -342,13 +342,6 @@
 		document.body.appendChild(overlay);
 	}
 
-	// Toggle plaque visibility at runtime (called from overlay.html switch)
-	window.togglePlaques = function(checkbox) {
-		if (!scene) return;
-		var plaquesRoot = scene.getTransformNodeByName('plaques_root');
-		if (plaquesRoot) plaquesRoot.setEnabled(checkbox.checked);
-	};
-
 	window.initFunction = async function() {
 		var createDefaultEngine = function() {
 			return new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true,  disableWebGL2Support: false});
@@ -404,10 +397,8 @@
 				camera.keysDown.push(83);
 				camera.keysRight.push(68);
 			}
-			// --- Move joystick: part of the new overlay layout (?ui=2) ---
-			if (new URLSearchParams(window.location.search).get('ui') === '2') {
-				camera.inputs.add(createMoveJoystick());
-			}
+			// --- Move joystick ---
+			camera.inputs.add(createMoveJoystick());
 
 
 			// Lighting managed by openvgal-lighting.js

@@ -1,72 +1,3 @@
-<div id="permanent-overlay">
-    <button id="overlay-collapse" type="button" aria-label="Minimize controls" aria-expanded="true"
-            onclick="if(typeof toggleOverlayCollapsed==='function')toggleOverlayCollapsed()">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
-             stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <polyline points="6 15 12 9 18 15"/>
-        </svg>
-    </button>
-    <div class="overlay-section" id="artwork-section">
-        <p>Artwork</p>
-        <p id="artwork-info"></p>
-    </div>
-    <div class="overlay-section" id="navigation-section">
-        <p>Manual navigation</p>
-        <div class="nav-buttons">
-            <button class="nav-button" onclick="manual_move_backward()">&#x25C0;</button>
-            <button class="nav-button" onclick="manual_move_forward()">&#x25B6;</button>
-            <button class="nav-button cinematic-button" type="button"
-                    title="Cinematic visit" aria-label="Cinematic visit"
-                    onclick="if(typeof CB_cinematic_visit==='function')CB_cinematic_visit()">
-                <svg viewBox="0 0 24 24" width="24" height="24" fill="none"
-                     stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"
-                     stroke-linecap="round" aria-hidden="true">
-                    <circle cx="6.75" cy="8" r="2.7"/>
-                    <circle cx="11.55" cy="7.6" r="3.2"/>
-                    <rect x="2.75" y="11" width="13" height="8.5" rx="1.8"/>
-                    <polygon points="15.75 13.2 21.25 10.8 21.25 19.7 15.75 17.3"/>
-                </svg>
-            </button>
-            <button id="music-button" class="nav-button" type="button"
-                    title="Music" aria-label="Music" aria-pressed="true"
-                    onclick="if(typeof toggleMusic==='function')toggleMusic()">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
-                     stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                     stroke-linejoin="round" aria-hidden="true">
-                    <path d="M9 18V5l12-2v13"/>
-                    <circle cx="6" cy="18" r="3"/>
-                    <circle cx="18" cy="16" r="3"/>
-                    <line class="music-off" x1="3" y1="3" x2="21" y2="21"/>
-                </svg>
-            </button>
-        </div>
-    </div>
-    <div class="overlay-section" id="help-section">
-        <button class="help-button" onclick="toggleHelp()">Help</button>
-        <label id="plaques-label" style="display:flex;align-items:center;gap:0.4rem;margin-top:0.5rem;cursor:pointer;font-size:0.7rem;color:#ccc;">
-            <input type="checkbox" id="plaquesToggle" onchange="if(typeof togglePlaques==='function')togglePlaques(this)" style="accent-color:oklch(0.66 0.075 64);"> Plaques
-        </label>
-    </div>
-    <!-- Canonical "open threshold" mark, inlined: the overlay is injected into
-         pages that don't define the <symbol>, so <use> has nothing to reference. -->
-    <a id="overlay-attribution" href="https://openvgal.com" target="_blank" rel="noopener">
-        <svg viewBox="0 0 256 256" aria-hidden="true" focusable="false">
-            <polygon points="35.84,35.84 220.16,35.84 161.18,87.14 94.82,87.14" fill="oklch(0.985 0.004 80)"/>
-            <polygon points="35.84,35.84 94.82,87.14 94.82,153.5 35.84,220.16" fill="oklch(0.995 0.002 80)"/>
-            <polygon points="220.16,35.84 161.18,87.14 161.18,153.5 220.16,220.16" fill="oklch(0.995 0.002 80)"/>
-            <polygon points="35.84,220.16 220.16,220.16 161.18,153.5 94.82,153.5" fill="oklch(0.78 0.065 68)"/>
-            <rect x="94.82" y="87.14" width="66.36" height="66.36" fill="oklch(0.985 0.004 80)"/>
-            <line x1="35.84" y1="35.84" x2="94.82" y2="87.14" stroke="oklch(0.16 0.01 270)" stroke-width="4.84"/>
-            <line x1="220.16" y1="35.84" x2="161.18" y2="87.14" stroke="oklch(0.16 0.01 270)" stroke-width="4.84"/>
-            <line x1="35.84" y1="220.16" x2="94.82" y2="153.5" stroke="oklch(0.16 0.01 270)" stroke-width="4.84"/>
-            <line x1="220.16" y1="220.16" x2="161.18" y2="153.5" stroke="oklch(0.16 0.01 270)" stroke-width="4.84"/>
-            <rect x="94.82" y="87.14" width="66.36" height="66.36" fill="none" stroke="oklch(0.16 0.01 270)" stroke-width="5.76"/>
-            <rect x="35.84" y="35.84" width="184.32" height="184.32" fill="none" stroke="oklch(0.16 0.01 270)" stroke-width="6.91"/>
-        </svg>
-        <span>Made with OpenVGal</span>
-    </a>
-</div>
-
 <div id="help-popup">
     <div class="language-buttons">
         <button class="lang-button active" onclick="changeLanguage('eng')">ENG</button>
@@ -77,47 +8,39 @@
     
     <div class="help-content">
         <div class="help-text eng active">
-            You can move in the virtual environment in 3 different ways:
-            <br><br>1) You can use the arrow keys to move forward, backwards, left and right. You can drag the mouse to look up/down or spin;<br>
-            <img src="icons/keyboard_move.png" alt="Keyboard Movement" class="help-image ">
-            <img src="icons/keyboard_pan.png" alt="Keyboard Pan" class="help-image ">
-            <br><br>2) On a mobile device you can drag one finger to move forward and drag 2 fingers to spin;
-            <img src="icons/touch_move.png" alt="Touch Movement" class="help-image">
-            <img src="icons/touch_pan.png" alt="Touch Pan" class="help-image">
-            <br><br>3) You can use the manual navigation buttons once you are in a gallery.
+            You can move around the gallery in several ways:
+            <br><br>1) On a computer, use the arrow keys to move and drag the mouse to look around. You can also drag the joystick at the bottom: up/down to walk, left/right to turn;
+            <div style="text-align:center;margin:10px 0 14px;"><img src="icons/keyboard_move.png" alt="Keyboard Movement" class="help-image"><img src="icons/keyboard_pan.png" alt="Keyboard Pan" class="help-image"><svg class="help-image" width="64" height="64" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Joystick"><circle cx="32" cy="32" r="28"/><circle cx="32" cy="32" r="10" fill="currentColor" stroke="none"/><polyline points="28 13 32 9 36 13"/><polyline points="28 51 32 55 36 51"/><polyline points="13 28 9 32 13 36"/><polyline points="51 28 55 32 51 36"/></svg></div>
+            2) On a phone or tablet, drag one finger to move and two fingers to turn, or use the joystick the same way: up/down to walk, left/right to turn. The further you push it, the faster you go;
+            <div style="text-align:center;margin:10px 0 14px;"><img src="icons/touch_move.png" alt="Touch Movement" class="help-image"><img src="icons/touch_pan.png" alt="Touch Pan" class="help-image"><svg class="help-image" width="64" height="64" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Joystick"><circle cx="32" cy="32" r="28"/><circle cx="32" cy="32" r="10" fill="currentColor" stroke="none"/><polyline points="28 13 32 9 36 13"/><polyline points="28 51 32 55 36 51"/><polyline points="13 28 9 32 13 36"/><polyline points="51 28 55 32 51 36"/></svg></div>
+            3) Use the arrow buttons to jump to the previous or next artwork, or the cinematic button for an automatic visit. Click an artwork to fly to it and see its details.
             <br><br>To go to a gallery click on the corresponding door.
         </div>
         <div class="help-text spa">
-            Puedes moverte en el entorno virtual de 3 formas diferentes:
-            <br><br>1) Puedes usar las teclas de flecha para moverte hacia adelante, atrás, izquierda y derecha. Puedes arrastrar el mouse para mirar arriba/abajo o girar;
-            <img src="icons/keyboard_move.png" alt="Keyboard Movement" class="help-image ">
-            <img src="icons/keyboard_pan.png" alt="Keyboard Pan" class="help-image ">
-            <br><br>2) En un dispositivo móvil puedes arrastrar un dedo para avanzar y arrastrar 2 dedos para girar;
-            <img src="icons/touch_move.png" alt="Touch Movement" class="help-image">
-            <img src="icons/touch_pan.png" alt="Touch Pan" class="help-image">
-            <br><br>3) Puedes usar los botones de navegación manual una vez que estés en una galería.
+            Puedes moverte por la galería de varias formas:
+            <br><br>1) En un ordenador, usa las teclas de flecha para moverte y arrastra el ratón para mirar alrededor. También puedes arrastrar el joystick de abajo: arriba/abajo para caminar, izquierda/derecha para girar;
+            <div style="text-align:center;margin:10px 0 14px;"><img src="icons/keyboard_move.png" alt="Keyboard Movement" class="help-image"><img src="icons/keyboard_pan.png" alt="Keyboard Pan" class="help-image"><svg class="help-image" width="64" height="64" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Joystick"><circle cx="32" cy="32" r="28"/><circle cx="32" cy="32" r="10" fill="currentColor" stroke="none"/><polyline points="28 13 32 9 36 13"/><polyline points="28 51 32 55 36 51"/><polyline points="13 28 9 32 13 36"/><polyline points="51 28 55 32 51 36"/></svg></div>
+            2) En un móvil o tablet, arrastra un dedo para avanzar y dos dedos para girar, o usa el joystick de la misma forma: arriba/abajo para caminar, izquierda/derecha para girar. Cuanto más lo empujes, más rápido irás;
+            <div style="text-align:center;margin:10px 0 14px;"><img src="icons/touch_move.png" alt="Touch Movement" class="help-image"><img src="icons/touch_pan.png" alt="Touch Pan" class="help-image"><svg class="help-image" width="64" height="64" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Joystick"><circle cx="32" cy="32" r="28"/><circle cx="32" cy="32" r="10" fill="currentColor" stroke="none"/><polyline points="28 13 32 9 36 13"/><polyline points="28 51 32 55 36 51"/><polyline points="13 28 9 32 13 36"/><polyline points="51 28 55 32 51 36"/></svg></div>
+            3) Usa los botones de flecha para ir a la obra anterior o siguiente, o el botón cinemático para una visita automática. Haz clic en una obra para acercarte y ver sus detalles.
             <br><br>Para ir a una galería, haz clic en la puerta correspondiente.
         </div>
         <div class="help-text jap">
-            仮想環境では3つの方法で移動できます：
-            <br><br>1) 矢印キーを使用して前後左右に移動できます。マウスをドラッグして上下を見たり回転したりできます；
-            <img src="icons/keyboard_move.png" alt="Keyboard Movement" class="help-image ">
-            <img src="icons/keyboard_pan.png" alt="Keyboard Pan" class="help-image ">
-            <br><br>2) モバイルデバイスでは、1本の指でドラッグして前進し、2本の指でドラッグして回転できます；
-            <img src="icons/touch_move.png" alt="Touch Movement" class="help-image">
-            <img src="icons/touch_pan.png" alt="Touch Pan" class="help-image">
-            <br><br>3) ギャラリー内では手動ナビゲーションボタンを使用できます。
+            ギャラリー内はいくつかの方法で移動できます：
+            <br><br>1) パソコンでは矢印キーで移動し、マウスをドラッグして周りを見渡せます。画面下のジョイスティックも使えます：上下で歩き、左右で回転します；
+            <div style="text-align:center;margin:10px 0 14px;"><img src="icons/keyboard_move.png" alt="Keyboard Movement" class="help-image"><img src="icons/keyboard_pan.png" alt="Keyboard Pan" class="help-image"><svg class="help-image" width="64" height="64" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Joystick"><circle cx="32" cy="32" r="28"/><circle cx="32" cy="32" r="10" fill="currentColor" stroke="none"/><polyline points="28 13 32 9 36 13"/><polyline points="28 51 32 55 36 51"/><polyline points="13 28 9 32 13 36"/><polyline points="51 28 55 32 51 36"/></svg></div>
+            2) スマートフォンやタブレットでは、1本の指でドラッグして移動、2本の指で回転できます。ジョイスティックも同様に使えます：上下で歩き、左右で回転します。強く倒すほど速く進みます；
+            <div style="text-align:center;margin:10px 0 14px;"><img src="icons/touch_move.png" alt="Touch Movement" class="help-image"><img src="icons/touch_pan.png" alt="Touch Pan" class="help-image"><svg class="help-image" width="64" height="64" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Joystick"><circle cx="32" cy="32" r="28"/><circle cx="32" cy="32" r="10" fill="currentColor" stroke="none"/><polyline points="28 13 32 9 36 13"/><polyline points="28 51 32 55 36 51"/><polyline points="13 28 9 32 13 36"/><polyline points="51 28 55 32 51 36"/></svg></div>
+            3) 矢印ボタンで前後の作品へ移動し、シネマティックボタンで自動見学ができます。作品をクリックするとその作品へ移動し、詳細が表示されます。
             <br><br>ギャラリーに行くには、対応するドアをクリックしてください。
         </div>
         <div class="help-text cn">
-            您可以通过3种不同的方式在虚拟环境中移动：
-            <br><br>1) 您可以使用方向键前后左右移动。您可以拖动鼠标来上下看或旋转；
-            <img src="icons/keyboard_move.png" alt="Keyboard Movement" class="help-image ">
-            <img src="icons/keyboard_pan.png" alt="Keyboard Pan" class="help-image ">
-            <br><br>2) 在移动设备上，您可以用一根手指拖动前进，用两根手指拖动旋转；
-            <img src="icons/touch_move.png" alt="Touch Movement" class="help-image">
-            <img src="icons/touch_pan.png" alt="Touch Pan" class="help-image">
-            <br><br>3) 在画廊中时，您可以使用手动导航按钮。
+            您可以通过几种方式在画廊中移动：
+            <br><br>1) 在电脑上，使用方向键移动，拖动鼠标环顾四周。也可以拖动底部的摇杆：上下行走，左右转向；
+            <div style="text-align:center;margin:10px 0 14px;"><img src="icons/keyboard_move.png" alt="Keyboard Movement" class="help-image"><img src="icons/keyboard_pan.png" alt="Keyboard Pan" class="help-image"><svg class="help-image" width="64" height="64" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Joystick"><circle cx="32" cy="32" r="28"/><circle cx="32" cy="32" r="10" fill="currentColor" stroke="none"/><polyline points="28 13 32 9 36 13"/><polyline points="28 51 32 55 36 51"/><polyline points="13 28 9 32 13 36"/><polyline points="51 28 55 32 51 36"/></svg></div>
+            2) 在手机或平板上，用一根手指拖动前进，用两根手指拖动旋转，或以同样方式使用摇杆：上下行走，左右转向。推得越远，移动越快；
+            <div style="text-align:center;margin:10px 0 14px;"><img src="icons/touch_move.png" alt="Touch Movement" class="help-image"><img src="icons/touch_pan.png" alt="Touch Pan" class="help-image"><svg class="help-image" width="64" height="64" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Joystick"><circle cx="32" cy="32" r="28"/><circle cx="32" cy="32" r="10" fill="currentColor" stroke="none"/><polyline points="28 13 32 9 36 13"/><polyline points="28 51 32 55 36 51"/><polyline points="13 28 9 32 13 36"/><polyline points="51 28 55 32 51 36"/></svg></div>
+            3) 使用箭头按钮跳转到上一件或下一件作品，或使用电影模式按钮进行自动参观。点击作品即可飞到其面前并查看详情。
             <br><br>要进入画廊，请点击相应的门。
         </div>
     </div>

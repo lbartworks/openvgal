@@ -1,7 +1,7 @@
-<img width="2560" height="1212" alt="styles-dark" src="https://github.com/user-attachments/assets/768f9b2c-78d0-4b6b-94d2-6837a303baed" />
+<img width="1234" height="653" alt="An OpenVGal gallery with the viewer controls" src="docs/images/hero.jpg" />
 
 
-# OpenVGAL v4.4.15
+# OpenVGAL v5.0.0
 
 Open-source 3D virtual gallery platform built on [Babylon.js](https://www.babylonjs.com/). Create interactive WebGL art galleries from your images, download a ZIP, host it anywhere. Version 4 is a massive upgrade with more realistic light and updated templates leaveraging the new light system.
 
@@ -49,6 +49,15 @@ Replace `materials/logo.png` in the ZIP with your own image. Use white artwork o
 
 ---
 
+## What's New in v5
+
+- **New viewer interface.** The bottom bar is gone. The map, a "Made with OpenVGal" badge and the video recorder sit at the top; help, previous/next artwork, cinematic visit and music volume sit in one row at the bottom, beside an on-screen joystick for walking with a mouse or a thumb.
+- **Artwork sheet.** Clicking an artwork flies to it and opens a panel with its title, subtitle, info fields and real dimensions.
+- **Elegant style.** Walnut, microcement and soft daylight.
+- **Existing galleries.** Galleries viewed online get the new interface automatically. A self-contained ZIP keeps the interface it was downloaded with; download it again from the generator to update it.
+
+---
+
 ## What's New in v4
 
 - **Baked lightmaps.** When a template gallery loads, the viewer bakes its lighting into per-surface maps: the template's spotlights and area-light fixtures, hemispheric ambient, and soft contact shadows are computed once into a dedicated lightmap channel, and the materials are frozen. The result is softer, more grounded lighting than the previous real-time fixtures — and once baked, the runtime lights are switched off entirely. The fixture bulbs stay in the scene as decorative objects; the bake is the lighting.
@@ -76,8 +85,6 @@ Replace `materials/logo.png` in the ZIP with your own image. Use white artwork o
 - **CDN architecture.** Templates and materials are served from [cdn.openvgal.com](https://cdn.openvgal.com) for the online tools. Self-contained ZIPs bundle everything locally.
 - **New landing page.** [openvgal.com](https://openvgal.com) has a proper homepage now.
 - **Electron app removed.** It was a good experiment but the browser-based approach is simpler and more portable.
-
-The Python CLI still works and is available in [GitHub Releases](https://github.com/lbartworks/openvgal/releases) for those who prefer it, but the browser generator is the recommended path going forward.
 
 ---
 
@@ -119,7 +126,7 @@ The main web application:
 - `room_builder_aux.js` -- Room building, item placement (cm → babylon scene unit conversion), plaque rendering
 - `openvgal-lighting.js` -- Lighting system: ambient lights, RectAreaLights from template fixtures
 - `declarations.js` -- Asset path configuration
-- `overlay.js`, `overlay.html`, `overlay.css` -- Viewer UI (artwork info, navigation help, automatic tour, plaques toggle)
+- `overlay.js`, `overlay.html`, `overlay.css` -- Viewer UI (button row, artwork sheet, help, cinematic visit, music volume)
 
 ### cdn/
 
@@ -167,6 +174,14 @@ window.addEventListener('openvgal:gallery-built', () => {
 ---
 
 ## Changelog
+
+**v5.0 (November 2026)**
+- New viewer interface replaces the bottom bar: top badge with map and recorder, bottom button row, on-screen joystick
+- Artwork sheet with title, subtitle, info fields and dimensions
+- Music volume slider replaces the on/off toggle
+- Plaques follow the gallery's setting; the viewer toggle is removed
+- Elegant style, refreshed classic entrance hall, door fixes in the classic and dark rooms, new classic and modern thumbnails
+- The legacy Python CLI is no longer distributed
 
 **v4.4 (October 2026)**
 - Tour recorder: record a vertical clip that travels between artworks, then share or download it — available on every gallery and in the generator preview
