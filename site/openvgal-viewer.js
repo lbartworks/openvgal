@@ -762,7 +762,7 @@
 				return hallspics_prefix + resourcePath;
 			};
 		} else {
-			let response = await fetch (config_file_name);
+			let response = await fetch (config_file_name, { cache: 'no-cache' });
 			config_file_content = await response.json();
 		}
 
