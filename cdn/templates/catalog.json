@@ -41,6 +41,17 @@
         "pannels": "T_pannels_dark_B.glb"
       }
     },
+    "elegant": {
+      "name": "Elegant",
+      "description": "Walnut, microcement and soft daylight",
+      "thumbnail": "elegant_thumb.jpg",
+      "root": "T_root_elegant_B.glb",
+      "rootDoors": 6,
+      "glbs": {
+        "small": "T_small_elegant_B.glb",
+        "nopannels": "T_nopannels_elegant_B.glb"
+      }
+    },
     "modern": {
       "name": "Modern",
       "description": "Style of a modern gallery",
