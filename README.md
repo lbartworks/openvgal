@@ -7,7 +7,12 @@ Open-source 3D virtual gallery platform built on [Babylon.js](https://www.babylo
 
 **Website:** [openvgal.com](https://openvgal.com) &nbsp;|&nbsp; **Clone of this repository:** [demo.openvgal.com](https://demo.openvgal.com) &nbsp;|&nbsp; **Create a gallery:** [openvgal.com/create](https://openvgal.com/create) &nbsp;|&nbsp; **Live demo:** [nostromophoto.com/virtual/virtual.html](https://nostromophoto.com/virtual/virtual.html)
 
-![MIT License](https://img.shields.io/badge/license-MIT-blue.svg) [![Sponsor](https://img.shields.io/badge/sponsor-%E2%9D%A4-ff69b4.svg)](https://github.com/sponsors/lbartworks)
+![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)
+
+> [!TIP]
+> **OpenVGAL is free and built by one person in the open.** If it is useful to you or your gallery, please consider sponsoring it. Sponsorship pays for new templates, features and fixes.
+>
+> [![Sponsor OpenVGAL](https://img.shields.io/badge/Sponsor_OpenVGAL-%E2%9D%A4-ff69b4?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/lbartworks)
 
 > [!IMPORTANT]
 > **v4 introduces some non-backwards compatibility changes.** While the main structure of the spaces (the .json file) has not been modified in v4, there are many important changes in the templates with v4. The upgrade is quality is massive and it did not make sense to keep the backwards compatibility. Change always comes with a tag
