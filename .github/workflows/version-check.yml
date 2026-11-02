@@ -23,7 +23,7 @@ jobs:
       - name: Check version references agree with VERSION
         run: |
           version=$(tr -d ' \t\r\n' < VERSION)
-          h1=$(grep -m1 -oE '^# OpenVGAL v[0-9]+\.[0-9]+\.[0-9]+' README.md | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || true)
+          h1=$(grep -m1 -oE '^# OpenVGal v[0-9]+\.[0-9]+\.[0-9]+' README.md | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || true)
           footer=$(grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+ &middot; Open source' site/index.html | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || true)
           echo "VERSION=$version  H1=$h1  footer=$footer"
           fail=0

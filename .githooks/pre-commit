@@ -14,8 +14,8 @@ set -e
 root=$(git rev-parse --show-toplevel)
 version=$(tr -d ' \t\r\n' < "$root/VERSION")
 
-# README H1: "# OpenVGAL vX.Y.Z"
-sed -i.bak -E "s/^# OpenVGAL v[0-9]+\.[0-9]+\.[0-9]+/# OpenVGAL v${version}/" "$root/README.md"
+# README H1: "# OpenVGal vX.Y.Z"
+sed -i.bak -E "s/^# OpenVGal v[0-9]+\.[0-9]+\.[0-9]+/# OpenVGal v${version}/" "$root/README.md"
 
 # Landing footer: "vX.Y.Z &middot; Open source ..." ( & is literal in the
 # replacement, so it must be escaped as \& )
