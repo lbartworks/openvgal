@@ -1,0 +1,12 @@
+{
+  "name": "openvgal-pack",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Headless OpenVGal cloud-pack builder: image folders to building_v2.json + images ZIP",
+  "license": "MIT",
+  "bin": { "openvgal-pack": "pack.js" },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "jszip": "3.10.1"
+  }
+}

@@ -87,6 +87,32 @@ Use this when iterating on `Occupancy_*` planes, fixture geometry, materials, or
 
 ---
 
+## Headless pack command (Node)
+
+`tools/pack/` builds the **cloud pack** (the kernel: `building_v2.json` at the root, images at `room/filename`; see `site/js/pack-definition.js`) from a folder on disk, with no browser. It has its own `package.json`; the static site, the ZIPs and the CDN build don't use it.
+
+```
+cd tools/pack && npm install          # once (jszip)
+node tools/pack/pack.js <folder> --style classic --out gallery-cloud.zip
+```
+
+| Option | Meaning |
+|--------|---------|
+| `<folder>` | Each direct subfolder is one room; its PNG/JPEG/WebP files are the artworks. Loose files and deeper folders are ignored. |
+| `--style` | Required. A style key from `templates/catalog.json`. An unknown key fails and lists the known ones. |
+| `--out` | ZIP to write. Default `openvgal-gallery-cloud.zip`. |
+| `--cdn` | Where templates come from: a local cdn folder (default: the repo's `cdn/`) or a URL such as `https://cdn.openvgal.com`. |
+
+**It runs the generator's own code.** `node-env.js` loads `site/babylon.js`, the loaders, `gallery-settings.js`, `pack-definition.js` and `gallery-generator.js` unchanged. It only supplies the browser APIs they call: `fetch` for `file:` URLs, a minimal `XMLHttpRequest` so Babylon's `SceneLoader` can read the GLBs for the `NullEngine` occupancy probe, and an `Image` that measures the file. Folders are screened and ordered the way the drop zone does it (`screenImageFiles`, `orderBySequence`), and layout is `buildGalleryJSON` with the default settings. So the manifest matches what `/create` builds from the same input.
+
+**Dimensions are orientation-corrected**, as a browser `<img>` reports them. A JPEG with EXIF orientation 5–8 has its axes swapped, so a phone photo stored sideways with orientation 6 measures as portrait (`width < height`). The backend relies on this when it bakes the rotation into the pixels. PNG and WebP are measured as stored.
+
+**Order is the one difference from the browser.** The command takes room folders, and the unnumbered files inside each, in name order. A browser takes them in whatever order the OS lists the dropped folder. Room order decides which hub door each room hangs on. Use `1_`…`999_` file prefixes to pin the order inside a room.
+
+Text fields (exhibition title, description, per-artwork info) are not written. The manifest's titles are the file names, as in the generator.
+
+---
+
 ## See also
 
 - [Layout & Catalog](layout-and-catalog.md) — the packer the generator runs.
