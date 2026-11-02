@@ -1,18 +1,18 @@
 <img width="1234" height="653" alt="An OpenVGal gallery with the viewer controls" src="docs/images/hero.jpg" />
 
 
-# OpenVGAL v5.0.0
+# OpenVGal v5.0.0
 
-Open-source 3D virtual gallery platform built on [Babylon.js](https://www.babylonjs.com/). Create interactive WebGL art galleries from your images, download a ZIP, host it anywhere. Version 5 brings a new, lighter viewer interface with an artwork info sheet and an on-screen joystick, built on the baked lighting introduced in version 4.
+OpenVGal turns your image folders into a walkable 3D art gallery that runs in any web browser, built on [Babylon.js](https://www.babylonjs.com/). Drop your folders into [openvgal.com/create](https://openvgal.com/create), build, and either download a self-contained gallery you can host anywhere or publish it on [openvgal.com](https://openvgal.com) with a permanent link. The engine is free and MIT-licensed. Optional hosted plans from $9/month. Exported galleries contain no tracking. Version 5 brings a new, lighter viewer interface with an artwork info sheet and an on-screen joystick, built on the baked lighting introduced in version 4.
 
 **Website:** [openvgal.com](https://openvgal.com) &nbsp;|&nbsp; **Clone of this repository:** [demo.openvgal.com](https://demo.openvgal.com) &nbsp;|&nbsp; **Create a gallery:** [openvgal.com/create](https://openvgal.com/create) &nbsp;|&nbsp; **Live demo:** [nostromophoto.com/virtual/virtual.html](https://nostromophoto.com/virtual/virtual.html)
 
 ![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)
 
 > [!TIP]
-> **OpenVGAL is free and built by one person in the open.** If it is useful to you or your gallery, please consider sponsoring it. Sponsorship pays for new templates, features and fixes.
+> **OpenVGal is free and built by one person in the open.** If it is useful to you or your gallery, please consider sponsoring it. Sponsorship pays for new templates, features and fixes.
 >
-> [![Sponsor OpenVGAL](https://img.shields.io/badge/Sponsor_OpenVGAL-%E2%9D%A4-ff69b4?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/lbartworks)
+> [![Sponsor OpenVGal](https://img.shields.io/badge/Sponsor_OpenVGal-%E2%9D%A4-ff69b4?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/lbartworks)
 
 > [!NOTE]
 > **v5 changes the viewer interface, not your galleries.** Galleries built with v4 keep working as they are. Galleries viewed online get the new interface automatically; a downloaded ZIP keeps the interface it was built with until you download it again from the generator. Galleries made before v4 still need to be re-created.
@@ -21,13 +21,13 @@ Open-source 3D virtual gallery platform built on [Babylon.js](https://www.babylo
 
 ## What is this ?
 
-OpenVGAL started in June 2022 as a personal project to give myself, and anyone, a way to build interactive 3D virtual galleries programmatically. No 3D modeling skills, no gallery design, no browser code to deal with. Just organize your images in folders and the code figures out the rest.
+OpenVGal started in June 2022 as a personal project to give myself, and anyone, a way to build interactive 3D virtual galleries programmatically. No 3D modeling skills, no gallery design, no browser code to deal with. Just organize your images in folders and the code figures out the rest.
 
 Looking back the changes in 4 years are massive. Version 1 required Python and manual configuration. Version 2 brought executables and an Electron app to lower the barrier. Version 3 removed all of that — everything happens in the browser now. You go to [openvgal.com/create](https://openvgal.com/create), drop your folders, click build, and get a self-contained ZIP that works on any web server. No installs, no dependencies, no accounts. Version 4 brings a completely new light system, shadows and ambient occlusion, circumventing the limitations of Babylon JS while keeping efficiency and speed as a priority. OpenVGal intends to run on non-gaming hardware. Lightmaps are baked at runtime transparently to the user, this is a very experimental approach that other BabylonJS users may like.
 
-For the rest, the philosophy has not changed: **you own your gallery**. The output is plain HTML + JS files. There is no lock-in, no subscription, no tracking. Put the files on any server and they just work.
+For the rest, the philosophy has not changed: **you own your gallery**. The output is plain HTML + JS files. There is no lock-in, and exported galleries contain no tracking. Put the files on any server and they just work.
 
-OpenVGAL is MIT-licensed and developed in the open; [sponsorship](https://github.com/sponsors/lbartworks) funds that work. There is also a paid hosting service at [openvgal.com](https://openvgal.com) for people who want a permanent URL without running a server — separate from this, and never required to use it.
+OpenVGal is MIT-licensed and developed in the open; [sponsorship](https://github.com/sponsors/lbartworks) funds that work. There is also optional paid hosting at [openvgal.com](https://openvgal.com), from $9/month, for people who want a permanent URL without running a server — separate from this, and never required to use it.
 
 ---
 
@@ -95,7 +95,7 @@ Replace `materials/logo.png` in the ZIP with your own image. Use white artwork o
 
 ## How It Works
 
-OpenVGAL uses a `building_v2.json` file to describe interconnected gallery rooms. Each room references a GLB template and contains items (artworks or doors to other rooms). The viewer loads templates, applies PBR node materials, places artwork textures at calculated positions, bakes the room's lighting into per-surface lightmaps, and handles navigation between rooms via door meshes.
+OpenVGal uses a `building_v2.json` file to describe interconnected gallery rooms. Each room references a GLB template and contains items (artworks or doors to other rooms). The viewer loads templates, applies PBR node materials, places artwork textures at calculated positions, bakes the room's lighting into per-surface lightmaps, and handles navigation between rooms via door meshes.
 
 The placement of artworks is driven by `Occupancy_*` planes baked into each template GLB — one plane per wall or panel side, defining the available strip's centre, normal, and width. This means you only need to barely identify where images can be placed and the automatic algorithm will figure out the rest.
 
