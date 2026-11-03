@@ -1,7 +1,7 @@
 <img width="1234" height="653" alt="An OpenVGal gallery with the viewer controls" src="docs/images/hero.jpg" />
 
 
-# OpenVGal v5.0.0
+# OpenVGal v5.0.1
 
 OpenVGal turns your image folders into a walkable 3D art gallery that runs in any web browser, built on [Babylon.js](https://www.babylonjs.com/). Drop your folders into [openvgal.com/create](https://openvgal.com/create), build, and either download a self-contained gallery you can host anywhere or publish it on [openvgal.com](https://openvgal.com) with a permanent link. The engine is free and MIT-licensed. Optional hosted plans from $9/month. Exported galleries contain no tracking. Version 5 brings a new, lighter viewer interface with an artwork info sheet and an on-screen joystick, built on the baked lighting introduced in version 4.
 

@@ -672,7 +672,10 @@
 					// them into invisible walls right where the panels are, trapping
 					// the camera. They play no role once artworks are placed, so skip.
 					if (mesh.name.startsWith('Occupancy_')) { mesh.checkCollisions = false; return; }
-					mesh.checkCollisions = true;
+					// "_nocol" in a mesh name opts it out of collisions (walk-through
+					// props like benches). includes(), not endsWith(): multi-material
+					// nodes load as "<name>_primitiveN" children.
+					mesh.checkCollisions = !mesh.name.includes('_nocol');
 					if (regul_exp_door.test(mesh.name)){
 						gallery_doors.push(mesh.name);
 					} else if (mesh.metadata && typeof mesh.metadata.ovgal_artwork_idx === 'number') {
