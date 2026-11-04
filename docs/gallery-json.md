@@ -206,6 +206,7 @@ A reserved `Technical` block carries gallery-wide defaults. These are fallbacks 
 | `music` | Optional background track, one per gallery. A relative value (`"music.mp3"`) is an MP3 at the gallery root, resolved against the gallery's location like the images, and an exported pack bundles it. An absolute URL is streamed as-is and removed from exported packs. The viewer shows a music-note toggle only when the field is set; the track starts at the visitor's first click or key press and loops. The builder writes `"music.mp3"` from its **Background music** field. |
 | `info_fields` | Optional ordered list of up to 5 `{ "id", "label" }` entries shown in the artwork sheet. See [Metadata](#metadata-title-subtitle-and-info-fields). |
 | `skip_hub` | `true` when the gallery was built without an entrance hall. A record of what was built, not a runtime switch — the viewer reads the structure, not this flag. |
+| `hand_placed` | `true` when artworks in the gallery were placed by hand in the viewer's [placement mode](viewer-runtime.md#placement-mode), rather than left where the packer put them. The hosted editor writes it; the viewer ignores it. |
 
 ---
 

@@ -13,6 +13,7 @@ on:
       - 'site/openvgal-viewer.js'
       - 'site/openvgal-lighting.js'
       - 'site/tour-recorder.js'
+      - 'site/placement.js'
       - 'site/babylon.js'
       - 'site/babylonjs.loaders.min.js'
       - 'site/js/gallery-settings.js'
@@ -46,6 +47,7 @@ jobs:
           cp site/openvgal-viewer.js cdn/core/
           cp site/openvgal-lighting.js cdn/core/
           cp site/tour-recorder.js cdn/core/
+          cp site/placement.js cdn/core/
           cp site/babylon.js cdn/core/
           cp site/babylonjs.loaders.min.js cdn/core/
           cp -r site/icons/* cdn/core/icons/

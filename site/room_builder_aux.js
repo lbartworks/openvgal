@@ -233,6 +233,21 @@ var plaque_builder = function(name, item_position, item_size, vector, metadata, 
 	plaquePlane.parent = plaquesRoot;
 }
 
+// The frame (or mount) box behind one artwork, at the position of the base vector with
+// the plane's rotation. Shared by item_builder and the placement mode's frame rebuild.
+var frame_box = function(name, item_position, item_size, vector, frame_margin, scene){
+	let box = BABYLON.MeshBuilder.CreateBox(name, {
+		size: 1,
+		updatable: true
+	}, scene);
+
+	box.position = new BABYLON.Vector3(item_position.x, item_position.y, item_position.z).add(vector.scale(item_separation/2-0.001));
+	// Full-circle yaw so frames orient correctly on walls at any angle, not only N/S/E/W.
+	box.rotate(BABYLON.Axis.Y, Math.atan2(vector.x, vector.z), BABYLON.Space.LOCAL);
+	box.scaling = new BABYLON.Vector3(item_size.width+frame_margin, item_size.height+frame_margin, item_separation);
+	return box;
+}
+
 var item_builder= function(name, item_position, item_size, vector, material,scene, item_shadow_material=null, frame_margin=margin){
 	//places artwork as an image texture
 	//adds a frame and both elements have a customizable separation from the wall
@@ -272,19 +287,9 @@ var item_builder= function(name, item_position, item_size, vector, material,scen
 
 
 
-	// Create the box at the position of the base vector with the plane's rotation
-	let item2 = BABYLON.MeshBuilder.CreateBox("box" +name, {
-		size: 1, 
-		updatable: true
-	}, scene);
+	let item2 = frame_box("box" + name, item_position, item_size, vector, frame_margin, scene);
 
-	// Set the position, rotation and scale of the box/frame
-	item2.position = new BABYLON.Vector3(item_position.x, item_position.y, item_position.z).add(vector.scale(item_separation/2-0.001));
-	// Full-circle yaw so frames orient correctly on walls at any angle, not only N/S/E/W.
-	item2.rotate(BABYLON.Axis.Y, Math.atan2(vector.x, vector.z), BABYLON.Space.LOCAL);
-	item2.scaling = new BABYLON.Vector3(item_size.width+frame_margin, item_size.height+frame_margin, item_separation);
-	
-	
+
 	//check if the mesh that merges all the frames is already created
 	let existing_frame_object=scene.getMeshByName('frames');
 	if (existing_frame_object){

@@ -639,6 +639,21 @@
         };
         document.body.appendChild(tr);
     }
+    // Placement mode (?placement=1, docs/viewer-runtime.md): only loaded when asked for,
+    // from the CDN like the tour recorder, local copy as the fallback (dev).
+    if (new URLSearchParams(window.location.search).get('placement') === '1') {
+        var pl = document.createElement('script');
+        var plCdn = (typeof cdn_base !== 'undefined' && cdn_base) ? cdn_base : '';
+        pl.src = plCdn ? plCdn + '/core/placement.js' : 'placement.js';
+        pl.onerror = function () {
+            if (!plCdn) return;
+            plCdn = '';
+            var local = document.createElement('script');
+            local.src = 'placement.js';
+            document.body.appendChild(local);
+        };
+        document.body.appendChild(pl);
+    }
     </script>
 
     <!-- Navigation Map -->

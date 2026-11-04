@@ -84,6 +84,52 @@ This gives a live preview without writing any files.
 
 ---
 
+## Placement mode
+
+`viewer.html?placement=1` opens the hall named by `gallery` (or the entrance) with placement mode on, with or without `preview=iframe`. A person can move, resize and swap the artworks of the hall they stand in. The viewer never saves anything. On a standalone or self-hosted gallery the mode is a toy; a hosting page that embeds the viewer from the same origin receives the result as a message.
+
+- **Select:** tap an artwork. It shows a move handle (centre), a resize handle (corner) and a Swap button. In this mode a tap selects instead of flying to the artwork.
+- **Move:** drag along the wall and up/down. The artwork keeps its facing and stays inside the `Occupancy_*` plane it hangs on, frame margin included. If the frame is larger than the plane in one direction, it is centred on the plane in that direction. The packer does not use the plane's height, so an artwork can start partly outside its plane; the first drag snaps it inside.
+- **Resize:** keeps the aspect ratio. The longest edge stays between 20 and 250 cm, and the whole frame must fit the plane.
+- **Swap:** picks another artwork of the same hall from thumbnails of the images it already loaded. The two entries trade `location` and `vector`; each keeps its own `width`/`height`. Keys and key order don't change.
+- **Overlaps:** artworks whose frame rectangles overlap on the same wall are outlined. Overlaps are allowed.
+- After every move, resize or swap, the hall's frames and plaques are rebuilt from the edited entries. The template is not reloaded and the lightmap is not re-baked, so a contact shadow baked where a frame used to hang stays behind.
+- Edits are kept in an in-memory copy of the manifest, so a hall that is left and revisited during the session shows them. In preview mode the parent's `openvgal_config` object is never modified.
+
+**Messages.** Sent with `window.parent.postMessage(data, location.origin)`, and only when the parent is same-origin. Without one, Done and Cancel just leave the mode.
+
+Done:
+
+```json
+{
+  "type": "openvgal:placement",
+  "rooms": {
+    "<hall name>": {
+      "<artwork key>": {
+        "location": "[x,z,y]",
+        "vector": "[x,z]",
+        "width": "120.00",
+        "height": "80.40"
+      }
+    }
+  }
+}
+```
+
+- `rooms` holds only the artworks whose `location`, `vector`, `width` or `height` changed, across every hall edited in the session. Each changed artwork carries all four fields. `rooms` is `{}` when nothing changed.
+- Values are strings in the manifest's own formats: `location` `"[x,z,y]"` (Z up, 3 decimals), `vector` `"[x,z]"` (1 decimal), `width`/`height` in cm (2 decimals). Swapped entries carry the other entry's strings unchanged.
+- The host merges each entry into its manifest under `<hall name>.<artwork key>`; every other field is unchanged. It may also set `Technical.hand_placed` (see [Gallery JSON](gallery-json.md#technical-section-currently-obsolete)).
+
+Cancel restores the layout and sends:
+
+```json
+{ "type": "openvgal:placement-cancel" }
+```
+
+Both close the mode. The script (`placement.js`) is only loaded when `placement=1` is set: CDN copy first, local copy as the fallback.
+
+---
+
 ## Key technical notes
 
 - **`file://` doesn't work** in Chrome (cross-origin iframe restrictions). Always serve over HTTP.
