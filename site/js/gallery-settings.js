@@ -15,6 +15,9 @@ var GallerySettings = (function() {
   var _state = {
     show_plaques: false,
     show_frames: true,
+    // #f9f9f9 is the frame material's own base color (linear 0.95), so the default
+    // looks exactly as frames did before the picker existed.
+    frame_color: '#f9f9f9',
     skip_hub: false,
     title: '',
     description: ''
@@ -130,6 +133,29 @@ var GallerySettings = (function() {
       '  text-decoration: underline;',
       '  cursor: pointer;',
       '}',
+      '.gs-controls {',
+      '  display: flex;',
+      '  align-items: center;',
+      '  gap: 0.6rem;',
+      '  flex-shrink: 0;',
+      '}',
+      '.gs-swatch {',
+      '  -webkit-appearance: none;',
+      '  appearance: none;',
+      '  width: 20px;',
+      '  height: 20px;',
+      '  padding: 0;',
+      '  flex-shrink: 0;',
+      '  border: 1px solid var(--rule, #d4d4d8);',
+      '  border-radius: 50%;',
+      '  background: none;',
+      '  cursor: pointer;',
+      '  transition: opacity 0.2s;',
+      '}',
+      '.gs-swatch::-webkit-color-swatch-wrapper { padding: 0; }',
+      '.gs-swatch::-webkit-color-swatch { border: none; border-radius: 50%; }',
+      '.gs-swatch::-moz-color-swatch { border: none; border-radius: 50%; }',
+      '.gs-swatch:disabled { opacity: 0.35; cursor: not-allowed; }',
       '.gs-music-error {',
       '  font-size: 0.72rem;',
       '  color: #dc2626;',
@@ -166,9 +192,7 @@ var GallerySettings = (function() {
     section.appendChild(_toggleRow('gs-show-plaques', 'show_plaques',
       'Show artwork plaques',
       'Display title and subtitle labels below each artwork'));
-    section.appendChild(_toggleRow('gs-show-frames', 'show_frames',
-      'Show artwork frames',
-      'Add a frame around each artwork; off mounts the image flush at its own size'));
+    section.appendChild(_framesGroup());
     section.appendChild(_toggleRow('gs-skip-hub', 'skip_hub',
       'Skip the entrance hall',
       'Open straight into the gallery. Single folder only, and the brand sign in the hall goes with it'));
@@ -283,6 +307,36 @@ var GallerySettings = (function() {
     return row;
   }
 
+  function _swatch(id, key, title) {
+    var input = document.createElement('input');
+    input.type = 'color';
+    input.className = 'gs-swatch';
+    input.id = id;
+    input.title = title;
+    input.setAttribute('aria-label', title);
+    input.value = _state[key];
+    input.addEventListener('input', function() { _state[key] = this.value; });
+    return input;
+  }
+
+  // Show frames switch with the frame color beside it.
+  function _framesGroup() {
+    var row = _toggleRow('gs-show-frames', 'show_frames',
+      'Show artwork frames',
+      'Add a frame around each artwork; off mounts the image flush at its own size');
+    var frameColor = _swatch('gs-frame-color', 'frame_color', 'Frame color');
+    var controls = document.createElement('div');
+    controls.className = 'gs-controls';
+    var switchLabel = row.lastChild;
+    controls.appendChild(frameColor);
+    controls.appendChild(switchLabel);
+    row.appendChild(controls);
+    var checkbox = _rows.show_frames.checkbox;
+    checkbox.addEventListener('change', function() { frameColor.disabled = !this.checked; });
+    frameColor.disabled = !checkbox.checked;
+    return row;
+  }
+
   // The hub-less layout only has a meaning for a single folder, so the host page
   // greys the switch out the rest of the time. The generator gates on the folder
   // count too — this is the visible half of that rule, not the enforcing one.
@@ -297,6 +351,7 @@ var GallerySettings = (function() {
     return {
       show_plaques: _state.show_plaques,
       show_frames: _state.show_frames,
+      frame_color: _state.frame_color,
       skip_hub: _state.skip_hub
     };
   }

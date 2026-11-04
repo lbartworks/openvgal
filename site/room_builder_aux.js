@@ -440,7 +440,7 @@ function populate_template(config_file, room_name,scene){
 	
 	if (dict_items.length>0)	{
 		scene.getMeshByName("frames").createNormals(true);
-		scene.getMeshByName("frames").material=BJS_materials[frame_material];
+		scene.getMeshByName("frames").material=BJS_materials["frames"];
 		scene.getMeshByName("frames").alwaysSelectAsActiveMesh=true;
 		let shadowMesh=scene.getMeshByName("shadows");
 		if (shadowMesh) shadowMesh.alwaysSelectAsActiveMesh=true;

@@ -231,6 +231,17 @@
 		return mat;
 	}
 
+	// Loads a node material and sets its "Main color" input (wired to the PBR block's
+	// baseColor) from a "#rrggbb" string. The picker gives sRGB; baseColor is linear.
+	async function loadTintedMaterial(name, file, hex, scene) {
+		const mat = await loadNodeMaterial(name, materials_folder + '/' + file + '.json', scene);
+		const block = mat.getBlockByName("Main color");
+		if (block && typeof hex === 'string' && /^#[0-9a-f]{6}$/i.test(hex)) {
+			block.value = BABYLON.Color3.FromHexString(hex).toLinearSpace();
+		}
+		return mat;
+	}
+
 	function doesFileExist(urlToFile) {
 		var xhr = new XMLHttpRequest();
 		xhr.open('HEAD', urlToFile, false);
@@ -597,9 +608,12 @@
 
 							}
 
-							if (BJS_materials[frame_material]==undefined){
-								BJS_materials[frame_material] = await loadNodeMaterial('r' + frame_material, materials_folder + '/' + frame_material + '.json', scene);
-								console.log("material " + frame_material + " loaded");
+							// Frames get their own instance of the frame material, so their tint
+							// never reaches template meshes that share it.
+							const technical = config_file_content["Technical"] || {};
+							if (BJS_materials["frames"]==undefined){
+								BJS_materials["frames"] = await loadTintedMaterial('rframes', frame_material, technical.frame_color, scene);
+								console.log("material frames loaded");
 							}
 							if (BJS_materials["BJS_black_metal"]==undefined){
 								BJS_materials["BJS_black_metal"] = await loadNodeMaterial('rBJS_black_metal', materials_folder + '/BJS_black_metal.json', scene);
