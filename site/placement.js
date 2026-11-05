@@ -115,24 +115,24 @@
 		return { u: (o.maxU - o.minU) - (sceneW(a) + room.frameMargin), y: (o.maxY - o.minY) - (sceneH(a) + room.frameMargin) };
 	}
 
-	// Keeps the whole frame inside the plane; an artwork bigger than the plane centres on it.
+	// Along the wall the whole frame stays inside the plane (an artwork wider than the
+	// plane centres on it). Vertically the plane doesn't constrain: the frame only
+	// stays above the floor (y = 0).
 	function clampToPlane(a, u, y) {
 		var o = a.occ, s = slack(a);
 		var hw = (sceneW(a) + room.frameMargin) / 2, hh = (sceneH(a) + room.frameMargin) / 2;
 		u = (s.u <= SLACK_MIN) ? (o.minU + o.maxU) / 2 : Math.min(Math.max(u, o.minU + hw), o.maxU - hw);
-		y = (s.y <= SLACK_MIN) ? (o.minY + o.maxY) / 2 : Math.min(Math.max(y, o.minY + hh), o.maxY - hh);
+		y = Math.max(y, hh);
 		return { u: u, y: y };
 	}
 
-	// Largest scale factor (relative to w0 x h0) the plane allows. In each direction the
-	// frame may fill the plane, or stay as large as the manifest had it when the mode
-	// started: the packer ignores the plane's height, so many artworks start taller than
-	// their plane, and capping them to it would shrink them on the first resize move.
-	function planeScaleCap(a, w0, h0) {
+	// Largest scale factor (relative to w0) the plane's width allows: the frame may fill
+	// it, or stay as wide as the manifest had it when the mode started, so an artwork
+	// that already overhangs its plane isn't shrunk on the first resize move.
+	function planeScaleCap(a, w0) {
 		var o = a.occ;
 		var fitW = (o.maxU - o.minU - room.frameMargin) / SCENE_M_PER_CM;
-		var fitH = (o.maxY - o.minY - room.frameMargin) / SCENE_M_PER_CM;
-		return Math.min(Math.max(fitW, a.origW) / w0, Math.max(fitH, a.origH) / h0);
+		return Math.max(fitW, a.origW) / w0;
 	}
 
 	function moveTo(a, u, y) {
@@ -299,11 +299,7 @@
 	function selectionHint(a) {
 		if (!a) return 'Select an artwork to move, resize or swap it';
 		if (!a.occ) return 'Not on a wall space: swap only';
-		var s = slack(a);
-		var noU = s.u <= SLACK_MIN, noY = s.y <= SLACK_MIN;
-		if (noU && noY) return 'Fills its wall space: shrink it to move it';
-		if (noY) return 'Fills the wall space’s height: moves sideways only';
-		if (noU) return 'Fills the wall space’s width: moves up and down only';
+		if (slack(a).u <= SLACK_MIN) return 'Fills the wall space’s width: moves up and down only';
 		return 'Drag the centre to move, the corner to resize';
 	}
 
@@ -331,9 +327,15 @@
 		if (!cam || !cam.rotation) return;
 		stopFlight();
 		var centre = a.loc.add(a.normal.scale(ART_OFFSET));
+		// Frame the artwork inside the screen area the toolbars leave free: the band
+		// below the placement bar (plus room for the selection bar above the frame),
+		// mirrored at the bottom so the frame stays centred, and a side gutter.
 		var t = Math.tan(cam.fov / 2);
+		var reserve = ui.top.getBoundingClientRect().bottom + 48;
+		var fy = Math.max(0.3, 1 - 2 * reserve / window.innerHeight);
+		var fx = Math.max(0.5, 1 - 2 * 40 / window.innerWidth);
 		var hw = (sceneW(a) + room.frameMargin) / 2, hh = (sceneH(a) + room.frameMargin) / 2;
-		var dist = 1.15 * Math.max(hh / t, hw / (t * engine.getAspectRatio(cam)), 1.2);
+		var dist = 1.1 * Math.max(hh / (t * fy), hw / (t * engine.getAspectRatio(cam) * fx), 1.5);
 		// Stop short of whatever faces the artwork (opposite wall, a panel), keeping
 		// the camera's collision radius clear of it.
 		var hit = scene.pickWithRay(new BABYLON.Ray(centre, a.normal, dist + 2), function (m) {
@@ -416,7 +418,7 @@
 			var du = V3.Dot(p, along) - gesture.u0, dy = p.y - gesture.y0;
 			var s = (du * gesture.du + dy * gesture.dy) / (gesture.len0 * gesture.len0);
 			var longest = Math.max(gesture.w0, gesture.h0);
-			var k = Math.min(s, MAX_CM / longest, planeScaleCap(a, gesture.w0, gesture.h0));
+			var k = Math.min(s, MAX_CM / longest, planeScaleCap(a, gesture.w0));
 			k = Math.max(k, MIN_CM / longest);
 			a.wCm = gesture.w0 * k;
 			a.hCm = gesture.h0 * k;
@@ -549,7 +551,8 @@
 		place(ui.resize, bottomRight.x, bottomRight.y);
 		// keep the bar on screen when the artwork runs past an edge (phone width)
 		var half = ui.bar.offsetWidth / 2 + 8;
-		place(ui.bar, Math.min(Math.max((q[0].x + q[1].x) / 2, half), window.innerWidth - half), Math.max(top - 28, 72));
+		place(ui.bar, Math.min(Math.max((q[0].x + q[1].x) / 2, half), window.innerWidth - half),
+			Math.max(top - 28, ui.top.getBoundingClientRect().bottom + 24));
 	}
 
 	function place(el, x, y) { el.style.transform = 'translate(' + Math.round(x) + 'px,' + Math.round(y) + 'px) translate(-50%,-50%)'; }
@@ -566,7 +569,7 @@
 		'.ovp-btn svg,.ovp-handle svg{flex-shrink:0;}' +
 		'.ovp-selected{fill:rgba(99,102,241,0.08);stroke:#818cf8;stroke-width:2;}' +
 		'.ovp-overlap{fill:rgba(248,113,113,0.15);stroke:#f87171;stroke-width:2;stroke-dasharray:6 4;}' +
-		'.ovp-topbar{position:absolute;top:12px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;' +
+		'.ovp-topbar{position:absolute;top:76px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;' +
 			'padding:8px 10px 8px 14px;background:rgba(0,0,0,0.85);border:1px solid #3f3f46;border-radius:10px;pointer-events:auto;max-width:calc(100% - 32px);}' +
 		'.ovp-title{color:#fafafa;font-size:13px;font-weight:600;white-space:nowrap;}' +
 		'.ovp-hint{color:#a1a1aa;font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
@@ -610,6 +613,7 @@
 		root.appendChild(ui.svg);
 
 		var top = el('div', 'ovp-topbar');
+		ui.top = top;
 		top.appendChild(el('span', 'ovp-title', 'Placement'));
 		ui.hint = el('span', 'ovp-hint', 'Loading the room…');
 		top.appendChild(ui.hint);
