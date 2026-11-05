@@ -631,12 +631,19 @@
 							if (typeof ovgMark === 'function') ovgMark('artworks populated');
 							console.log("template populated");
 							if (typeof setLightsProgress === 'function') setLightsProgress(30);
-							setupLightmapBake(scene,
-								function () {
-									if (typeof ovgMark === 'function') ovgMark('lightmap bake done');
-									if (typeof markLightsDone === 'function') markLightsDone();
-								},
-								(typeof setLightsProgress === 'function') ? setLightsProgress : undefined);
+							// Placement mode (?placement=1) shows the room unbaked, lit by the
+							// ambient alone: a baked contact shadow would stay where a moved
+							// frame used to hang, and nothing is re-baked after a move.
+							if (new URLSearchParams(window.location.search).get('placement') === '1') {
+								if (typeof markLightsDone === 'function') markLightsDone();
+							} else {
+								setupLightmapBake(scene,
+									function () {
+										if (typeof ovgMark === 'function') ovgMark('lightmap bake done');
+										if (typeof markLightsDone === 'function') markLightsDone();
+									},
+									(typeof setLightsProgress === 'function') ? setLightsProgress : undefined);
+							}
 							freezeGalleryMaterials();
 							if (typeof ovgMark === 'function') ovgMark('materials frozen, bake running');
 					}

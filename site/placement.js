@@ -8,8 +8,9 @@
 //
 // Each artwork stays inside the Occupancy_* plane it hangs on, frame margin
 // included. After every change the room's frames and plaques are rebuilt from the
-// edited entries; the template, the textures and the lightmap bake are reused as
-// they are (a contact shadow baked under a frame's old spot stays behind).
+// edited entries; the template and the textures are reused as they are. The viewer
+// skips the lightmap bake in this mode (openvgal-viewer.js), so no baked shadow
+// stays behind where a frame used to hang.
 (function () {
 	'use strict';
 
@@ -106,13 +107,32 @@
 
 	function alongOf(a) { return a.occ ? a.occ.along : V3.Cross(a.normal, UP).normalize(); }
 
+	// Room the frame leaves in its plane, along the wall (u) and vertically (y).
+	// None (<= SLACK_MIN) means the artwork can't move in that direction.
+	var SLACK_MIN = 0.001;
+	function slack(a) {
+		var o = a.occ;
+		return { u: (o.maxU - o.minU) - (sceneW(a) + room.frameMargin), y: (o.maxY - o.minY) - (sceneH(a) + room.frameMargin) };
+	}
+
 	// Keeps the whole frame inside the plane; an artwork bigger than the plane centres on it.
 	function clampToPlane(a, u, y) {
-		var o = a.occ;
+		var o = a.occ, s = slack(a);
 		var hw = (sceneW(a) + room.frameMargin) / 2, hh = (sceneH(a) + room.frameMargin) / 2;
-		u = (o.maxU - o.minU < 2 * hw) ? (o.minU + o.maxU) / 2 : Math.min(Math.max(u, o.minU + hw), o.maxU - hw);
-		y = (o.maxY - o.minY < 2 * hh) ? (o.minY + o.maxY) / 2 : Math.min(Math.max(y, o.minY + hh), o.maxY - hh);
+		u = (s.u <= SLACK_MIN) ? (o.minU + o.maxU) / 2 : Math.min(Math.max(u, o.minU + hw), o.maxU - hw);
+		y = (s.y <= SLACK_MIN) ? (o.minY + o.maxY) / 2 : Math.min(Math.max(y, o.minY + hh), o.maxY - hh);
 		return { u: u, y: y };
+	}
+
+	// Largest scale factor (relative to w0 x h0) the plane allows. In each direction the
+	// frame may fill the plane, or stay as large as the manifest had it when the mode
+	// started: the packer ignores the plane's height, so many artworks start taller than
+	// their plane, and capping them to it would shrink them on the first resize move.
+	function planeScaleCap(a, w0, h0) {
+		var o = a.occ;
+		var fitW = (o.maxU - o.minU - room.frameMargin) / SCENE_M_PER_CM;
+		var fitH = (o.maxY - o.minY - room.frameMargin) / SCENE_M_PER_CM;
+		return Math.min(Math.max(fitW, a.origW) / w0, Math.max(fitH, a.origH) / h0);
 	}
 
 	function moveTo(a, u, y) {
@@ -228,6 +248,9 @@
 		keys.forEach(function (key, idx) {
 			var a = { key: key, idx: idx, mesh: byIdx[idx] };
 			readEntry(a, gallery[key]);
+			var before = original[name] && original[name][key];
+			a.origW = before ? Number(before.width) : a.wCm;
+			a.origH = before ? Number(before.height) : a.hCm;
 			a.baseW = sceneW(a) / (a.mesh.scaling.x || 1);
 			a.baseH = sceneH(a) / (a.mesh.scaling.y || 1);
 			a.occ = matchOccupancy(a, occs);
@@ -268,6 +291,83 @@
 			ui.size.textContent = Math.round(a.wCm) + ' × ' + Math.round(a.hCm) + ' cm';
 			ui.drag.style.display = ui.resize.style.display = a.occ ? '' : 'none';
 		}
+		setHint(selectionHint(a));
+	}
+
+	// Says when the frame fills its plane in a direction, so a drag that can't
+	// move it that way doesn't look broken.
+	function selectionHint(a) {
+		if (!a) return 'Select an artwork to move, resize or swap it';
+		if (!a.occ) return 'Not on a wall space: swap only';
+		var s = slack(a);
+		var noU = s.u <= SLACK_MIN, noY = s.y <= SLACK_MIN;
+		if (noU && noY) return 'Fills its wall space: shrink it to move it';
+		if (noY) return 'Fills the wall space’s height: moves sideways only';
+		if (noU) return 'Fills the wall space’s width: moves up and down only';
+		return 'Drag the centre to move, the corner to resize';
+	}
+
+	// ---- camera ---------------------------------------------------------------
+
+	var FLY_FPS = 60, FLY_FRAMES = 36;	// 0.6 s
+	var flight = [], savedPhysics = null;
+
+	function stopFlight() {
+		var running = flight;
+		flight = [];
+		running.forEach(function (anim) { anim.stop(); });
+		var cam = scene.activeCamera;
+		if (savedPhysics && cam) {
+			cam.checkCollisions = savedPhysics.collisions;
+			cam.applyGravity = savedPhysics.gravity;
+		}
+		savedPhysics = null;
+	}
+
+	// Eases the camera to face the artwork from close range, framing the whole frame
+	// when the room allows it.
+	function flyTo(a) {
+		var cam = scene.activeCamera;
+		if (!cam || !cam.rotation) return;
+		stopFlight();
+		var centre = a.loc.add(a.normal.scale(ART_OFFSET));
+		var t = Math.tan(cam.fov / 2);
+		var hw = (sceneW(a) + room.frameMargin) / 2, hh = (sceneH(a) + room.frameMargin) / 2;
+		var dist = 1.15 * Math.max(hh / t, hw / (t * engine.getAspectRatio(cam)), 1.2);
+		// Stop short of whatever faces the artwork (opposite wall, a panel), keeping
+		// the camera's collision radius clear of it.
+		var hit = scene.pickWithRay(new BABYLON.Ray(centre, a.normal, dist + 2), function (m) {
+			return m.checkCollisions && m.isVisible && m.isEnabled() && m !== room.framesMesh &&
+				!room.arts.some(function (x) { return x.mesh === m; });
+		});
+		var radius = cam.ellipsoid ? cam.ellipsoid.x : 1;
+		if (hit && hit.hit) dist = Math.min(dist, Math.max(hit.distance - radius - 0.1, 1.2));
+		var to = centre.add(a.normal.scale(dist));
+
+		// setTarget writes the rotation from the current position: read it at the
+		// destination, then put the camera back and animate there.
+		var startPos = cam.position.clone(), startRot = cam.rotation.clone();
+		cam.position.copyFrom(to);
+		cam.setTarget(centre);
+		var endRot = cam.rotation.clone();
+		cam.position.copyFrom(startPos);
+		cam.rotation.copyFrom(startRot);
+		var yaw = endRot.y - startRot.y;
+		yaw = ((yaw + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;	// short way round
+		endRot.y = startRot.y + yaw;
+
+		// Walls would block the path and gravity would fight the easing; both come back
+		// on arrival, so the person walks away normally.
+		savedPhysics = { collisions: cam.checkCollisions, gravity: cam.applyGravity };
+		cam.checkCollisions = false;
+		cam.applyGravity = false;
+		var ease = new BABYLON.CubicEase();
+		ease.setEasingMode(BABYLON.EasingFunction.EASINGMODE_EASEINOUT);
+		var A = BABYLON.Animation, mode = A.ANIMATIONLOOPMODE_CONSTANT;
+		var pos = A.CreateAndStartAnimation('ovp_fly_pos', cam, 'position', FLY_FPS, FLY_FRAMES, startPos, to, mode, ease,
+			function () { if (flight[0] === pos) stopFlight(); });
+		var rot = A.CreateAndStartAnimation('ovp_fly_rot', cam, 'rotation', FLY_FPS, FLY_FRAMES, startRot, endRot, mode, ease);
+		flight = [pos, rot].filter(Boolean);
 	}
 
 	function onTap(pi) {
@@ -275,6 +375,7 @@
 		var pick = scene.pick(scene.pointerX, scene.pointerY);
 		var hit = pick && pick.hit ? room.arts.find(function (a) { return a.mesh === pick.pickedMesh; }) : null;
 		select(hit || null);
+		if (hit) flyTo(hit);
 	}
 
 	// Pointer (client coords) -> point on the selected artwork's wall plane.
@@ -293,8 +394,9 @@
 		evt.stopPropagation();
 		evt.target.setPointerCapture(evt.pointerId);
 		var along = alongOf(a);
-		gesture = { kind: kind, art: a, moved: false,
-			du: V3.Dot(p, along) - V3.Dot(a.loc, along), dy: p.y - a.loc.y,
+		var u0 = V3.Dot(a.loc, along);
+		gesture = { kind: kind, art: a, moved: false, u0: u0, y0: a.loc.y,
+			du: V3.Dot(p, along) - u0, dy: p.y - a.loc.y,
 			w0: a.wCm, h0: a.hCm };
 		gesture.len0 = Math.hypot(gesture.du, gesture.dy) || 1e-3;
 	}
@@ -308,18 +410,17 @@
 		if (gesture.kind === 'drag') {
 			moveTo(a, V3.Dot(p, along) - gesture.du, p.y - gesture.dy);
 		} else {
-			// Scale by how far the pointer moved from the centre along the grab direction.
-			var du = V3.Dot(p, along) - V3.Dot(a.loc, along), dy = p.y - a.loc.y;
+			// Scale by how far the pointer is from the centre the gesture started at, along
+			// the grab direction. Measured against the start centre, not the live one: the
+			// plane clamp below moves the centre, and the scale must not chase it.
+			var du = V3.Dot(p, along) - gesture.u0, dy = p.y - gesture.y0;
 			var s = (du * gesture.du + dy * gesture.dy) / (gesture.len0 * gesture.len0);
 			var longest = Math.max(gesture.w0, gesture.h0);
-			var cm = Math.min(Math.max(longest * s, MIN_CM), MAX_CM);
-			// the whole frame must also fit the plane, in both directions
-			var fitW = (a.occ.maxU - a.occ.minU - room.frameMargin) / SCENE_M_PER_CM / gesture.w0;
-			var fitH = (a.occ.maxY - a.occ.minY - room.frameMargin) / SCENE_M_PER_CM / gesture.h0;
-			cm = Math.max(MIN_CM, Math.min(cm, longest * Math.min(fitW, fitH)));
-			a.wCm = gesture.w0 * cm / longest;
-			a.hCm = gesture.h0 * cm / longest;
-			moveTo(a, V3.Dot(a.loc, along), a.loc.y);
+			var k = Math.min(s, MAX_CM / longest, planeScaleCap(a, gesture.w0, gesture.h0));
+			k = Math.max(k, MIN_CM / longest);
+			a.wCm = gesture.w0 * k;
+			a.hCm = gesture.h0 * k;
+			moveTo(a, gesture.u0, gesture.y0);
 			ui.size.textContent = Math.round(a.wCm) + ' × ' + Math.round(a.hCm) + ' cm';
 		}
 		applyArtMesh(a);
@@ -446,7 +547,9 @@
 		var top = Math.min(q[0].y, q[1].y);
 		place(ui.drag, cx, cy);
 		place(ui.resize, bottomRight.x, bottomRight.y);
-		place(ui.bar, (q[0].x + q[1].x) / 2, Math.max(top - 28, 72));
+		// keep the bar on screen when the artwork runs past an edge (phone width)
+		var half = ui.bar.offsetWidth / 2 + 8;
+		place(ui.bar, Math.min(Math.max((q[0].x + q[1].x) / 2, half), window.innerWidth - half), Math.max(top - 28, 72));
 	}
 
 	function place(el, x, y) { el.style.transform = 'translate(' + Math.round(x) + 'px,' + Math.round(y) + 'px) translate(-50%,-50%)'; }
@@ -459,13 +562,14 @@
 
 	var CSS = '' +
 		'#ovp-root{position:fixed;inset:0;pointer-events:none;z-index:60;font-family:Inter,Arial,sans-serif;}' +
-		'#ovp-root svg{position:absolute;inset:0;width:100%;height:100%;}' +
+		'#ovp-root>svg{position:absolute;inset:0;width:100%;height:100%;}' +	// the outline layer only, not the icons
+		'.ovp-btn svg,.ovp-handle svg{flex-shrink:0;}' +
 		'.ovp-selected{fill:rgba(99,102,241,0.08);stroke:#818cf8;stroke-width:2;}' +
 		'.ovp-overlap{fill:rgba(248,113,113,0.15);stroke:#f87171;stroke-width:2;stroke-dasharray:6 4;}' +
 		'.ovp-topbar{position:absolute;top:12px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;' +
 			'padding:8px 10px 8px 14px;background:rgba(0,0,0,0.85);border:1px solid #3f3f46;border-radius:10px;pointer-events:auto;max-width:calc(100% - 32px);}' +
 		'.ovp-title{color:#fafafa;font-size:13px;font-weight:600;white-space:nowrap;}' +
-		'.ovp-hint{color:#a1a1aa;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
+		'.ovp-hint{color:#a1a1aa;font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
 		'.ovp-btn{font:inherit;font-size:12px;font-weight:600;border-radius:7px;padding:6px 12px;cursor:pointer;border:1px solid #3f3f46;background:#18181b;color:#d4d4d8;display:inline-flex;align-items:center;gap:6px;}' +
 		'.ovp-btn:hover{border-color:#52525b;color:#fafafa;}' +
 		'.ovp-primary{background:#6366f1;border-color:#6366f1;color:#fff;}' +
@@ -589,6 +693,7 @@
 	}
 
 	function exitMode() {
+		stopFlight();
 		detachRoom(true);
 		clearInterval(timer);
 		scene.onAfterRenderObservable.remove(renderObserver);

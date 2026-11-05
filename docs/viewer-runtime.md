@@ -88,12 +88,13 @@ This gives a live preview without writing any files.
 
 `viewer.html?placement=1` opens the hall named by `gallery` (or the entrance) with placement mode on, with or without `preview=iframe`. A person can move, resize and swap the artworks of the hall they stand in. The viewer never saves anything. On a standalone or self-hosted gallery the mode is a toy; a hosting page that embeds the viewer from the same origin receives the result as a message.
 
-- **Select:** tap an artwork. It shows a move handle (centre), a resize handle (corner) and a Swap button. In this mode a tap selects instead of flying to the artwork.
-- **Move:** drag along the wall and up/down. The artwork keeps its facing and stays inside the `Occupancy_*` plane it hangs on, frame margin included. If the frame is larger than the plane in one direction, it is centred on the plane in that direction. The packer does not use the plane's height, so an artwork can start partly outside its plane; the first drag snaps it inside.
-- **Resize:** keeps the aspect ratio. The longest edge stays between 20 and 250 cm, and the whole frame must fit the plane.
+- **Select:** tap an artwork. It shows a move handle (centre), a resize handle (corner) and a Swap button, and the camera eases in to face it from close range. Walking works as usual afterwards.
+- **Move:** drag along the wall and up/down. The artwork keeps its facing and stays inside the `Occupancy_*` plane it hangs on, frame margin included. If the frame is larger than the plane in one direction, it is centred on the plane in that direction, and the hint says so. The packer does not use the plane's height, so an artwork can start partly outside its plane; the first drag snaps it inside.
+- **Resize:** keeps the aspect ratio. The longest edge stays between 20 and 250 cm. In each direction the frame may grow until it fills the plane, or up to the size it had when the mode started if that was larger.
 - **Swap:** picks another artwork of the same hall from thumbnails of the images it already loaded. The two entries trade `location` and `vector`; each keeps its own `width`/`height`. Keys and key order don't change.
 - **Overlaps:** artworks whose frame rectangles overlap on the same wall are outlined. Overlaps are allowed.
-- After every move, resize or swap, the hall's frames and plaques are rebuilt from the edited entries. The template is not reloaded and the lightmap is not re-baked, so a contact shadow baked where a frame used to hang stays behind.
+- After every move, resize or swap, the hall's frames and plaques are rebuilt from the edited entries. The template is not reloaded.
+- **Lighting:** the lightmap is not baked in this mode. Halls show their own materials under the ambient light, with no shadows, so nothing stays behind where a frame used to hang.
 - Edits are kept in an in-memory copy of the manifest, so a hall that is left and revisited during the session shows them. In preview mode the parent's `openvgal_config` object is never modified.
 
 **Messages.** Sent with `window.parent.postMessage(data, location.origin)`, and only when the parent is same-origin. Without one, Done and Cancel just leave the mode.
