@@ -204,6 +204,26 @@
       border-color: var(--wood-deep);
     }
 
+    .placement-notice {
+      position: fixed; inset: 0; z-index: 9000;
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px; background: rgba(0,0,0,0.6);
+    }
+    .placement-notice[hidden] { display: none; }
+    /* Embed iframes are as tall as the content, so a viewport-centered card can
+       land off-screen; show it inline under the action row instead. */
+    body.embed-mode .placement-notice {
+      position: static; justify-content: flex-start;
+      padding: 1rem 0 0; background: none;
+    }
+    .placement-notice-card {
+      max-width: 420px; width: 100%; padding: 1.25rem;
+      background: var(--paper); color: var(--ink);
+      border: 1px solid var(--rule); border-radius: 8px;
+    }
+    .placement-notice-card p { margin: 0 0 1rem; line-height: 1.5; }
+    .placement-notice-actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
+
     .btn-subtle {
       background: transparent;
       color: var(--ink-3);
@@ -643,6 +663,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
           Preview
         </button>
+        <button class="btn btn-default" id="placementBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/></svg>
+          Interactive placement
+        </button>
         <button class="btn btn-default" id="customizeBtn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
           Customize
@@ -654,6 +678,16 @@
         <button class="btn btn-subtle" id="downloadBtn">
           JSON only
         </button>
+      </div>
+
+      <div class="placement-notice" id="placementNotice" hidden>
+        <div class="placement-notice-card" role="dialog" aria-modal="true" aria-labelledby="placementNoticeText">
+          <p id="placementNoticeText"></p>
+          <div class="placement-notice-actions">
+            <button class="btn btn-subtle" id="placementCancelBtn">Cancel</button>
+            <button class="btn btn-accent" id="placementTryBtn">Try it</button>
+          </div>
+        </div>
       </div>
 
       <div id="customize-host" hidden></div>
@@ -705,6 +739,10 @@
     // for the contract.
     const EMBED_MODE = URL_PARAMS.get('embed') === '1';
     window.openvgal_cdn_base = CDN_BASE;
+    // Interactive placement pop-up text. An embed host may replace it via
+    // openvgal:configure { placementNotice } (docs/embed.md).
+    const PLACEMENT_NOTICE_DEFAULT = "Changes made here aren't saved in the download.";
+    let placementNotice = '';
     if (EMBED_MODE) {
       document.body.classList.add('embed-mode');
       // The builder's export trigger is hidden in embed mode (docs/embed.md):
@@ -724,8 +762,10 @@
       window.addEventListener('message', function(e) {
         var msg = e.data;
         if (!msg || typeof msg !== 'object') return;
-        if (msg.type === 'openvgal:configure' && typeof msg.style === 'string') {
-          applyStyleWhenReady(msg.style);
+        if (msg.type === 'openvgal:configure') {
+          if (typeof msg.style === 'string') applyStyleWhenReady(msg.style);
+          // Host-supplied wording for the placement pop-up; latest wins.
+          if (typeof msg.placementNotice === 'string') placementNotice = msg.placementNotice;
         } else if (msg.type === 'openvgal:export-request') {
           // Parent clicked a Save action. Run the same zip-build path the
           // Export button ran; deliverZip posts openvgal:zip-ready back.
@@ -1255,10 +1295,39 @@
       }
     });
 
-    GalleryPage.setupPreview({
+    const openPreview = GalleryPage.setupPreview({
       previewBtn: previewBtn,
       getJSON: function() { applyExhibition(generatedJSON); applyMusic(generatedJSON); return withSequencePrefixes(generatedJSON); },
       getFileMap: function() { return window.openvgal_fileMap && packSources(); }
+    });
+
+    // Interactive placement (OIP-0013 phase 4a): try-only. The viewer works on a
+    // private copy of the manifest; its Done/Cancel result is thrown away here,
+    // so generatedJSON and the ZIP keep the packer's layout.
+    const placementBtn = document.getElementById('placementBtn');
+    const placementNoticeBox = document.getElementById('placementNotice');
+    const placementNoticeText = document.getElementById('placementNoticeText');
+    let placementSession = null;
+    placementBtn.addEventListener('click', function() {
+      placementNoticeText.textContent = placementNotice || PLACEMENT_NOTICE_DEFAULT;
+      placementNoticeBox.hidden = false;
+    });
+    document.getElementById('placementCancelBtn').addEventListener('click', function() {
+      placementNoticeBox.hidden = true;
+    });
+    document.getElementById('placementTryBtn').addEventListener('click', function() {
+      placementNoticeBox.hidden = true;
+      placementSession = openPreview('../viewer.html?preview=iframe&placement=1', function() {
+        placementSession = null;
+      });
+    });
+    window.addEventListener('message', function(e) {
+      if (!placementSession || e.origin !== window.location.origin) return;
+      if (e.source !== placementSession.iframe.contentWindow) return;
+      var type = e.data && e.data.type;
+      if (type === 'openvgal:placement' || type === 'openvgal:placement-cancel') {
+        placementSession.close();
+      }
     });
 
     // Any change to the source folder list invalidates a previously-built gallery:

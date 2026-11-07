@@ -220,16 +220,20 @@ var GalleryPage = (function() {
 
   // Wire the preview button: build blob URLs for the file map, mount a
   // fullscreen iframe pointed at the viewer in preview mode, revoke URLs on close.
+  // Returns open(viewerSrc, onClose) so other buttons can reuse the same overlay;
+  // open() returns { iframe, close } or null when there is nothing to preview.
   function setupPreview(opts) {
     var previewBtn = opts.previewBtn;
     var getJSON    = opts.getJSON;
     var getFileMap = opts.getFileMap;
-    var viewerSrc  = opts.viewerSrc || '../viewer.html?preview=iframe';
+    var defaultSrc = opts.viewerSrc || '../viewer.html?preview=iframe';
 
-    previewBtn.addEventListener('click', function() {
+    previewBtn.addEventListener('click', function() { open(defaultSrc); });
+
+    function open(viewerSrc, onClose) {
       var json = getJSON();
       var fileMap = getFileMap();
-      if (!json || !fileMap) return;
+      if (!json || !fileMap) return null;
 
       window.openvgal_blobUrls = {};
       var entries = Object.entries(fileMap);
@@ -249,6 +253,7 @@ var GalleryPage = (function() {
       closeBtn.onmouseout = function() { closeBtn.style.background = 'rgba(255,255,255,0.1)'; };
       function cleanup() {
         document.removeEventListener('fullscreenchange', onFullscreenChange);
+        if (!overlay.isConnected) return;
         overlay.remove();
         if (window.openvgal_blobUrls) {
           Object.values(window.openvgal_blobUrls).forEach(function(url) {
@@ -256,17 +261,19 @@ var GalleryPage = (function() {
           });
           window.openvgal_blobUrls = null;
         }
+        if (onClose) onClose();
       }
       function onFullscreenChange() {
         if (document.fullscreenElement !== overlay) cleanup();
       }
-      closeBtn.onclick = function() {
+      function close() {
         if (document.fullscreenElement === overlay) {
           document.exitFullscreen();
         } else {
           cleanup();
         }
-      };
+      }
+      closeBtn.onclick = close;
 
       var iframe = document.createElement('iframe');
       iframe.style.cssText = 'width:100%;height:100%;border:none;';
@@ -286,7 +293,9 @@ var GalleryPage = (function() {
           document.addEventListener('fullscreenchange', onFullscreenChange);
         }).catch(function() {});
       }
-    });
+      return { iframe: iframe, close: close };
+    }
+    return open;
   }
 
   // Hide the result section and revoke any preview blob URLs. Caller must

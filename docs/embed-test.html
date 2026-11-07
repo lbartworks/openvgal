@@ -47,6 +47,11 @@
       host title
       <input id="hostTitle" placeholder="(omitted)" style="width: 8rem" />
     </label>
+    <label>
+      placement notice
+      <input id="placementNotice" placeholder="(omitted)" style="width: 10rem" />
+    </label>
+    <button id="configure">Send configure</button>
     <button id="export" disabled>Request export</button>
     <button id="reload">Reload iframe</button>
     <button id="clear">Clear log</button>
@@ -66,6 +71,19 @@
     const preselect = document.getElementById('preselect');
     const exportBtn = document.getElementById('export');
     const flavorSel = document.getElementById('flavor');
+    const placementNoticeInput = document.getElementById('placementNotice');
+
+    // openvgal:configure with whichever fields are filled. May be sent repeatedly.
+    function sendConfigure() {
+      const msg = { type: 'openvgal:configure' };
+      const style = preselect.value.trim();
+      if (style) msg.style = style;
+      if (placementNoticeInput.value) msg.placementNotice = placementNoticeInput.value;
+      frame.contentWindow.postMessage(msg, '*');
+      entry('→ openvgal:configure', 'style: <code>' + (msg.style || '(omitted)') +
+        '</code>, placementNotice: <code>' + (msg.placementNotice || '(omitted)') + '</code>');
+    }
+    document.getElementById('configure').addEventListener('click', sendConfigure);
 
     // Serve this from the repo root via `python -m http.server 8080` and open
     // http://localhost:8080/docs/embed-test.html so the iframe URL resolves.
@@ -89,11 +107,7 @@
 
       if (msg.type === 'openvgal:ready') {
         entry('openvgal:ready', 'origin: <code>' + e.origin + '</code>');
-        const style = preselect.value.trim();
-        if (style) {
-          frame.contentWindow.postMessage({ type: 'openvgal:configure', style }, '*');
-          entry('→ openvgal:configure', 'style: <code>' + style + '</code>');
-        }
+        if (preselect.value.trim() || placementNoticeInput.value) sendConfigure();
         return;
       }
 
