@@ -325,8 +325,20 @@ var artwork_texture = function(url, material, scene, onLoaded){
 	var cap = (typeof isTouchDevice !== 'undefined' && isTouchDevice
 		&& typeof max_artwork_px !== 'undefined') ? max_artwork_px : 0;
 
+	// Count a failed image as done, or one bad URL leaves the loading bar short
+	// and the hall never opens.
+	var onFailed = function(){
+		console.warn("Artwork image failed to load: " + url);
+		onLoaded();
+	};
+
 	if (!cap){
-		var full = new BABYLON.Texture(url, scene);
+		var full = new BABYLON.Texture(url, scene, false, true, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, null, function(){
+			// Drop the broken texture so the material stays ready: a blank white plane.
+			apply(null);
+			full.dispose();
+			onFailed();
+		});
 		apply(full);
 		full.onLoadObservable.add(onLoaded);
 		return;
@@ -345,8 +357,7 @@ var artwork_texture = function(url, material, scene, onLoaded){
 	// The asset host sends Access-Control-Allow-Origin, so this keeps the
 	// DynamicTexture's canvas untainted and therefore uploadable to WebGL.
 	img.crossOrigin = "anonymous";
-	// Count a failed image as done, or one bad URL leaves the loading bar short.
-	img.onerror = function(){ onLoaded(); };
+	img.onerror = onFailed;
 	img.onload = function(){
 		var scale = Math.min(1, cap / Math.max(img.width, img.height));
 		var w = Math.max(1, Math.round(img.width * scale));
