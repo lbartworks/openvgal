@@ -239,8 +239,8 @@ Both fields are optional and independent. Unknown styles are silently ignored.
 `placementNotice` replaces the message of the pop-up shown before the
 placement try-out (e.g. a sentence pointing subscribers at the hosted editor,
 where placement is kept). The title belongs to the engine and cannot be
-changed. Without a notice the message reads: "This is a demo. The changes will
-not be saved." The notice may be sent any number of
+changed. Without a notice the message reads: "This is a feature for
+subscribers, but you can try it out. The changes will not be saved." The notice may be sent any number of
 times and the latest value wins; an empty string restores the default text.
 Other fields may be added later.
 
