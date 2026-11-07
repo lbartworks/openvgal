@@ -12,7 +12,7 @@ When `?embed=1` is present:
   etc.), so the step-3 card hugs its action row.
 - The builder's own export triggers (the `#downloadZipBtn` "Download ZIP"
   button and the "JSON only" button) are **hidden**, so the step-3 card shows
-  only **Preview**, **Interactive placement** and **Customize**. Export is **parent-driven**: the host
+  only **Preview**, **Arrange by hand** and **Customize**. Export is **parent-driven**: the host
   owns the save actions and asks for the ZIP by posting
   `openvgal:export-request`; the child builds it and posts the blob back via
   `openvgal:zip-ready`, or `openvgal:export-failed` if it could not. The host
@@ -22,13 +22,15 @@ When `?embed=1` is present:
   must `allow="fullscreen"`), because the parent-driven iframe height makes an
   in-page fixed overlay taller than the visible screen. Exiting fullscreen
   (Esc or Close Preview) tears the preview down.
-- The step-3 **Interactive placement** button opens a pop-up with a notice and
-  **Try it** / **Cancel**. **Try it** opens the same overlay as Preview with
-  the viewer's placement mode on (`placement=1`). It is try-only: when the
-  viewer reports Done or Cancel, the overlay closes and the result is thrown
-  away, so the exported ZIP keeps the packer's layout. The notice defaults to
-  "Changes made here aren't saved in the download."; the host may replace it
-  with `placementNotice` on `openvgal:configure`.
+- The step-3 **Arrange by hand** button (tagged "Try") opens a pop-up with
+  **Cancel** / **Try it**. In embed mode the pop-up shows inline under the
+  action row. **Try it** opens the same overlay as Preview with the viewer's
+  placement mode on (`placement=1`). It is try-only: when the viewer reports
+  Done or Cancel, the overlay closes and the result is thrown away, so the
+  exported ZIP keeps the packer's layout. The pop-up has three parts: the
+  title ("Arrange your artworks by hand") and a one-line description, both
+  fixed by the engine, and a reason paragraph that the host may replace with
+  `placementNotice` on `openvgal:configure`.
 - The step-3 **Customize** editor announces itself with `openvgal:customize`
   (`open: true` / `open: false`) so the host can hide its own save actions while
   the editor's Apply/Cancel row owns the screen.
@@ -229,17 +231,21 @@ clear its saving state and show the message.
 {
   type: 'openvgal:configure',
   style?: string,          // style key, e.g. 'classic', 'industrial', etc.
-  placementNotice?: string // text of the Interactive placement pop-up
+  placementNotice?: string // reason paragraph of the Arrange by hand pop-up
 }
 ```
 
 Both fields are optional and independent. Unknown styles are silently ignored.
 
-`placementNotice` replaces the pop-up text shown before the placement try-out
-(e.g. a sentence pointing subscribers at the hosted editor, where placement is
-kept). The engine carries no such wording itself; the host supplies it. The
-message may be sent any number of times and the latest value wins; an empty
-string restores the default text. Other fields may be added later.
+`placementNotice` fills only the reason paragraph of the pop-up shown before
+the placement try-out (e.g. a sentence pointing subscribers at the hosted
+editor, where placement is kept). The title and the description line belong to
+the engine and cannot be changed. Without a notice the paragraph reads: "This
+is a try-out. The download always uses the automatic layout: a hand-placed
+layout is saved only from a hosted gallery's editor. Your changes are
+discarded when you close the preview." The message may be sent any number of
+times and the latest value wins; an empty string restores the default text.
+Other fields may be added later.
 
 #### `openvgal:export-request`
 
@@ -300,7 +306,8 @@ Open the ZIP to confirm it matches the flavor asked for: `cloud` holds only
 
 The **placement notice** box feeds `openvgal:configure { placementNotice }`:
 it is sent on `ready` when filled, and again whenever **Send configure** is
-clicked. Open step 3's **Interactive placement** to see the text in the pop-up.
+clicked. Open step 3's **Arrange by hand** to see it as the pop-up's reason
+paragraph.
 
 ## Stability
 

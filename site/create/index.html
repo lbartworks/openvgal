@@ -204,10 +204,23 @@
       border-color: var(--wood-deep);
     }
 
+    /* "Try" pill on the Arrange by hand button. */
+    .btn-tag {
+      font-size: 0.6rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      line-height: 1;
+      padding: 0.2rem 0.4rem;
+      margin-left: 0.15rem;
+      border-radius: 4px;
+      background: color-mix(in oklab, var(--wood) 18%, transparent);
+      color: var(--wood-deep);
+    }
+
     .placement-notice {
       position: fixed; inset: 0; z-index: 9000;
       display: flex; align-items: center; justify-content: center;
-      padding: 16px; background: rgba(0,0,0,0.6);
+      padding: 16px; background: oklch(0.16 0.01 270 / 0.45);
     }
     .placement-notice[hidden] { display: none; }
     /* Embed iframes are as tall as the content, so a viewport-centered card can
@@ -217,12 +230,28 @@
       padding: 1rem 0 0; background: none;
     }
     .placement-notice-card {
-      max-width: 420px; width: 100%; padding: 1.25rem;
-      background: var(--paper); color: var(--ink);
-      border: 1px solid var(--rule); border-radius: 8px;
+      max-width: 440px; width: 100%; padding: 1.25rem 1.25rem 1rem;
+      background: var(--room); color: var(--ink-2);
+      border: 1px solid var(--rule); border-radius: var(--radius-card);
+      box-shadow: var(--shadow-window);
     }
-    .placement-notice-card p { margin: 0 0 1rem; line-height: 1.5; }
+    body.embed-mode .placement-notice-card { box-shadow: none; }
+    .placement-notice-title {
+      font-size: 1.05rem; font-weight: 600; color: var(--ink);
+      letter-spacing: -0.3px; margin-bottom: 0.4rem;
+    }
+    .placement-notice-lead { font-size: 0.88rem; color: var(--ink); line-height: 1.55; margin-bottom: 0.75rem; }
+    .placement-notice-reason {
+      font-size: 0.78rem; color: var(--ink-2); line-height: 1.6;
+      background: var(--paper-2); border: 1px solid var(--rule-soft);
+      border-radius: var(--radius-lg); padding: 0.6rem 0.75rem; margin-bottom: 1rem;
+    }
     .placement-notice-actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
+
+    /* Phone width: let the step-3 buttons fill each wrapped row evenly. */
+    @media (max-width: 480px) {
+      .actions .btn { flex: 1 1 auto; justify-content: center; }
+    }
 
     .btn-subtle {
       background: transparent;
@@ -664,8 +693,9 @@
           Preview
         </button>
         <button class="btn btn-default" id="placementBtn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/></svg>
-          Interactive placement
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 00-4 0M14 10V4a2 2 0 00-4 0v2M10 10.5V6a2 2 0 00-4 0v8M18 8a2 2 0 114 0v6a8 8 0 01-8 8h-2c-2.8 0-4.5-.86-6-2.34l-3.6-3.6a2 2 0 012.83-2.82L7 15"/></svg>
+          Arrange by hand
+          <span class="btn-tag">Try</span>
         </button>
         <button class="btn btn-default" id="customizeBtn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
@@ -681,8 +711,10 @@
       </div>
 
       <div class="placement-notice" id="placementNotice" hidden>
-        <div class="placement-notice-card" role="dialog" aria-modal="true" aria-labelledby="placementNoticeText">
-          <p id="placementNoticeText"></p>
+        <div class="placement-notice-card" role="dialog" aria-modal="true" aria-labelledby="placementNoticeTitle" aria-describedby="placementNoticeText">
+          <h3 class="placement-notice-title" id="placementNoticeTitle">Arrange your artworks by hand</h3>
+          <p class="placement-notice-lead">Walk into a room, drag artworks along the wall, resize them, or swap two of them.</p>
+          <p class="placement-notice-reason" id="placementNoticeText"></p>
           <div class="placement-notice-actions">
             <button class="btn btn-subtle" id="placementCancelBtn">Cancel</button>
             <button class="btn btn-accent" id="placementTryBtn">Try it</button>
@@ -739,9 +771,9 @@
     // for the contract.
     const EMBED_MODE = URL_PARAMS.get('embed') === '1';
     window.openvgal_cdn_base = CDN_BASE;
-    // Interactive placement pop-up text. An embed host may replace it via
-    // openvgal:configure { placementNotice } (docs/embed.md).
-    const PLACEMENT_NOTICE_DEFAULT = "Changes made here aren't saved in the download.";
+    // Reason paragraph of the Arrange by hand pop-up. An embed host may replace
+    // it via openvgal:configure { placementNotice } (docs/embed.md).
+    const PLACEMENT_NOTICE_DEFAULT = "This is a try-out. The download always uses the automatic layout: a hand-placed layout is saved only from a hosted gallery's editor. Your changes are discarded when you close the preview.";
     let placementNotice = '';
     if (EMBED_MODE) {
       document.body.classList.add('embed-mode');
