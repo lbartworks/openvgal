@@ -83,6 +83,36 @@
       "glbs": {
         "nopannels": "T_nopannels_warm_B.glb"
       }
+    },
+    "japan": {
+      "name": "Japan",
+      "description": "Washi walls, walnut slat ceiling, shoji doors",
+      "thumbnail": "japan_thumb.jpg",
+      "root": "T_root_elegant_B.glb",
+      "rootDoors": 6,
+      "glbs": {
+        "nopannels": "T_japanese_B.glb"
+      }
+    },
+    "blackwhite": {
+      "name": "Black & White",
+      "description": "Black and white gallery",
+      "thumbnail": "blackwhite_thumb.jpg",
+      "root": "T_root_elegant_B.glb",
+      "rootDoors": 6,
+      "glbs": {
+        "nopannels": "T_blackwhite_B.glb"
+      }
+    },
+    "space": {
+      "name": "Space",
+      "description": "Cosmic hall under a starfield dome",
+      "thumbnail": "space_thumb.jpg",
+      "root": "T_root_B.glb",
+      "rootDoors": 10,
+      "glbs": {
+        "nopannels": "T_nopannels_space_B.glb"
+      }
     }
   }
 }

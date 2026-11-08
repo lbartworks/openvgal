@@ -702,10 +702,15 @@ async function buildGalleryJSON(galleries, onProgress, styleConfig, options) {
 
 function _resolveStyleKey(catalog, styleConfig) {
   if (!styleConfig) return Object.keys(catalog.styles)[0];
-  // Caller passed a style entry directly — reverse-look the key.
+  // Caller passed a style entry directly — reverse-look the key. The caller's
+  // entry usually comes from a separately fetched catalog, so compare content;
+  // root alone is ambiguous (several styles share T_root_B.glb).
   const keys = Object.keys(catalog.styles);
+  const wanted = JSON.stringify(styleConfig);
   for (const k of keys) {
-    if (catalog.styles[k] === styleConfig) return k;
+    if (catalog.styles[k] === styleConfig || JSON.stringify(catalog.styles[k]) === wanted) return k;
+  }
+  for (const k of keys) {
     if (styleConfig.root && catalog.styles[k].root === styleConfig.root) return k;
   }
   return keys[0];

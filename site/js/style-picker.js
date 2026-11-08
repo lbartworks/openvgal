@@ -93,10 +93,11 @@ var StylePicker = (function() {
 
       /* Name pills */
       '.sp-pills {',
-      '  display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;',
-      '  margin-top: 12px;',
+      '  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;',
+      '  max-width: 500px; margin: 12px auto 0;',
       '}',
       '.sp-pill {',
+      '  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;',
       '  font: inherit; font-size: 0.75rem; font-weight: 500; color: var(--ink-3, #71717a);',
       '  background: transparent; border: 1px solid var(--rule-soft, #eee);',
       '  padding: 5px 12px; border-radius: 999px; cursor: pointer;',
