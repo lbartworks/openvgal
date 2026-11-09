@@ -131,6 +131,22 @@ Both close the mode. The script (`placement.js`) is only loaded when `placement=
 
 ---
 
+## Contact icon
+
+`viewer.html?contact=1` adds a mail icon ("Enquire about this artwork") to the artwork sheet, directly left of Close. Without the parameter the sheet is unchanged.
+
+The viewer knows nothing about forms or backends. A press only tells the hosting page, which opens its own form; the sheet stays open:
+
+```js
+window.parent.postMessage({ type: 'openvgal:enquire', title }, '*');
+```
+
+- `title` is the open artwork's sheet title, `''` for an untitled work.
+- The target origin is `'*'`, as for the other child messages (see [Embed](embed.md#origin-handling)); the parent validates `event.origin`.
+- On a standalone gallery `window.parent` is the window itself, so the message goes nowhere.
+
+---
+
 ## Key technical notes
 
 - **`file://` doesn't work** in Chrome (cross-origin iframe restrictions). Always serve over HTTP.

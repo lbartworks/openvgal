@@ -355,16 +355,36 @@ function buildUi() {
 		+ '<section id="ovg-sheet" role="dialog" aria-modal="true" aria-labelledby="ovg-sheet-title">'
 		+ '<button type="button" id="ovg-sheet-close" class="ovg-btn" aria-label="Close">'
 		+ '<svg ' + ICON_ATTRS + '><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'
+		+ '<div id="ovg-sheet-actions"></div>'
 		+ '<div id="ovg-sheet-body"><h2 id="ovg-sheet-title"></h2><p id="ovg-sheet-subtitle"></p><div id="ovg-sheet-fields" hidden></div></div>'
 		+ '</section>');
 	document.getElementById('ovg-sheet-backdrop').addEventListener('pointerdown', closeArtworkSheet);
 	document.getElementById('ovg-sheet-close').addEventListener('click', closeArtworkSheet);
 	document.addEventListener('keydown', e => { if (e.key === 'Escape') closeArtworkSheet(); });
+
+	// ?contact=1: mail icon that tells the hosting page to open its enquiry form
+	// (docs/viewer-runtime.md). Later icons go before it, so mail stays next to close.
+	if (new URLSearchParams(window.location.search).get('contact') === '1') {
+		const mail = document.createElement('button');
+		mail.type = 'button';
+		mail.className = 'ovg-btn';
+		mail.setAttribute('aria-label', 'Enquire about this artwork');
+		mail.innerHTML = '<svg ' + ICON_ATTRS + '><rect x="2" y="4" width="20" height="16" rx="2"/>'
+			+ '<path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>';
+		mail.addEventListener('click', () => {
+			window.parent.postMessage({ type: 'openvgal:enquire', title: sheetTitle }, '*');
+		});
+		document.getElementById('ovg-sheet-actions').append(mail);
+		document.getElementById('ovg-sheet').classList.add('ovg-sheet-has-actions');
+	}
 }
+
+var sheetTitle = '';
 
 function openArtworkSheet(idx) {
 	const pose = getArtworkPose(idx);
 	if (!pose || !document.getElementById('ovg-sheet')) return;
+	sheetTitle = pose.meta.title || '';
 	document.getElementById('ovg-sheet-title').textContent = pose.meta.title;
 	const sub = document.getElementById('ovg-sheet-subtitle');
 	sub.textContent = pose.meta.subtitle;
