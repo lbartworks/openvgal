@@ -290,7 +290,7 @@ body.ovg-sheet-open #ovg-sheet {
     background: rgba(0, 0, 0, 0.35);
 }
 
-/* Opt-in icons (?contact=1) in a row ending 4px left of close. The ID selector
+/* Opt-in icons (?audience=1, ?contact=1) in a row ending 4px left of close. The ID selector
    also beats the 38px phone size of .ovg-btn, as close's does. */
 #ovg-sheet-actions {
     position: absolute;
@@ -342,6 +342,17 @@ body.ovg-sheet-open #ovg-sheet {
 #ovg-sheet.ovg-sheet-has-actions #ovg-sheet-title,
 #ovg-sheet.ovg-sheet-has-actions #ovg-sheet-title:empty + #ovg-sheet-subtitle {
     padding-right: 92px;
+}
+
+/* Two icons (?audience=1&contact=1): 136px = 92 + one 40px icon + 4px gap. */
+#ovg-sheet.ovg-sheet-has-2-actions #ovg-sheet-title,
+#ovg-sheet.ovg-sheet-has-2-actions #ovg-sheet-title:empty + #ovg-sheet-subtitle {
+    padding-right: 136px;
+}
+
+/* Like (?audience=1): outline heart, filled when liked. */
+#ovg-like.liked svg {
+    fill: currentColor;
 }
 
 #ovg-sheet-fields {

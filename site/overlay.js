@@ -362,6 +362,31 @@ function buildUi() {
 	document.getElementById('ovg-sheet-close').addEventListener('click', closeArtworkSheet);
 	document.addEventListener('keydown', e => { if (e.key === 'Escape') closeArtworkSheet(); });
 
+	const actions = document.getElementById('ovg-sheet-actions');
+
+	// ?audience=1: like button, first in the row (docs/viewer-runtime.md).
+	if (audienceMode) {
+		const like = document.createElement('button');
+		like.type = 'button';
+		like.id = 'ovg-like';
+		like.className = 'ovg-btn';
+		like.setAttribute('aria-label', 'Like this artwork');
+		like.setAttribute('aria-pressed', 'false');
+		like.innerHTML = '<svg ' + ICON_ATTRS + '><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3'
+			+ 'c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>';
+		like.addEventListener('click', () => {
+			if (!sheetWork) return;
+			const liked = like.getAttribute('aria-pressed') !== 'true';
+			setLikeState(liked);
+			try {
+				if (liked) localStorage.setItem(likeKey(), '1');
+				else localStorage.removeItem(likeKey());
+			} catch (e) {}
+			postAudience({ type: 'openvgal:artwork-liked', room: sheetRoom, work: sheetWork, liked });
+		});
+		actions.append(like);
+	}
+
 	// ?contact=1: mail icon that tells the hosting page to open its enquiry form
 	// (docs/viewer-runtime.md). Later icons go before it, so mail stays next to close.
 	if (new URLSearchParams(window.location.search).get('contact') === '1') {
@@ -374,12 +399,42 @@ function buildUi() {
 		mail.addEventListener('click', () => {
 			window.parent.postMessage({ type: 'openvgal:enquire', title: sheetTitle }, '*');
 		});
-		document.getElementById('ovg-sheet-actions').append(mail);
-		document.getElementById('ovg-sheet').classList.add('ovg-sheet-has-actions');
+		actions.append(mail);
 	}
+
+	// The title clears close plus however many icons sit in the row.
+	const sheet = document.getElementById('ovg-sheet');
+	sheet.classList.toggle('ovg-sheet-has-actions', actions.children.length >= 1);
+	sheet.classList.toggle('ovg-sheet-has-2-actions', actions.children.length >= 2);
 }
 
 var sheetTitle = '';
+
+// Audience mode: the hosting page counts; the viewer only posts neutral messages
+// carrying manifest names (room key, item resource). Off without ?audience=1.
+const audienceMode = new URLSearchParams(window.location.search).get('audience') === '1';
+var sheetRoom = '';
+var sheetWork = '';
+
+function postAudience(msg) {
+	if (audienceMode) window.parent.postMessage(msg, '*');
+}
+
+// Called once a room has finished loading (room_builder_aux.js / openvgal-viewer.js).
+function postRoomEntered() {
+	if (typeof current_gallery !== 'undefined') postAudience({ type: 'openvgal:room-entered', room: current_gallery });
+}
+
+function likeKey() {
+	return 'openvgal_like|' + window.openvgal_location + '|' + sheetRoom + '|' + sheetWork;
+}
+
+function setLikeState(liked) {
+	const like = document.getElementById('ovg-like');
+	if (!like) return;
+	like.setAttribute('aria-pressed', String(liked));
+	like.classList.toggle('liked', liked);
+}
 
 function openArtworkSheet(idx) {
 	const pose = getArtworkPose(idx);
@@ -408,10 +463,20 @@ function openArtworkSheet(idx) {
 	fields.hidden = !rows.length;
 	document.getElementById('ovg-sheet-body').scrollTop = 0;
 	document.body.classList.add('ovg-sheet-open');
+	if (audienceMode) {
+		sheetRoom = current_gallery;
+		sheetWork = pose.item.resource || '';
+		let liked = false;
+		try { liked = localStorage.getItem(likeKey()) === '1'; } catch (e) {}
+		setLikeState(liked);
+		postAudience({ type: 'openvgal:artwork-opened', room: sheetRoom, work: sheetWork });
+	}
 }
 
 function closeArtworkSheet() {
+	if (!document.body.classList.contains('ovg-sheet-open')) return;
 	document.body.classList.remove('ovg-sheet-open');
+	postAudience({ type: 'openvgal:artwork-closed' });
 }
 
 

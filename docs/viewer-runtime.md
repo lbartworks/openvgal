@@ -147,6 +147,27 @@ window.parent.postMessage({ type: 'openvgal:enquire', title }, '*');
 
 ---
 
+## Audience mode
+
+`viewer.html?audience=1` adds a like button (outline heart, "Like this artwork") to the artwork sheet as the first icon, so with `contact=1` the order is heart, mail, close. It also makes the viewer post four messages to its parent. Without the parameter there is no heart and nothing is posted.
+
+The viewer sends no telemetry and knows nothing about a backend; the hosting page does all the counting:
+
+```js
+{ type: 'openvgal:room-entered', room }               // a room finished loading (also the first one)
+{ type: 'openvgal:artwork-opened', room, work }       // the artwork sheet opened
+{ type: 'openvgal:artwork-closed' }                   // an open sheet closed
+{ type: 'openvgal:artwork-liked', room, work, liked } // the heart was pressed; a second press sends liked: false
+```
+
+- `room` is the gallery key in the manifest; `work` is the item's `resource`. Nothing else is sent.
+- `room-entered` fires when the loader closes (after the bake on template rooms), not when a door is clicked. A room change closes the sheet without `artwork-closed` unless the sheet was open.
+- The like state is kept in the viewer origin's `localStorage`, keyed by `openvgal_location`, room and resource, so a reopened work shows its heart filled. With storage blocked the heart still toggles and posts; it just isn't remembered.
+- The target origin is `'*'`, as for the other child messages (see [Embed](embed.md#origin-handling)); the parent validates `event.origin`.
+- `docs/audience-test.html` iframes the viewer and logs these messages.
+
+---
+
 ## Key technical notes
 
 - **`file://` doesn't work** in Chrome (cross-origin iframe restrictions). Always serve over HTTP.

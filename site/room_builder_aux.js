@@ -570,6 +570,7 @@ function _maybeFinishLoad(){
 	if (_loadPhase.active && _loadPhase.artworks && _loadPhase.lights){
 		_loadPhase.active = false;
 		reset_loadbar();
+		if (typeof postRoomEntered === 'function') postRoomEntered();
 	}
 }
 

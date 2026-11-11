@@ -547,6 +547,8 @@
 				if (typeof hideInfoBox === 'function') hideInfoBox();
 
 				//the new gallery is always loaded fresh — the previous one was disposed
+				//(template rooms report room-entered when their load phase ends)
+				let fullGlbLoaded = false;
 					//check if it is template glb or not
 					glb_file=config_file_content[current_gallery]["resource"];
 					if (doesFileExist(glb_location + glb_file)){
@@ -558,6 +560,7 @@
 						let temp_assetcontainer=await loadAsset(glb_file, scene);
 						temp_assetcontainer.addAllToScene();
 						if (typeof ovgMark === 'function') ovgMark('full glb added to scene');
+						fullGlbLoaded = true;
 					} else {
 							glb_file=config_file_content[current_gallery]["template"];
 							//template — v4 contract. Check A: templates must be baked (_B).
@@ -733,6 +736,8 @@
 						));
 					indice++;
 				}
+
+				if (fullGlbLoaded && typeof postRoomEntered === 'function') postRoomEntered();
 
 		}
 
