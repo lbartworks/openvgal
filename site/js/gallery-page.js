@@ -48,9 +48,15 @@ var GalleryPage = (function() {
     if (screened.accepted.length > 0) {
       // Ordered once here so every style and every re-generate packs the same sequence.
       var ordered = orderBySequence(screened.accepted);
+      // Image paths are /folderName/file: same-named folders from different
+      // parents need distinct ones or their files overwrite each other.
+      var folderName = group.name, n = 2;
+      while (galleries.some(function(g) { return g.folderName === folderName; })) {
+        folderName = group.name + '-' + (n++);
+      }
       galleries.push({
         name: group.name,
-        folderName: group.name,
+        folderName: folderName,
         path: group.path,
         files: ordered.files,
         sequence: ordered.sequence

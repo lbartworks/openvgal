@@ -219,7 +219,7 @@
 		// Try local logo first, fall back to CDN (same pattern as overlay.html)
 		if (text.includes('"logo.png"')) {
 			const localLogoPath = openvgal_location + '/materials/logo.png';
-			if (doesFileExist(localLogoPath)) {
+			if (await doesFileExist(localLogoPath)) {
 				const logoAbsUrl = new URL(localLogoPath, window.location.href).href;
 				text = text.replaceAll('"logo.png"', '"' + logoAbsUrl + '"');
 			}
@@ -242,17 +242,15 @@
 		return mat;
 	}
 
-	function doesFileExist(urlToFile) {
-		var xhr = new XMLHttpRequest();
-		xhr.open('HEAD', urlToFile, false);
+	async function doesFileExist(urlToFile) {
 		// A blocked request (CORS, offline, mixed content) throws instead of
 		// answering. Treat that as "not there" so callers fall back to the default.
 		try {
-			xhr.send();
+			const response = await fetch(urlToFile, { method: 'HEAD' });
+			return response.ok;
 		} catch (e) {
 			return false;
 		}
-		return xhr.status >= 200 && xhr.status < 300;
 	}
 
 	// v4 template contract, Check B. Returns null if the just-loaded template
@@ -376,6 +374,8 @@
                     sceneToRender.render();
                 }
             });
+            // Babylon does not track the canvas size on its own.
+            window.addEventListener('resize', function () { engine.resize(); });
         }
         var createScene =  function () {
             var scene = new BABYLON.Scene(engine);
@@ -502,6 +502,11 @@
 				if (typeof ovgMark === 'function') ovgMark('galleryManager', evt && evt.source && evt.source.name);
 
 				//only in the first run
+				// A room is still loading while the loader is up (its id flips to
+				// "loaded" when done). Ignore door and map picks until then: a second
+				// load would overlap two rooms and reset the bake cache mid-run.
+				if (!('first' in evt) && document.getElementById('loader')) return;
+
 				if ('first' in evt){
 					console.log('First gallery booting');
 					if (typeof ovgMark === 'function') ovgMark('first gallery boot');
@@ -524,6 +529,12 @@
 
 
 					let outgoing=new BABYLON.AssetContainer(scene);
+					//raise the loader now, so the guard above holds across the awaits below
+					if (document.getElementById("loaded")) {
+						document.getElementById("loaded").id = "loader";
+						document.getElementById("loader").style.display = "flex";
+						document.getElementById("loadingBar_template").style.width = "0%";
+					}
 					outgoing.moveAllFromScene(keepAssets);
 					outgoing.dispose();
 					if (typeof ovgMark === 'function') ovgMark('outgoing gallery disposed');
@@ -551,7 +562,7 @@
 				let fullGlbLoaded = false;
 					//check if it is template glb or not
 					glb_file=config_file_content[current_gallery]["resource"];
-					if (doesFileExist(glb_location + glb_file)){
+					if (await doesFileExist(glb_location + glb_file)){
 						//full glb — self-contained gallery, loaded exactly as authored.
 						//No _B/UV2/light validation and no baking: a self-contained GLB is
 						//expected to ship its lighting pre-baked into its own textures.
@@ -737,7 +748,11 @@
 					indice++;
 				}
 
-				if (fullGlbLoaded && typeof postRoomEntered === 'function') postRoomEntered();
+				if (fullGlbLoaded) {
+					//nothing else closes the loader on this path (no populate, no bake)
+					if (typeof reset_loadbar === 'function') reset_loadbar();
+					if (typeof postRoomEntered === 'function') postRoomEntered();
+				}
 
 		}
 

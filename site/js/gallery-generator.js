@@ -548,6 +548,22 @@ async function buildGalleryJSON(galleries, onProgress, styleConfig, options) {
 
   const building = {};
 
+  // Manifest keys must be unique: rooms are keyed by name, and a room's
+  // artworks and doors share one object with its parent/resource/template fields.
+  function freeKey(obj, key) {
+    let k = key, n = 2;
+    while (k in obj) k = key + ' (' + (n++) + ')';
+    return k;
+  }
+  // Names the manifest uses itself; a folder may not take them.
+  const usedRoomNames = { root: 1, none: 1, Technical: 1, parent: 1, resource: 1, template: 1 };
+  function uniqueRoomName(name) {
+    let k = name, n = 2;
+    while (k in usedRoomNames || /^root#\d+$/.test(k)) k = name + ' (' + (n++) + ')';
+    usedRoomNames[k] = 1;
+    return k;
+  }
+
   const topLevelCount = galleries.filter(function(g) {
     return filterImageFiles(g.files).length > 0;
   }).length;
@@ -614,7 +630,7 @@ async function buildGalleryJSON(galleries, onProgress, styleConfig, options) {
     const imageFiles = filterImageFiles(gallery.files);
     if (imageFiles.length === 0) continue;
 
-    const galleryDisplayName = gallery.name;
+    const galleryDisplayName = uniqueRoomName(gallery.name);
     const folderName = gallery.folderName || gallery.name;
 
     if (onProgress) onProgress(processedImages, totalImages, 'Processing ' + galleryDisplayName + '...');
@@ -662,6 +678,8 @@ async function buildGalleryJSON(galleries, onProgress, styleConfig, options) {
         const resourcePath = ('/' + folderName + '/' + item.name).normalize('NFC');
         const pos = room.positions[k];
         const vec = room.vectors[k];
+        const title = key;
+        key = freeKey(building[galleryName], key);
         building[galleryName][key] = {
           resource: resourcePath,
           resource_type: 'image',
@@ -669,7 +687,7 @@ async function buildGalleryJSON(galleries, onProgress, styleConfig, options) {
           height: item.cmHeight.toFixed(2),
           location: '[' + pos[0].toFixed(3) + ',' + pos[1].toFixed(3) + ',' + pos[2].toFixed(3) + ']',
           vector: '[' + vec[0].toFixed(1) + ',' + vec[1].toFixed(1) + ']',
-          metadata: key
+          metadata: title
         };
       });
 
@@ -678,11 +696,17 @@ async function buildGalleryJSON(galleries, onProgress, styleConfig, options) {
   }
 
   // Doors between rooms (parent ↔ child)
+  // A door is keyed by the room it leads to; an artwork already holding that
+  // key moves aside instead of being overwritten.
+  function setDoor(room, target) {
+    if (target in room) room[freeKey(room, target)] = room[target];
+    room[target] = { resource: target + '.glb', resource_type: 'door' };
+  }
   for (const galleryName of Object.keys(building)) {
     const parent = building[galleryName].parent;
     if (parent && parent !== 'none') {
-      building[parent][galleryName] = { resource: galleryName + '.glb', resource_type: 'door' };
-      building[galleryName][parent]  = { resource: parent + '.glb',      resource_type: 'door' };
+      setDoor(building[parent], galleryName);
+      setDoor(building[galleryName], parent);
     }
   }
 
