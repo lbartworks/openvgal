@@ -27,6 +27,7 @@ var door_width=function(mesh, normal){
 }
 
 var text3D_builder=function(name, item_position, vector, parent, scene, maxWidth){
+	if (typeof fontContent === 'undefined' || !fontContent) return;	//font failed to load: skip the label
 	const north_vector=new BABYLON.Vector3(0, 0, 1);
 	var maxLength = maxWidth > 0 ? maxWidth * 0.9 : 1.3;
 

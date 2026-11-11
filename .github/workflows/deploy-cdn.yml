@@ -16,6 +16,8 @@ on:
       - 'site/placement.js'
       - 'site/babylon.js'
       - 'site/babylonjs.loaders.min.js'
+      - 'site/earcut.min.js'
+      - 'site/droid-sans-regular.json'
       - 'site/js/gallery-settings.js'
       - 'site/js/style-picker.js'
       - 'site/js/pack-definition.js'
@@ -50,6 +52,8 @@ jobs:
           cp site/placement.js cdn/core/
           cp site/babylon.js cdn/core/
           cp site/babylonjs.loaders.min.js cdn/core/
+          cp site/earcut.min.js cdn/core/
+          cp site/droid-sans-regular.json cdn/core/
           cp -r site/icons/* cdn/core/icons/
 
           # Build CDN viewer.html with absolute CDN script paths
@@ -57,6 +61,7 @@ jobs:
           sed \
             -e "s|src=\"babylon.js\"|src=\"${CDN}/babylon.js\"|" \
             -e "s|src=\"babylonjs.loaders.min.js\"|src=\"${CDN}/babylonjs.loaders.min.js\"|" \
+            -e "s|src=\"earcut.min.js\"|src=\"${CDN}/earcut.min.js\"|" \
             -e "s|src='declarations.js'|src='${CDN}/declarations.js'|" \
             -e "s|src='room_builder_aux.js'|src='${CDN}/room_builder_aux.js'|" \
             -e "s|src='openvgal-viewer.js'|src='${CDN}/openvgal-viewer.js'|" \

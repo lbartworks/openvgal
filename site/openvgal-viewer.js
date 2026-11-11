@@ -743,7 +743,9 @@
 					artwork_mesh.actionManager.registerAction(
 						new BABYLON.ExecuteCodeAction(
 							{ trigger: BABYLON.ActionManager.OnPickTrigger },
-							CB_artwork_picked(art_idx)
+							function () {
+								if (typeof CB_artwork_picked === 'function') CB_artwork_picked(art_idx)();
+							}
 						));
 					indice++;
 				}
@@ -778,8 +780,18 @@
 
 		// MAIN CODE /////////////////////////////////////
 		//read font
-		let fontfile=await fetch("https://assets.babylonjs.com/fonts/Droid Sans_Regular.json");
-		fontContent=await fontfile.json();
+		// CDN copy first (CDN ZIP has no local one), local file as fallback.
+		// A missing font only costs the 3D door labels, so it never blocks the load.
+		const fontCdn = (typeof cdn_base !== 'undefined' && cdn_base) ? cdn_base + '/core/' : null;
+		for (const fontBase of (fontCdn ? [fontCdn, ''] : [''])) {
+			try {
+				const fontfile = await fetch(fontBase + 'droid-sans-regular.json');
+				if (!fontfile.ok) continue;
+				fontContent = await fontfile.json();
+				break;
+			} catch (e) {}
+		}
+		if (!fontContent) console.warn('Label font not available; door labels disabled');
 
 		//read json files - check for preview mode first
 		const previewParam = new URLSearchParams(window.location.search).get('preview');
@@ -838,4 +850,13 @@
 
 	}
 
-	initFunction().then(() => {sceneToRender = scene });
+	initFunction().then(() => {sceneToRender = scene }).catch((err) => {
+		// Startup failed (manifest unreachable, no WebGL, ...): say so instead of a frozen loader.
+		console.error('OpenVGAL failed to start:', err);
+		const card = document.querySelector('#loader .loader-card, #loaded .loader-card');
+		if (card) {
+			card.parentNode.style.display = 'flex';
+			card.style.color = '#d4d4d8';
+			card.textContent = 'The gallery could not be loaded. Check your connection and reload the page.';
+		}
+	});
