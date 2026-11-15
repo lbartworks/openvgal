@@ -342,11 +342,17 @@
          breadcrumb trail to localStorage. The trail survives a tab kill, so a
          large gallery reaped by iOS Safari's memory limit can still be
          diagnosed: reopen with ?debug=1 and the previous run's trail is dumped
-         to the console. Entirely inert without ?debug=1. -->
+         to the console. Entirely inert without ?debug=1, and always inert in
+         preview-iframe mode: that copy can be served from an origin holding a
+         login session, so neither the flag nor its sticky latch may load a
+         third-party script there. -->
     <script>
     (function () {
         // Always defined so instrumented call sites stay one-liners.
         window.ovgMark = function () {};
+
+        var params = new URLSearchParams(window.location.search);
+        if (params.get('preview') === 'iframe') return;
 
         // The flag is sticky, because published galleries embed this file in a
         // cross-origin iframe whose src we cannot add a query param to. Arming it
@@ -356,7 +362,7 @@
         // it immediately.
         var STICKY = 'ovg_debug_on';
         var TTL = 2 * 60 * 60 * 1000;
-        var flag = new URLSearchParams(window.location.search).get('debug');
+        var flag = params.get('debug');
         var armed = (flag === '1');
         try {
             if (flag === '1') localStorage.setItem(STICKY, String(Date.now()));
@@ -455,7 +461,11 @@
         setInterval(function () { ovgMark('heartbeat'); }, 10000);
 
         var s = document.createElement('script');
-        s.src = 'https://cdn.jsdelivr.net/npm/eruda';
+        // Exact version + SRI: the browser refuses anything but these bytes.
+        // To upgrade, change the version and recompute the sha384 together.
+        s.src = 'https://cdn.jsdelivr.net/npm/eruda@3.4.3/eruda.js';
+        s.integrity = 'sha384-weDBY9jeIj4NqaiZF9f6PMAMMY4lIu+0CAI+TjBIE73RctCQOxDoEHltYnstRszI';
+        s.crossOrigin = 'anonymous';
         s.onload = function () {
             eruda.init();
             ovgMark('debug console ready', navigator.userAgent);
@@ -491,8 +501,11 @@
 		// Multi-tenant mode: ?openvgal_location=<absolute https URL> points the viewer
 		// at a remote gallery (e.g. a published gallery on assets.openvgal.com).
 		// Only https:// URLs are accepted, to avoid loading arbitrary third-party content.
+		// Ignored in preview mode: there the manifest comes only from the parent page.
 		const locParam = urlParams.get('openvgal_location');
-		if (locParam) {
+		if (locParam && window.openvgal_preview_mode) {
+			console.warn('Ignoring openvgal_location: not allowed in preview mode');
+		} else if (locParam) {
 			try {
 				const u = new URL(locParam);
 				if (u.protocol === 'https:') {

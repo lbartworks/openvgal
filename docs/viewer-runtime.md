@@ -82,6 +82,13 @@ The generator's **Preview** button opens an iframe to `../viewer.html?preview=if
 
 This gives a live preview without writing any files.
 
+Because a host may serve the preview from an origin that holds a login session, two URL parameters are ignored whenever `preview=iframe` is present:
+
+- `openvgal_location` — the manifest comes only from the parent page, never from a URL in the query string.
+- `debug` — the debug console and breadcrumb trail stay off, including the sticky latch left by an earlier `?debug=1` on the same origin.
+
+Outside preview mode, `?debug=1` loads the Eruda console pinned to an exact version with a Subresource Integrity hash, so the browser rejects any other bytes. Upgrading means changing the version and the hash together in `viewer.html`.
+
 ---
 
 ## Placement mode
