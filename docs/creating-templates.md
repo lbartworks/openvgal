@@ -68,6 +68,22 @@ Without any `Occupancy_*` planes, an exhibition template has nowhere to place ar
 - Meshes can use embedded materials, or reference a Babylon node material by name with the `BJS_` prefix (e.g. `BJS_rough_white`).
 - When a material name starts with `BJS_`, the viewer fetches the matching JSON from the materials folder instead of using the embedded material. See [Viewer & Runtime → Material System](viewer-runtime.md#material-system).
 - PBR materials on walls and floors give the softest result under the baked lightmaps.
+- By default the bake **replaces** a baked mesh's material with a flat *albedo × lightmap* shader, so roughness, reflections and normal maps in the node material are not shown. To keep them, make the material *live* (below).
+
+#### Live materials — `BJS_…_live`
+
+A `BJS_` node material whose name ends in `_live` (e.g. `BJS_polished_concrete_live`) keeps its own graph. The mesh is still baked (spot pools, fixture light and AO are computed as usual), but instead of being taken over by the display shader it gets a per-mesh copy of its own material, with the baked lightmap plugged in. Gloss and reflection strength come entirely from the material's own values.
+
+Authoring in the Node Material Editor:
+
+1. **Lightmap.** Add a **Texture** block named exactly `ovgal_lightmap` (no image needed; the viewer binds the mesh's lightmap at runtime). Feed its `uv` input from an **Input** block set to the mesh attribute **uv2**. Leave *Convert to linear space* off.
+2. **Diffuse.** The lightmap already holds all the room's light, so don't use the PBR block's diffuse outputs (`diffuseDir`, `diffuseInd`, `lighting`). Multiply your base-color texture's `rgb` by `ovgal_lightmap.rgb`; this is the same product the default display shader draws, so a live surface matches its non-live version.
+3. **Reflection.** Wire a **Reflection** block's `reflection` output into the **PBRMetallicRoughness** block's `reflection` input, and set `roughness` and `metallic` to taste. The viewer binds a reflection probe of the room to every Reflection block in a live material. Take the reflection from the PBR block's `specularInd` output.
+4. **Output.** Add the diffuse product (step 2) and `specularInd` (step 3), and send the sum to **FragmentOutput** `rgb`.
+
+A live material without an `ovgal_lightmap` texture block still renders with its own graph only. It loses its baked light, and the console warns with the material's name.
+
+Remember to **add the new material's JSON and textures to the ZIP bundler list** (`site/js/pack-definition.js`), or ZIPs built on the create page will miss it. See [Lighting → Live materials](lighting.md#live-materials-and-the-reflection-probe) for what the viewer does at runtime.
 
 ---
 
@@ -128,7 +144,7 @@ Templates are discovered through `cdn/templates/catalog.json`. A **style** is a 
    ```
 
 6. **Extract occupancies** for each new template. Either use the [Catalog Manager](https://openvgal.com/tools/catalog-manager.html) (drop a GLB, tick the `style × shape` cells, export) so the strips are precomputed into `shapes.<id>.occupancies`, or leave them empty and let the viewer probe the GLB at runtime (fine for dev, adds a one-off load per shape).
-7. **Bundle new materials** — add any new `BJS_*` names to the ZIP bundler list in `site/create/index.html` so self-contained ZIPs include them.
+7. **Bundle new materials** — add any new `BJS_*` JSON and its textures to the ZIP bundler list in `site/js/pack-definition.js` so self-contained ZIPs include them.
 
 The generator reads the selected style and passes the right template filename per chosen shape into the layout algorithm. The viewer never sees styles — it just loads whatever filename ends up in `building_v2.json`.
 

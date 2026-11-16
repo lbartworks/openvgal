@@ -570,6 +570,8 @@ function markLightsDone(){
 function _maybeFinishLoad(){
 	if (_loadPhase.active && _loadPhase.artworks && _loadPhase.lights){
 		_loadPhase.active = false;
+		// Bake committed and artworks hung: capture reflections for live materials.
+		if (typeof setupLiveReflectionProbe === 'function') setupLiveReflectionProbe();
 		reset_loadbar();
 		if (typeof postRoomEntered === 'function') postRoomEntered();
 	}

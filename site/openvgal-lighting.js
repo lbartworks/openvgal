@@ -120,6 +120,10 @@ function freezeGalleryMaterials() {
  * Everything is rebuilt from BAKE_DEFAULTS on the next setupLightmapBake.
  */
 function resetLightmapBakeCache() {
+	// The room dispose may not take the probe with it (it is not a mesh, material or
+	// texture); drop it here so it never captures the next room.
+	var p = _ovgal_bake && _ovgal_bake.probe;
+	if (p && p.getScene().reflectionProbes.indexOf(p) !== -1) p.dispose();
 	_ovgal_bake = null;
 	window._bake = null;
 }
@@ -727,6 +731,84 @@ function _ensureDisplayMaterial(scene) {
 		});
 }
 
+// LIVE MATERIALS (OIP-0018). A BJS_ node material whose name ends in "_live" keeps
+// its own graph (roughness, reflection, normal maps) instead of being replaced by
+// the display shader. The mesh is still baked; a per-mesh clone of its material
+// gets the lightmap on the texture block named LIVE_LM_BLOCK, which the author
+// samples with UV2. Rooms with live meshes also get one box-projected reflection
+// probe (setupLiveReflectionProbe). No live material in a room = none of this runs.
+var LIVE_LM_BLOCK = "ovgal_lightmap";
+var PROBE_SIZE = 256;          // px per cube face
+var PROBE_EYE_HEIGHT = 1.6;    // capture height, meters above the room's lowest bound
+
+function _isLiveMaterial(mat) {
+	return !!mat && typeof mat.getClassName === "function" && mat.getClassName() === "NodeMaterial"
+		&& /^r?BJS_.*_live$/.test(mat.name || "");
+}
+
+// The display shader fills uncovered lightmap texels at UV island edges while
+// sampling (sampleLightmap). A live material samples the lightmap directly, so the
+// same fill is done once into a copy: covered texels pass through, uncovered ones
+// take the nearest covered texel within 4. The copy is then safe to filter bilinearly.
+function _ensureLmDilateShader() {
+	if (BABYLON.Effect.ShadersStore["ovgalLmDilateFragmentShader"]) return;
+	BABYLON.Effect.ShadersStore["ovgalLmDilateFragmentShader"] =
+		"precision highp float;\n" +
+		"varying vec2 vUV;\n" +
+		"uniform sampler2D lightSampler;\n" +
+		"uniform vec2 lmTexel;\n" +
+		"void main(void){\n" +
+		"  vec4 c = texture2D(lightSampler, vUV);\n" +
+		"  if (c.a > 0.5){ gl_FragColor = vec4(c.rgb, 1.0); return; }\n" +
+		"  for (int r = 1; r <= 4; r++){\n" +
+		"    for (int dx = -1; dx <= 1; dx++){\n" +
+		"      for (int dy = -1; dy <= 1; dy++){\n" +
+		"        vec4 n = texture2D(lightSampler, vUV + vec2(float(dx*r), float(dy*r)) * lmTexel);\n" +
+		"        if (n.a > 0.5){ gl_FragColor = vec4(n.rgb, 1.0); return; }\n" +
+		"      }\n" +
+		"    }\n" +
+		"  }\n" +
+		"  gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);\n" +
+		"}\n";
+}
+
+// Seam-filled lightmap for one live mesh. Renders once; _commitBakeView points it
+// at the final bake buffer and re-arms it after every bake.
+function _makeLiveLightmap(scene, mesh, source) {
+	var b = _ovgal_bake;
+	_ensureLmDilateShader();
+	var t = new BABYLON.ProceduralTexture("liveLM_" + mesh.name, b.size, "ovgalLmDilate", scene,
+		null, false, false, BABYLON.Constants.TEXTURETYPE_HALF_FLOAT);
+	t.refreshRate = 0;
+	t.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+	t.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+	t.updateSamplingMode(scene.getEngine().getCaps().textureHalfFloatLinearFiltering
+		? BABYLON.Texture.BILINEAR_SAMPLINGMODE : BABYLON.Texture.NEAREST_SAMPLINGMODE);
+	t.setVector2("lmTexel", new BABYLON.Vector2(1.0 / b.size, 1.0 / b.size));
+	t.setTexture("lightSampler", source);
+	return t;
+}
+
+// Per-mesh clone of the live material with the lightmap bound. A material without
+// the ovgal_lightmap texture block still renders with its own graph, unlit by the bake.
+function _makeLiveMaterial(mesh, orig, lightmap) {
+	var b = _ovgal_bake;
+	var mat = orig.clone("bakeLive_" + mesh.name);
+	var block = mat.getBlockByName(LIVE_LM_BLOCK);
+	if (block && block.getClassName() === "TextureBlock") {
+		block.texture = lightmap;
+		mat.markAsDirty(BABYLON.Material.TextureDirtyFlag);
+	} else {
+		if (!b.liveWarned) b.liveWarned = {};
+		if (!b.liveWarned[orig.name]) {
+			b.liveWarned[orig.name] = true;
+			console.warn("Live material '" + orig.name.replace(/^r/, "") + "' has no '" + LIVE_LM_BLOCK
+				+ "' texture block — it renders without its baked light");
+		}
+	}
+	return mat;
+}
+
 // Best-effort base-color texture from a mesh's original material, without
 // touching the NodeMaterial graph. StandardMaterial/PBR expose diffuse/albedo
 // directly. NodeMaterials (BJS_*) are read via getTextureBlocks() — NOT
@@ -1258,10 +1340,11 @@ function _bakeMesh(scene, mesh) {
 	// rendering the surface white.
 	var res = mesh.metadata && mesh.metadata.ovgal_bake;
 	if (res) {
-		mesh.material = res.view;
+		mesh.material = res.live ? res.liveMat : res.view;
 		mesh.alwaysSelectAsActiveMesh = true;
 		b.baked.push({ mesh: mesh, buffers: res.buffers, aoBuffer: res.aoBuffer, orig: res.orig,
-			view: res.view, hasAlbedo: res.hasAlbedo });
+			view: res.view, hasAlbedo: res.hasAlbedo,
+			live: res.live, liveMat: res.liveMat, liveLM: res.liveLM });
 		return;
 	}
 
@@ -1290,6 +1373,21 @@ function _bakeMesh(scene, mesh) {
 	// color fall back to lightmap-only. The lightmap sampler is pointed at the
 	// final accumulation buffer by _runBake once the bake parity is known.
 	var orig = mesh.material;
+	if (!mesh.metadata) mesh.metadata = {};
+
+	// Live material: keep the author's graph (per-mesh clone) and feed it the
+	// seam-filled lightmap instead of handing the mesh to the display shader.
+	if (_isLiveMaterial(orig)) {
+		var liveLM = _makeLiveLightmap(scene, mesh, buffers[0]);
+		var liveMat = _makeLiveMaterial(mesh, orig, liveLM);
+		mesh.material = liveMat;
+		var liveRes = { buffers: buffers, aoBuffer: aoBuffer, orig: orig, view: null, hasAlbedo: false,
+			live: true, liveMat: liveMat, liveLM: liveLM };
+		mesh.metadata.ovgal_bake = liveRes;
+		b.baked.push(Object.assign({ mesh: mesh }, liveRes));
+		return;
+	}
+
 	var albedo = _findAlbedoTexture(orig);
 	var view = b.displayMat.clone("bakeView_" + mesh.name);
 	view.setFloat("hasAlbedo", albedo ? 1.0 : 0.0);
@@ -1403,6 +1501,12 @@ function _renderBakePassForMesh(it, k) {
 // across rebakes — only its contents change — so freezing still shows live re-bakes.
 function _commitBakeView(it) {
 	var keep = it.buffers[_ovgal_bake.passes.length % 2];
+	if (it.live) {
+		// Re-run the seam fill from the fresh bake on the next frame.
+		it.liveLM.setTexture("lightSampler", keep);
+		it.liveLM.resetRefreshCounter();
+		return;
+	}
 	it.view.setTexture("lightSampler", keep);
 	// buffers[0] doubles as the dummy albedo bind for meshes with no base-color
 	// texture (see _bakeMesh). Re-point it at the survivor, or _freeBakeScratch
@@ -1454,13 +1558,61 @@ function _runBake() {
 	// The display materials are frozen after each bake (static uniforms, zero
 	// per-frame rebind). Unfreeze to re-point their lightmap samplers; _commitBakeView
 	// refreezes each one below.
-	list.forEach(function (it) { it.view.unfreeze(); });
+	list.forEach(function (it) { if (it.view) it.view.unfreeze(); });
 	for (var k = 0; k < P; k++) {
 		_bindBakePass(k);
 		for (var j = 0; j < list.length; j++) _renderBakePassForMesh(list[j], k);
 	}
 	list.forEach(_commitBakeView);
 	_freeBakeScratch();
+	// A re-bake changes what the room looks like, so recapture the reflections.
+	if (_ovgal_bake.probe) _ovgal_bake.probe.cubeTexture.resetRefreshCounter();
+}
+
+/**
+ * One box-projected reflection probe for a room that has live materials, bound to
+ * every live material's reflection block. Call after the bake commits and the
+ * artworks are hung. Rendered once (the room is static). A room with no live mesh
+ * creates nothing. A room keeps its probe until resetLightmapBakeCache.
+ */
+function setupLiveReflectionProbe() {
+	var b = _ovgal_bake;
+	if (!b || !b.scene || !b.baked) return;
+	var live = b.baked.filter(function (it) { return it.live; });
+	if (!live.length) return;
+	var scene = b.scene;
+
+	if (!b.probe) {
+		var box = _computeRoomAABB(b.baked.map(function (it) { return it.mesh; }));
+		var eye = Math.min(box.min.y + PROBE_EYE_HEIGHT, box.max.y - 0.01);
+		var pos = new BABYLON.Vector3((box.min.x + box.max.x) / 2, eye, (box.min.z + box.max.z) / 2);
+		var probe = new BABYLON.ReflectionProbe("ovgalProbe", PROBE_SIZE, scene, true);
+		probe.position = pos;
+		probe.refreshRate = BABYLON.RenderTargetTexture.REFRESHRATE_RENDER_ONCE;
+		// Box projection measures reflected directions from boundingBoxPosition, so it
+		// must be the capture point. X/Z span the room exactly (the capture is centered
+		// there); Y is symmetric about eye height and reaches the farther of floor and
+		// ceiling, so the ceiling plane is exact for floor reflections.
+		probe.cubeTexture.boundingBoxPosition = pos.clone();
+		probe.cubeTexture.boundingBoxSize = new BABYLON.Vector3(
+			box.max.x - box.min.x,
+			2 * Math.max(eye - box.min.y, box.max.y - eye),
+			box.max.z - box.min.z);
+		var liveMeshes = live.map(function (it) { return it.mesh; });
+		probe.renderList = scene.meshes.filter(function (m) {
+			return _isBakeOccluder(m) && m.isEnabled() && liveMeshes.indexOf(m) === -1;
+		});
+		b.probe = probe;
+		console.log("Reflection probe: created for " + live.length + " live mesh(es), "
+			+ probe.renderList.length + " mesh(es) in its render list");
+	}
+
+	live.forEach(function (it) {
+		it.liveMat.attachedBlocks.forEach(function (blk) {
+			if (blk.getClassName() === "ReflectionBlock") blk.texture = b.probe.cubeTexture;
+		});
+		it.liveMat.markAsDirty(BABYLON.Material.TextureDirtyFlag);
+	});
 }
 
 /**
@@ -1592,7 +1744,7 @@ function setupLightmapBake(scene, onComplete, onProgress) {
 					var P = _ovgal_bake.passes.length;
 					var total = P * list.length;
 					var unit_ = 0;
-					list.forEach(function (it) { it.view.unfreeze(); });
+					list.forEach(function (it) { if (it.view) it.view.unfreeze(); });
 					var last_ = performance.now();
 					for (var k = 0; k < P; k++) {
 						_bindBakePass(k);

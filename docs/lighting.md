@@ -124,6 +124,18 @@ After the bake, [`freezeGalleryMaterials()`](../site/openvgal-lighting.js) freez
 
 ---
 
+## Live materials and the reflection probe
+
+By default every baked surface is drawn by one display shader (*albedo × lightmap*), so the room reads as matte. A `BJS_` node material whose name ends in `_live` opts out (see [Creating Custom Templates → Live materials](creating-templates.md#live-materials--bjs__live)):
+
+- **Still baked.** The mesh gets its lightmap exactly as before. Instead of a display-shader copy, it gets a per-mesh copy of its own node material, and the lightmap is bound to that copy's `ovgal_lightmap` texture block.
+- **Seams filled once.** The display shader fills uncovered texels at UV-island edges while sampling. A live material samples the lightmap directly, so after each bake the lightmap is copied once into a seam-filled texture (each uncovered texel takes the nearest covered one), which is what the live material receives.
+- **One reflection probe per room.** Only when the room has at least one live mesh, a single `ReflectionProbe` (256 px per face) is created after the bake commits and the artworks are hung. It sits at the room's horizontal centre at eye height (1.6 m above the room's lowest point) and is rendered once. It is box-projected so reflections stay put as the visitor walks: the box spans the room in X and Z, and in Y it is centred on the capture point and reaches the farther of floor and ceiling. It captures every visible room mesh, including the artworks, and leaves out the live meshes themselves and the bake's helpers (`Occupancy_`, `d_`, plaques, door labels). It is bound to every Reflection block in the live materials, and the console logs once when it is created.
+- **Lifetime.** The probe belongs to the room. It is dropped with the room when the visitor leaves, and a fresh one is made the next time the room loads. A slider re-bake re-renders it.
+- **No live material, no change.** A room without one creates no probe and renders exactly as before.
+
+---
+
 ## See also
 
 - [Creating Custom Templates](creating-templates.md) — the light-naming spec and authoring checklist that places every marker described here.
