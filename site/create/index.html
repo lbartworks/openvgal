@@ -1112,15 +1112,13 @@
       var zip = new JSZip();
       var fileMap = window.openvgal_fileMap || {};
       var sources = packSources();
-      var selectedStyle = StylePicker.getSelected();
 
       var entries = OpenVGALPack.describe(flavor, {
         config: config,
         imagePaths: Object.keys(fileMap),
-        // The picker's selection is a hint; without it the style is derived
-        // from the manifest against the catalog, and an unresolvable one throws.
+        // Style comes from the manifest (Technical.style), never the picker:
+        // the picker can change after Generate without rebuilding the rooms.
         catalog: StylePicker.getCatalog(),
-        styleConfig: selectedStyle ? selectedStyle.config : null,
         cdnBase: CDN_BASE,
         viewerBase: '../'
       });
@@ -1290,11 +1288,13 @@
         postCustomize(true);
 
         var mod = await import('./customize.js');
-        var selectedStyleForCustomize = StylePicker.getSelected();
+        // Relayout must use the style the rooms were generated with, not the
+        // picker's current one, or rooms get another style's GLBs.
+        var customizeStyle = OpenVGALPack.resolveStyle(generatedJSON, StylePicker.getCatalog());
         _czApi = mod.mountCustomize(customizeHost, {
           config: generatedJSON,
           fileMap: window.openvgal_fileMap || {},
-          styleConfig: selectedStyleForCustomize ? selectedStyleForCustomize.config : null,
+          styleConfig: customizeStyle.config,
           cdnBase: CDN_BASE
         });
         _czApi.onApply(function() {
