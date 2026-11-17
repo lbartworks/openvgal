@@ -181,7 +181,7 @@ window.addEventListener('openvgal:gallery-built', () => {
 ## Changelog
 
 **v5.4 (November 2026)**
-- Live node materials: a flat live floor gets a planar mirror, blurred by its roughness
+- Live node materials (`BJS_…_live`): node materials that stay live, not frozen, after the lightmap bake
 - Black & White style ships a polished concrete live floor
 
 **v5.3 (November 2026)**
