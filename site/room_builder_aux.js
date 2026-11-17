@@ -34,6 +34,12 @@ var text3D_builder=function(name, item_position, vector, parent, scene, maxWidth
 	var texto=name.replace("root", "Hall");
 	texto=texto.replace(/d_(.+)_\d+/, "$1");
 
+	//the label font lacks a glyph (e.g. CJK): draw it on a canvas plane instead
+	if (Array.from(texto).some(function(c){ return !fontContent.glyphs[c]; })) {
+		canvasLabel_builder(texto, maxLength, item_position, vector, parent, scene);
+		return;
+	}
+
 	var makeLine = function(t){
 		return BABYLON.MeshBuilder.CreateText("T_" + texto, t, fontContent, {
 			size: 0.2,
@@ -95,8 +101,85 @@ var text3D_builder=function(name, item_position, vector, parent, scene, maxWidth
 	
 	//assign material
 	myText.material = BJS_materials["BJS_black_metal"];
-		
 
+
+}
+
+// Door label drawn with the system fonts, for names the 3D label font can't render.
+// Same rules as text3D_builder: 0.2 m letters, two centred lines 0.26 m apart when too
+// wide (split at the space nearest the middle, or the middle character when there is
+// no space), then scaled to fit. Unlit, so it stays readable once the bake turns the
+// runtime lights off; the T_ name keeps it out of the bake occluders.
+var canvasLabel_builder=function(texto, maxLength, item_position, vector, parent, scene){
+	var EM_PX = 128, LINE_PX = Math.round(EM_PX * 0.26 / 0.2), PAD_PX = 8;
+	var pxToWorld = 0.2 / EM_PX;
+	var font = EM_PX + 'px system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans CJK SC", "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Malgun Gothic", sans-serif';
+
+	var measureCtx = document.createElement("canvas").getContext("2d");
+	measureCtx.font = font;
+	var widthOf = function(t){ return measureCtx.measureText(t).width; };
+
+	var lines = [texto];
+	if (widthOf(texto) * pxToWorld > maxLength) {
+		var chars = Array.from(texto);
+		var mid = chars.length / 2, cut = -1;
+		for (var i = 0; i < chars.length; i++) {
+			if (chars[i] === " " && (cut < 0 || Math.abs(i - mid) < Math.abs(cut - mid))) cut = i;
+		}
+		if (cut > 0) lines = [chars.slice(0, cut).join(""), chars.slice(cut + 1).join("")];
+		else if (chars.length > 1) {
+			cut = Math.ceil(mid);
+			lines = [chars.slice(0, cut).join(""), chars.slice(cut).join("")];
+		}
+	}
+
+	var texW = Math.ceil(Math.max.apply(null, lines.map(widthOf))) + 2 * PAD_PX;
+	var texH = lines.length * LINE_PX + 2 * PAD_PX;
+	var dynTex = new BABYLON.DynamicTexture("T_tex_" + texto, {width: texW, height: texH}, scene, true);
+	var ctx = dynTex.getContext();
+	ctx.clearRect(0, 0, texW, texH);
+	ctx.font = font;
+	ctx.fillStyle = "#1a1a1a";
+	ctx.textAlign = "center";
+	ctx.textBaseline = "middle";
+	lines.forEach(function(t, k){ ctx.fillText(t, texW / 2, PAD_PX + (k + 0.5) * LINE_PX); });
+	dynTex.update();
+	dynTex.hasAlpha = true;
+
+	var mat = new BABYLON.StandardMaterial("T_mat_" + texto, scene);
+	mat.diffuseTexture = dynTex;
+	mat.emissiveTexture = dynTex;
+	mat.specularColor = new BABYLON.Color3(0, 0, 0);
+	mat.disableLighting = true;
+	mat.useAlphaFromDiffuseTexture = true;
+	mat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
+
+	//XY plane like CreateText: the room side is the back face (+Z), so it gets the
+	//unmirrored UVs; the front face's are mirrored so both sides read left-to-right
+	var plane = BABYLON.MeshBuilder.CreatePlane("T_" + texto, {
+		width: texW * pxToWorld,
+		height: texH * pxToWorld,
+		sideOrientation: BABYLON.Mesh.DOUBLESIDE,
+		frontUVs: new BABYLON.Vector4(1, 0, 0, 1),
+		backUVs: new BABYLON.Vector4(0, 0, 1, 1)
+	}, scene);
+	plane.material = mat;
+	plane.isPickable = false;
+
+	//still too wide: scale it to fit the door width
+	var textWidth = (texW - 2 * PAD_PX) * pxToWorld;
+	if (textWidth > maxLength) {
+		var scaleFactor = maxLength / textWidth;
+		plane.scaling.x = scaleFactor;
+		plane.scaling.y = scaleFactor;
+	}
+
+	//place and rotate exactly like the 3D text
+	plane.parent = parent;
+	plane.position = new BABYLON.Vector3(item_position.x, item_position.y, item_position.z);
+	var angle = Math.acos(BABYLON.Vector3.Dot(new BABYLON.Vector3(0, 0, 1), vector));
+	if (BABYLON.Vector3.Cross(new BABYLON.Vector3(0, 0, 1), vector).y < 0) angle = -angle;
+	plane.rotate(BABYLON.Axis.Y, angle, BABYLON.Space.LOCAL);
 }
 
 // Artwork `metadata` is either "Title\nSubtitle" (legacy "ID #N " prefix stripped)
