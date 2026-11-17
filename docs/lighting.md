@@ -124,15 +124,19 @@ After the bake, [`freezeGalleryMaterials()`](../site/openvgal-lighting.js) freez
 
 ---
 
-## Live materials and the reflection probe
+## Live materials and reflections
 
 By default every baked surface is drawn by one display shader (*albedo × lightmap*), so the room reads as matte. A `BJS_` node material whose name ends in `_live` opts out (see [Creating Custom Templates → Live materials](creating-templates.md#live-materials--bjs__live)):
 
 - **Still baked.** The mesh gets its lightmap exactly as before. Instead of a display-shader copy, it gets a per-mesh copy of its own node material, and the lightmap is bound to that copy's `ovgal_lightmap` texture block.
 - **Seams filled once.** The display shader fills uncovered texels at UV-island edges while sampling. A live material samples the lightmap directly, so after each bake the lightmap is copied once into a seam-filled texture (each uncovered texel takes the nearest covered one), which is what the live material receives.
-- **One reflection probe per room.** Only when the room has at least one live mesh, a single `ReflectionProbe` (256 px per face) is created after the bake commits and the artworks are hung. It sits at the room's horizontal centre at eye height (1.6 m above the room's lowest point) and is rendered once. It is box-projected so reflections stay put as the visitor walks: the box spans the room in X and Z, and in Y it is centred on the capture point and reaches the farther of floor and ceiling. It captures every visible room mesh, including the artworks, and leaves out the live meshes themselves and the bake's helpers (`Occupancy_`, `d_`, plaques, door labels). It is bound to every Reflection block in the live materials, and the console logs once when it is created.
-- **Lifetime.** The probe belongs to the room. It is dropped with the room when the visitor leaves, and a fresh one is made the next time the room loads. A slider re-bake re-renders it.
-- **No live material, no change.** A room without one creates no probe and renders exactly as before.
+Reflections are set up after the bake commits and the artworks are hung, and bound to every Reflection block in the live materials. The console logs one `Reflections:` line per room.
+
+- **Flat floors get a planar mirror.** A live mesh whose normals all point straight up gets a `MirrorTexture` (1024 px, half-float) on its plane, re-rendered every frame from the reflected camera. This is exact: unlike a single cube capture, it never reflects a room through a partition wall. It draws every visible mesh except the live meshes and the bake helpers (`Occupancy_`, `d_`), so artworks, plaques and door labels show. Live floors at the same height share one mirror. The PBR block does not blur a planar mirror, so the mirror blurs itself from the material's roughness: kernel = roughness × 128 mirror pixels. Only a constant **Input** wired to `roughness` is read; a textured roughness gives a sharp mirror. The mirror lookup uses the PBR block's `worldPosition`, not the normal, so a normal map alone does not ripple the reflection (see [Creating Custom Templates → Live materials](creating-templates.md#live-materials--bjs__live)). Cost measured on a desktop GPU: about 5 ms per frame for a 23-mesh room; not yet measured on phones.
+- **Fixture discs stay visible.** A floor reflects only a small fraction of the light, so a glowing `BJS_glow` disc would reflect as dull grey. In the mirror only, these emitters are drawn with a flat shader at 20× white. The half-float target keeps the value, and the reflection then reads as a bright point. The room itself is unchanged.
+- **Other live surfaces get no reflection.** Only flat floors are mirrored. A live wall or object still renders its own graph with its lightmap, but its Reflection block gets no texture.
+- **Lifetime.** Mirrors belong to the room. They are dropped when the visitor leaves and made fresh the next time the room loads. They re-render every frame, so a slider re-bake shows up on its own.
+- **No live material, no change.** A room without one creates no mirror and renders exactly as before.
 
 ---
 

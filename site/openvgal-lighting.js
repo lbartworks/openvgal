@@ -120,10 +120,17 @@ function freezeGalleryMaterials() {
  * Everything is rebuilt from BAKE_DEFAULTS on the next setupLightmapBake.
  */
 function resetLightmapBakeCache() {
-	// The room dispose may not take the probe with it (it is not a mesh, material or
-	// texture); drop it here so it never captures the next room.
-	var p = _ovgal_bake && _ovgal_bake.probe;
-	if (p && p.getScene().reflectionProbes.indexOf(p) !== -1) p.dispose();
+	// Mirrors and the glow material are scene-level, not part of the room's
+	// container; drop them here so they never capture the next room.
+	var b = _ovgal_bake;
+	if (b) {
+		for (var k in (b.mirrors || {})) {
+			var crt = b.scene.customRenderTargets, i = crt.indexOf(b.mirrors[k]);
+			if (i !== -1) crt.splice(i, 1);
+			b.mirrors[k].dispose();
+		}
+		if (b.glowBoost) b.glowBoost.dispose();
+	}
 	_ovgal_bake = null;
 	window._bake = null;
 }
@@ -735,11 +742,10 @@ function _ensureDisplayMaterial(scene) {
 // its own graph (roughness, reflection, normal maps) instead of being replaced by
 // the display shader. The mesh is still baked; a per-mesh clone of its material
 // gets the lightmap on the texture block named LIVE_LM_BLOCK, which the author
-// samples with UV2. Rooms with live meshes also get one box-projected reflection
-// probe (setupLiveReflectionProbe). No live material in a room = none of this runs.
+// samples with UV2. Flat live floors also get a planar mirror for their
+// reflection (setupLiveReflections).
+// No live material in a room = none of this runs.
 var LIVE_LM_BLOCK = "ovgal_lightmap";
-var PROBE_SIZE = 256;          // px per cube face
-var PROBE_EYE_HEIGHT = 1.6;    // capture height, meters above the room's lowest bound
 
 function _isLiveMaterial(mat) {
 	return !!mat && typeof mat.getClassName === "function" && mat.getClassName() === "NodeMaterial"
@@ -793,7 +799,16 @@ function _makeLiveLightmap(scene, mesh, source) {
 // the ovgal_lightmap texture block still renders with its own graph, unlit by the bake.
 function _makeLiveMaterial(mesh, orig, lightmap) {
 	var b = _ovgal_bake;
-	var mat = orig.clone("bakeLive_" + mesh.name);
+	// Not orig.clone(): it re-parses with an empty rootUrl, so relative texture
+	// paths resolve against the page instead of the materials folder.
+	var rootUrl = (typeof materials_folder !== "undefined") ? materials_folder + "/" : "";
+	var mat = BABYLON.NodeMaterial.Parse(orig.serialize(), mesh.getScene(), rootUrl);
+	mat.name = mat.id = "bakeLive_" + mesh.name;
+	mat.ovgalMirrorBlur = _mirrorBlur(orig);
+	// The source is usually already frozen (freezeGalleryMaterials runs while the
+	// bake is in flight) and the copy inherits it, so its shader would never pick up
+	// the mirror bound later.
+	mat.unfreeze();
 	var block = mat.getBlockByName(LIVE_LM_BLOCK);
 	if (block && block.getClassName() === "TextureBlock") {
 		block.texture = lightmap;
@@ -1565,53 +1580,106 @@ function _runBake() {
 	}
 	list.forEach(_commitBakeView);
 	_freeBakeScratch();
-	// A re-bake changes what the room looks like, so recapture the reflections.
-	if (_ovgal_bake.probe) _ovgal_bake.probe.cubeTexture.resetRefreshCounter();
+}
+
+// Flat live floors get a planar mirror, re-rendered every frame from the reflected
+// camera. Live meshes at the same height share one mirror.
+var MIRROR_SIZE = 1024;
+var MIRROR_GLOW_BOOST = 20;    // BJS_glow emitters drawn this bright in the mirror only
+
+// True when every vertex normal points straight up: a flat floor.
+function _isFlatFloor(mesh) {
+	var n = mesh.getVerticesData(BABYLON.VertexBuffer.NormalKind);
+	if (!n || !n.length) return false;
+	var wm = mesh.computeWorldMatrix(true), v = new BABYLON.Vector3();
+	for (var i = 0; i < n.length; i += 3) {
+		BABYLON.Vector3.TransformNormalFromFloatsToRef(n[i], n[i + 1], n[i + 2], wm, v);
+		if (v.normalize().y < 0.99) return false;
+	}
+	return true;
+}
+
+// Flat white material for BJS_glow emitters in the mirror. The mirror is half-float
+// and this writes MIRROR_GLOW_BOOST, so after the floor's dim reflection factor the
+// fixture discs still read as bright points. Standard/PBR materials clamp at 1.
+function _makeGlowBoost(scene) {
+	var S = BABYLON.Effect.ShadersStore;
+	S.ovgalGlowBoostVertexShader = "precision highp float;\nattribute vec3 position;\n" +
+		"uniform mat4 world;\nuniform mat4 viewProjection;\n" +
+		"void main(void){ gl_Position = viewProjection * world * vec4(position, 1.0); }\n";
+	S.ovgalGlowBoostFragmentShader = "precision highp float;\nuniform float k;\n" +
+		"void main(void){ gl_FragColor = vec4(vec3(k), 1.0); }\n";
+	var m = new BABYLON.ShaderMaterial("ovgalGlowBoost", scene, "ovgalGlowBoost",
+		{ attributes: ["position"], uniforms: ["world", "viewProjection", "k"] });
+	m.setFloat("k", MIRROR_GLOW_BOOST);
+	m.backFaceCulling = false;
+	return m;
+}
+
+// The PBR block does not blur a planar mirror by roughness, so the mirror does it:
+// blur kernel (mirror px) = roughness x MIRROR_BLUR_PER_ROUGHNESS. Only a constant
+// roughness Input can be read; a textured roughness gives a sharp mirror.
+var MIRROR_BLUR_PER_ROUGHNESS = 128;
+function _mirrorBlur(mat) {
+	var pbr = mat.getBlockByName("PBRMetallicRoughness") ||
+		mat.attachedBlocks.find(function (b) { return b.getClassName() === "PBRMetallicRoughnessBlock"; });
+	var src = pbr && pbr.roughness && pbr.roughness.connectedPoint && pbr.roughness.connectedPoint.ownerBlock;
+	var r = (src && typeof src.value === "number") ? src.value : 0;
+	return Math.round(Math.min(1, Math.max(0, r)) * MIRROR_BLUR_PER_ROUGHNESS);
+}
+
+function _makeFloorMirror(scene, y, renderList, glow, boost, blur) {
+	var mir = new BABYLON.MirrorTexture("ovgalMirror", MIRROR_SIZE, scene, true,
+		BABYLON.Constants.TEXTURETYPE_HALF_FLOAT);
+	mir.mirrorPlane = new BABYLON.Plane(0, -1, 0, y);
+	mir.blurKernel = blur;
+	mir.renderList = renderList;
+	glow.forEach(function (g) { mir.setMaterialForRendering(g, boost); });
+	// Not picked up through the material alone: without this it never renders.
+	scene.customRenderTargets.push(mir);
+	return mir;
 }
 
 /**
- * One box-projected reflection probe for a room that has live materials, bound to
- * every live material's reflection block. Call after the bake commits and the
- * artworks are hung. Rendered once (the room is static). A room with no live mesh
- * creates nothing. A room keeps its probe until resetLightmapBakeCache.
+ * Reflections for a room that has live materials: flat live floors get a planar
+ * mirror (shared per height); other live meshes get no reflection texture. Call
+ * after the bake commits and the artworks are hung. A room with no live floor
+ * creates nothing. Mirrors live until resetLightmapBakeCache.
  */
-function setupLiveReflectionProbe() {
+function setupLiveReflections() {
 	var b = _ovgal_bake;
 	if (!b || !b.scene || !b.baked) return;
 	var live = b.baked.filter(function (it) { return it.live; });
 	if (!live.length) return;
 	var scene = b.scene;
+	var liveMeshes = live.map(function (it) { return it.mesh; });
 
-	if (!b.probe) {
-		var box = _computeRoomAABB(b.baked.map(function (it) { return it.mesh; }));
-		var eye = Math.min(box.min.y + PROBE_EYE_HEIGHT, box.max.y - 0.01);
-		var pos = new BABYLON.Vector3((box.min.x + box.max.x) / 2, eye, (box.min.z + box.max.z) / 2);
-		var probe = new BABYLON.ReflectionProbe("ovgalProbe", PROBE_SIZE, scene, true);
-		probe.position = pos;
-		probe.refreshRate = BABYLON.RenderTargetTexture.REFRESHRATE_RENDER_ONCE;
-		// Box projection measures reflected directions from boundingBoxPosition, so it
-		// must be the capture point. X/Z span the room exactly (the capture is centered
-		// there); Y is symmetric about eye height and reaches the farther of floor and
-		// ceiling, so the ceiling plane is exact for floor reflections.
-		probe.cubeTexture.boundingBoxPosition = pos.clone();
-		probe.cubeTexture.boundingBoxSize = new BABYLON.Vector3(
-			box.max.x - box.min.x,
-			2 * Math.max(eye - box.min.y, box.max.y - eye),
-			box.max.z - box.min.z);
-		var liveMeshes = live.map(function (it) { return it.mesh; });
-		probe.renderList = scene.meshes.filter(function (m) {
-			return _isBakeOccluder(m) && m.isEnabled() && liveMeshes.indexOf(m) === -1;
+	if (!b.mirrors) {
+		b.mirrors = {};
+		// Everything the visitor can see, door labels and plaques included.
+		var visible = scene.meshes.filter(function (m) {
+			return _isBakeableMesh(m) && m.isEnabled() && liveMeshes.indexOf(m) === -1;
 		});
-		b.probe = probe;
-		console.log("Reflection probe: created for " + live.length + " live mesh(es), "
-			+ probe.renderList.length + " mesh(es) in its render list");
+		var glow = visible.filter(function (m) { return m.material && /BJS_glow$/.test(m.material.name); });
+		live.forEach(function (it) {
+			if (!_isFlatFloor(it.mesh)) return;
+			if (!b.glowBoost) b.glowBoost = _makeGlowBoost(scene);
+			var y = it.mesh.getBoundingInfo().boundingBox.maximumWorld.y, key = y.toFixed(2);
+			if (!b.mirrors[key]) b.mirrors[key] = _makeFloorMirror(scene, y, visible, glow, b.glowBoost,
+				it.liveMat.ovgalMirrorBlur);
+			it.mirror = b.mirrors[key];
+		});
 	}
+	console.log("Reflections: " + Object.keys(b.mirrors).length + " floor mirror(s), " + live.length + " live mesh(es)");
 
 	live.forEach(function (it) {
+		if (!it.mirror) return;
 		it.liveMat.attachedBlocks.forEach(function (blk) {
-			if (blk.getClassName() === "ReflectionBlock") blk.texture = b.probe.cubeTexture;
+			if (blk.getClassName() === "ReflectionBlock") blk.texture = it.mirror;
 		});
-		it.liveMat.markAsDirty(BABYLON.Material.TextureDirtyFlag);
+		// A dirty flag is not enough: the graph was built with no reflection
+		// texture, so it must be rebuilt to emit the reflection path.
+		it.liveMat.build();
 	});
 }
 

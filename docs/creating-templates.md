@@ -78,12 +78,18 @@ Authoring in the Node Material Editor:
 
 1. **Lightmap.** Add a **Texture** block named exactly `ovgal_lightmap` (no image needed; the viewer binds the mesh's lightmap at runtime). Feed its `uv` input from an **Input** block set to the mesh attribute **uv2**. Leave *Convert to linear space* off.
 2. **Diffuse.** The lightmap already holds all the room's light, so don't use the PBR block's diffuse outputs (`diffuseDir`, `diffuseInd`, `lighting`). Multiply your base-color texture's `rgb` by `ovgal_lightmap.rgb`; this is the same product the default display shader draws, so a live surface matches its non-live version.
-3. **Reflection.** Wire a **Reflection** block's `reflection` output into the **PBRMetallicRoughness** block's `reflection` input, and set `roughness` and `metallic` to taste. The viewer binds a reflection probe of the room to every Reflection block in a live material. Take the reflection from the PBR block's `specularInd` output.
+3. **Reflection.** Wire a **Reflection** block's `reflection` output into the **PBRMetallicRoughness** block's `reflection` input, and set `roughness` and `metallic` to taste. On a flat floor, the viewer binds an exact planar mirror of the room to every Reflection block in the material. Other live surfaces get no reflection. Take the reflection from the PBR block's `specularInd` output. On a floor mirror, `roughness` sets the blur: feed it from a constant float **Input** (0 = sharp; 0.5 gives a soft polished-concrete sheen). A textured roughness is not read for the blur.
 4. **Output.** Add the diffuse product (step 2) and `specularInd` (step 3), and send the sum to **FragmentOutput** `rgb`.
+
+Optional surface relief (see `BJS_wc_floor_live` for a worked example):
+
+- **Normal map.** Feed a **PerturbNormal** block's `output` into the PBR block's `perturbedNormal`. This shapes the reflection's Fresnel only; it does not move a floor mirror's image.
+- **Rippled mirror.** The mirror is looked up by the PBR block's `worldPosition` input. Add a small offset there (e.g. the normal map's signed `x`,`y` mapped to world `x`,`z`, scaled to about 0.01 m) to break up the reflection.
+- **Visible bumps.** The baked diffuse ignores normals. To shade the bumps, multiply the diffuse product by `1 + k × (dot(perturbed normal, L) − dot(world normal, L))` for a fixed direction `L` before adding `specularInd`.
 
 A live material without an `ovgal_lightmap` texture block still renders with its own graph only. It loses its baked light, and the console warns with the material's name.
 
-Remember to **add the new material's JSON and textures to the ZIP bundler list** (`site/js/pack-definition.js`), or ZIPs built on the create page will miss it. See [Lighting → Live materials](lighting.md#live-materials-and-the-reflection-probe) for what the viewer does at runtime.
+Remember to **add the new material's JSON and textures to the ZIP bundler list** (`site/js/pack-definition.js`), or ZIPs built on the create page will miss it. See [Lighting → Live materials](lighting.md#live-materials-and-reflections) for what the viewer does at runtime.
 
 ---
 
