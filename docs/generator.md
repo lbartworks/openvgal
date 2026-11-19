@@ -42,6 +42,29 @@ The ZIP uses relative paths (`openvgal_location = '.'`), so it works in any subf
 
 After **Download ZIP** (or the JSON-only download), the generator opens `/ready.html?name=<firstRoom>` in a new tab — a lightweight post-save page with a free-hosting walkthrough, a coming-soon "host it for me" CTA (`/hosting.html`), and Web-Share / X / Facebook / Instagram-caption-copy buttons. The window is opened synchronously inside the click handler so mobile browsers don't drop it as a deferred popup.
 
+**Starting values.** A `File` handed to `buildGalleryJSON` may carry `file.openvgalStart = { width, metadata }`. `width` (cm) replaces the default 120 cm longest edge, with the height following from the image's aspect ratio. `metadata` replaces the title derived from the filename and is written as given. A file without it is sized and titled as above, so a gallery with no such file builds the same manifest as before.
+
+---
+
+## Text panels
+
+Each room card on the create page has an **Add text panel** button. It opens an editor with a text area, font (serif / sans), alignment (left / center), colours (light / dark), width (S 60, M 120, L 180 cm), a live preview, a name field and a **Download PNG** link. **Add to room** puts the PNG among that room's files; a name like `005_intro` takes its place in the [filename sequence](#headless-pack-command-node). Panels are rendered at their final size and skip the downsizing step.
+
+The renderer is `site/js/text-panel.js`, a standalone script with no gallery or upload code, so other editors can load it from the CDN (`core/js/text-panel.js`):
+
+```js
+TextPanel.render({ text, font, align, scheme, size: 'S' | 'M' | 'L', name })
+  // → Promise<{ file, width, height, widthCm, heightCm, panel }>
+```
+
+- `file` is a PNG `File` named `<name>.png`, rendered at 3,200 px on its longest edge. `width`/`height` are its pixels.
+- `panel` is the value to store as `metadata.panel` ([format](gallery-json.md#text-panels)).
+- It refuses, with an `Error` carrying `code`, text that is empty (`empty`), longer than 2,000 characters (`too_long`), or taller than 250 cm at the chosen width (`too_tall`). No file is produced.
+- Type sizes are fixed in centimetres, so a wider panel holds more per line and comes out shorter.
+- Fonts (Source Serif 4 and Inter, OFL, in `site/fonts/` with their licences) load through the FontFace API from `../fonts/` relative to the script's own URL. Set `TextPanel.fontBase` to load them from elsewhere.
+
+The create page passes the result to the generator as [starting values](#generator--zip-flow): `{ width: widthCm, metadata: { title: '', subtitle: '', panel } }`.
+
 ---
 
 ## Customize editor

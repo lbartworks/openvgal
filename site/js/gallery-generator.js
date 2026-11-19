@@ -504,14 +504,15 @@ function withSequencePrefixes(config) {
       if (!item || item.resource_type !== 'image' || !item.metadata) continue;
       const m = SEQUENCE_PREFIX.exec(item.resource.split('/').pop());
       if (!m) continue;
+      // An untitled entry stays untitled: a bare prefix would draw a plaque.
       if (typeof item.metadata === 'object') {
         const title = typeof item.metadata.title === 'string' ? item.metadata.title : '';
-        if (title.indexOf(m[0]) !== 0) item.metadata.title = m[0] + title;
+        if (title && title.indexOf(m[0]) !== 0) item.metadata.title = m[0] + title;
         continue;
       }
       if (typeof item.metadata !== 'string') continue;
       const parts = /^(ID\s*#\d+\s*)?([\s\S]*)$/.exec(item.metadata);
-      if (parts[2].indexOf(m[0]) === 0) continue;
+      if (!parts[2] || parts[2].charAt(0) === '\n' || parts[2].indexOf(m[0]) === 0) continue;
       item.metadata = (parts[1] || '') + m[0] + parts[2];
     }
   }
@@ -639,13 +640,19 @@ async function buildGalleryJSON(galleries, onProgress, styleConfig, options) {
     for (const file of imageFiles) {
       try {
         const dims = await getImageDimensions(file);
-        const cm = defaultCmDims(dims.width, dims.height);
+        // A file may arrive with a starting width (cm) and starting metadata,
+        // which replace the defaults derived from its pixels and filename.
+        const start = file.openvgalStart || {};
+        const cm = start.width > 0
+          ? { wCm: start.width, hCm: start.width * dims.height / dims.width }
+          : defaultCmDims(dims.width, dims.height);
         items.push({
           file: file,
           name: dims.name,
           cmWidth: cm.wCm,
           cmHeight: cm.hCm,
-          widthM: cmToBabylon(cm.wCm)
+          widthM: cmToBabylon(cm.wCm),
+          metadata: start.metadata !== undefined ? JSON.parse(JSON.stringify(start.metadata)) : undefined
         });
         processedImages++;
         if (onProgress) onProgress(processedImages, totalImages, 'Loading ' + file.name + '...');
@@ -687,7 +694,7 @@ async function buildGalleryJSON(galleries, onProgress, styleConfig, options) {
           height: item.cmHeight.toFixed(2),
           location: '[' + pos[0].toFixed(3) + ',' + pos[1].toFixed(3) + ',' + pos[2].toFixed(3) + ']',
           vector: '[' + vec[0].toFixed(1) + ',' + vec[1].toFixed(1) + ']',
-          metadata: title
+          metadata: item.metadata !== undefined ? item.metadata : title
         };
       });
 

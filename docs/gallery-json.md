@@ -170,7 +170,7 @@ An object `title` never carries the `ID #N` prefix.
 
 **Rules for editors**
 
-- Write the string form when no field has a value, the object form otherwise.
+- Write the string form when no field has a value and no other key is present (such as [`panel`](#text-panels)), the object form otherwise.
 - Keep unknown keys, and `fields` values whose id isn't listed, through a load/save round-trip.
 - Limits (enforced by editors, not by hosted storage): 5 fields, 24-character labels, and 2,000 characters per artwork across title + subtitle + all field values, counted as code points (`Array.from(s).length`).
 - Values are plain text. Line breaks are kept; no markup, no Markdown, no auto-linking.
@@ -180,6 +180,43 @@ An object `title` never carries the `ID #N` prefix.
 - Title and subtitle: the artwork sheet (opens when a visitor clicks an artwork) and the artwork plaque.
 - Info fields: only in the artwork sheet, below the subtitle. Each listed field with a non-empty value, in list order, as a small label heading over its text, line breaks preserved.
 - The viewer ignores unknown keys and unlisted field ids, renders at most the first 5 listed fields, and stops rendering an artwork's text after 2,000 characters.
+
+### Text panels
+
+A text panel is wall text (an intro, a statement) hung like an artwork. The artist types the text, a tool renders it to a PNG, and the PNG is an ordinary `"image"` entry. What makes it a panel is the reserved `panel` key in its `metadata` object, which keeps the typed text so an editor can re-render it later:
+
+```json
+"intro": {
+  "resource": "/gallery1/005_intro.png",
+  "resource_type": "image",
+  "width": "120.00",
+  "height": "70.31",
+  "location": "[8.021,14.922,2.000]",
+  "vector": "[0.0,-1.0]",
+  "metadata": {
+    "title": "",
+    "subtitle": "",
+    "panel": { "text": "# On water\n\nThese works…", "font": "serif", "align": "left", "scheme": "light" }
+  }
+}
+```
+
+An entry is a panel exactly when `metadata.panel` is present.
+
+| Field | Values |
+|-------|--------|
+| `text` | The text as typed, at most **2,000 characters** (code points). A small Markdown subset: a line starting `# ` is a heading, `## ` a subheading, a blank line separates paragraphs, `*italic*` and `**bold**` inline. Anything else renders as typed. |
+| `font` | `"serif"` (Source Serif 4) or `"sans"` (Inter). |
+| `align` | `"left"` or `"center"`. |
+| `scheme` | `"light"` (dark text on light) or `"dark"` (light text on dark). |
+
+- The `title` stays empty, so the viewer draws no plaque under the panel.
+- The panel's width is the entry's `width` (60, 120 or 180 cm when made); the height follows from the text, at most 250 cm.
+- Nothing is stored inside the PNG: hosted storage strips image metadata, so `metadata.panel` is the only copy of the text.
+- **Editors must keep `panel` through a load/save round-trip, and write the object form of `metadata` whenever it is present**, even when no info field has a value.
+- The viewer needs nothing special: it shows the PNG like any image.
+
+The tool is `site/js/text-panel.js`, also served from the CDN as `core/js/text-panel.js` with its fonts in `core/fonts/` (see [Generator](generator.md#text-panels)).
 
 ---
 

@@ -395,6 +395,90 @@
     }
     .gallery-remove svg { width: 14px; height: 14px; }
 
+    .gallery-add-panel {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      flex-shrink: 0;
+      background: none;
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      color: var(--ink-2);
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      padding: 0.2rem 0.45rem;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .gallery-add-panel:hover { color: var(--ink); border-color: var(--ink-3); background: var(--paper-2); }
+    .gallery-add-panel svg { width: 12px; height: 12px; }
+    @media (max-width: 480px) {
+      .gallery-add-panel span { display: none; }
+    }
+
+    /* --- TEXT PANEL EDITOR --- */
+    .panel-editor {
+      margin-top: 0.75rem;
+      padding: 0.9rem 1rem 1rem;
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-lg);
+      background: var(--room);
+    }
+    .panel-editor[hidden] { display: none; }
+    .panel-editor-head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 0.5rem; margin-bottom: 0.6rem;
+      font-size: 0.85rem; color: var(--ink);
+    }
+    .panel-editor-head strong { font-weight: 600; }
+    .panel-label {
+      display: block;
+      font-size: 0.72rem; font-weight: 500; color: var(--ink-2);
+      margin: 0.6rem 0 0.25rem;
+    }
+    .panel-input {
+      width: 100%;
+      font-family: inherit; font-size: 0.85rem; color: var(--ink);
+      background: var(--paper);
+      border: 1px solid var(--rule); border-radius: 6px;
+      padding: 0.45rem 0.6rem;
+    }
+    .panel-input:focus { outline: none; border-color: var(--wood-deep); }
+    .panel-textarea { resize: vertical; min-height: 9rem; line-height: 1.5; }
+    .panel-hint { font-size: 0.7rem; color: var(--ink-3); margin-top: 0.25rem; }
+    .panel-hint.over { color: #c0392b; }
+    .panel-options {
+      display: flex; flex-wrap: wrap; gap: 0.6rem 1rem;
+      margin-top: 0.8rem;
+    }
+    .panel-option-label { display: block; font-size: 0.68rem; color: var(--ink-3); margin-bottom: 0.2rem; }
+    .panel-seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+    .panel-seg label { position: relative; cursor: pointer; }
+    .panel-seg input { position: absolute; opacity: 0; pointer-events: none; }
+    .panel-seg span {
+      display: block; padding: 0.3rem 0.6rem;
+      font-family: var(--font-mono); font-size: 0.7rem; color: var(--ink-2);
+      background: var(--paper);
+    }
+    .panel-seg label + label span { border-left: 1px solid var(--rule); }
+    .panel-seg input:checked + span { background: var(--ink); color: var(--paper); }
+    .panel-seg input:focus-visible + span { outline: 2px solid var(--wood-deep); outline-offset: -2px; }
+    .panel-preview {
+      margin-top: 0.8rem;
+      padding: 0.75rem;
+      min-height: 4rem;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.4rem;
+      background: var(--paper-2);
+      border: 1px solid var(--rule-soft); border-radius: 6px;
+    }
+    .panel-preview img {
+      display: block; max-width: 100%; max-height: 360px;
+      box-shadow: var(--shadow-frame);
+    }
+    .panel-preview img[hidden] { display: none; }
+    .panel-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.8rem; }
+    .panel-actions a[aria-disabled="true"] { opacity: 0.35; pointer-events: none; }
+
     .empty-state {
       text-align: center;
       color: var(--ink-3);
@@ -644,6 +728,68 @@
       <div class="resolution-notice rejected-notice" id="rejectedNotice" style="display: none;"></div>
       <div class="resolution-notice sequence-ok" id="sequenceOkNotice" style="display: none;"></div>
       <div class="resolution-notice" id="sequenceWarnNotice" style="display: none;"></div>
+
+      <div class="panel-editor" id="panelEditor" hidden>
+        <div class="panel-editor-head">
+          <span>Text panel for <strong id="panelRoomName"></strong></span>
+          <button type="button" class="gallery-remove" id="panelCloseBtn" title="Close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <label class="panel-label" for="panelText">Text</label>
+        <textarea class="panel-input panel-textarea" id="panelText" spellcheck="true"
+          placeholder="# On water&#10;&#10;A paragraph with *italic* and **bold** words.&#10;&#10;## A subheading&#10;&#10;Another paragraph."></textarea>
+        <div class="panel-hint"><span id="panelCount"></span> · # heading, ## subheading, a blank line between paragraphs, *italic*, **bold**</div>
+
+        <div class="panel-options">
+          <div>
+            <span class="panel-option-label">Font</span>
+            <div class="panel-seg" role="radiogroup" aria-label="Font">
+              <label><input type="radio" name="panelFont" value="serif" checked><span>Serif</span></label>
+              <label><input type="radio" name="panelFont" value="sans"><span>Sans</span></label>
+            </div>
+          </div>
+          <div>
+            <span class="panel-option-label">Align</span>
+            <div class="panel-seg" role="radiogroup" aria-label="Align">
+              <label><input type="radio" name="panelAlign" value="left" checked><span>Left</span></label>
+              <label><input type="radio" name="panelAlign" value="center"><span>Center</span></label>
+            </div>
+          </div>
+          <div>
+            <span class="panel-option-label">Colours</span>
+            <div class="panel-seg" role="radiogroup" aria-label="Colours">
+              <label><input type="radio" name="panelScheme" value="light" checked><span>Light</span></label>
+              <label><input type="radio" name="panelScheme" value="dark"><span>Dark</span></label>
+            </div>
+          </div>
+          <div>
+            <span class="panel-option-label">Width</span>
+            <div class="panel-seg" role="radiogroup" aria-label="Width">
+              <label><input type="radio" name="panelSize" value="S"><span>S 60 cm</span></label>
+              <label><input type="radio" name="panelSize" value="M" checked><span>M 120 cm</span></label>
+              <label><input type="radio" name="panelSize" value="L"><span>L 180 cm</span></label>
+            </div>
+          </div>
+        </div>
+
+        <label class="panel-label" for="panelName">Name</label>
+        <input type="text" class="panel-input" id="panelName" placeholder="text-panel" autocomplete="off">
+        <div class="panel-hint">Start with a number such as 005_ to place it in the room's sequence.</div>
+
+        <div class="resolution-notice" id="panelError" style="display: none;"></div>
+
+        <div class="panel-preview">
+          <img id="panelPreview" alt="Text panel preview" hidden>
+          <span class="panel-hint" id="panelStatus"></span>
+        </div>
+
+        <div class="panel-actions">
+          <a class="btn btn-subtle" id="panelDownload" aria-disabled="true">Download PNG</a>
+          <button type="button" class="btn btn-primary" id="panelAddBtn" disabled>Add to room</button>
+        </div>
+      </div>
     </div>
 
     <!-- Gallery Settings -->
@@ -753,6 +899,7 @@
   <script src="../js/style-picker.js"></script>
   <script src="../js/gallery-generator.js"></script>
   <script src="../js/gallery-page.js"></script>
+  <script src="../js/text-panel.js"></script>
   <script src="../js/demo-stats.js"></script>
   <script>
     // CDN Configuration - templates and materials are served from Cloudflare CDN.
@@ -840,6 +987,7 @@
     // Advisory resolution guard: warn when an image's longest side exceeds this.
     const RESOLUTION_WARN_PX = 1600;
     const fileMaxSide = new WeakMap(); // File -> longest pixel side (cached decode)
+    const generatedPanels = new WeakSet(); // text panel Files: rendered at their final size, never downsized
     let downsizeProgress = null;        // { done, total } while a downsize runs
     let downsizeSkipped = [];           // { file, reason } the last downsize left as-is
     // Large images are downsized as soon as they are measured; the user can opt out.
@@ -1377,6 +1525,7 @@
         var files = galleries[gi].files;
         for (var fi = 0; fi < files.length; fi++) {
           var f = files[fi];
+          if (generatedPanels.has(f)) continue; // never measured, so never counted or downsized
           if (fileMaxSide.has(f)) continue;
           fileMaxSide.set(f, 0); // reserve to avoid a concurrent re-decode
           try {
@@ -1670,6 +1819,8 @@
 
     function updateGalleryList() {
       markResultStaleIfGenerated();
+      if (panelGallery && galleries.indexOf(panelGallery) === -1) closePanelEditor();
+      else if (panelGallery) panelRoomName.textContent = panelGallery.name;
       checkImageResolutions(); // async, fire-and-forget; reads galleries directly
       renderSequenceNotice();
       var items = galleryList.querySelectorAll('.gallery-item');
@@ -1688,9 +1839,165 @@
       generateBtn.disabled = !!downsizeProgress; // building mid-downsize would mix sizes
 
       GalleryPage.renderGalleryItems(galleryList, galleries, {
-        onChange: function() { updateGalleryList(); }
+        onChange: function() { updateGalleryList(); },
+        onAddPanel: typeof TextPanel !== 'undefined' ? openPanelEditor : null
       });
     }
+
+    // === Text panels ===
+    // The artist's text is rendered to a PNG (js/text-panel.js) that joins the
+    // room's files like any image. The File carries its starting width and
+    // metadata (openvgalStart, read by buildGalleryJSON); the typed text rides
+    // in metadata.panel and the empty title keeps the plaque away.
+    const panelEditor = document.getElementById('panelEditor');
+    const panelRoomName = document.getElementById('panelRoomName');
+    const panelText = document.getElementById('panelText');
+    const panelName = document.getElementById('panelName');
+    const panelCount = document.getElementById('panelCount');
+    const panelError = document.getElementById('panelError');
+    const panelPreview = document.getElementById('panelPreview');
+    const panelStatus = document.getElementById('panelStatus');
+    const panelDownload = document.getElementById('panelDownload');
+    const panelAddBtn = document.getElementById('panelAddBtn');
+    let panelGallery = null;  // the room the panel is for
+    let panelResult = null;   // last render matching the current inputs
+    let panelUrl = null;
+    let panelTimer = null;
+    let panelSeq = 0;
+
+    function panelChoice(name) {
+      const el = panelEditor.querySelector('input[name="' + name + '"]:checked');
+      return el ? el.value : undefined;
+    }
+
+    function panelOptions() {
+      return {
+        text: panelText.value,
+        font: panelChoice('panelFont'),
+        align: panelChoice('panelAlign'),
+        scheme: panelChoice('panelScheme'),
+        size: panelChoice('panelSize'),
+        name: panelName.value
+      };
+    }
+
+    function setPanelResult(result) {
+      panelResult = result;
+      if (panelUrl) URL.revokeObjectURL(panelUrl);
+      panelUrl = null;
+      panelAddBtn.disabled = !result;
+      if (!result) {
+        panelDownload.removeAttribute('href');
+        panelDownload.setAttribute('aria-disabled', 'true');
+        return;
+      }
+      panelUrl = URL.createObjectURL(result.file);
+      panelPreview.src = panelUrl;
+      panelPreview.hidden = false;
+      panelDownload.href = panelUrl;
+      panelDownload.download = result.file.name;
+      panelDownload.removeAttribute('aria-disabled');
+      panelStatus.textContent = result.widthCm + ' × ' + Math.round(result.heightCm) + ' cm · ' +
+        result.width + ' × ' + result.height + ' px';
+    }
+
+    function showPanelError(message) {
+      panelError.textContent = message;
+      panelError.style.display = message ? 'flex' : 'none';
+      if (message) { panelPreview.hidden = true; panelStatus.textContent = ''; }
+    }
+
+    function updatePanelCount() {
+      const n = Array.from(panelText.value).length;
+      panelCount.textContent = n.toLocaleString('en') + ' / ' + TextPanel.MAX_CHARS.toLocaleString('en') + ' characters';
+      panelCount.parentNode.classList.toggle('over', n > TextPanel.MAX_CHARS);
+    }
+
+    // Any input change invalidates the last file at once (so Add never takes a
+    // stale render), then re-renders after a short pause in typing.
+    function schedulePanelRender() {
+      updatePanelCount();
+      setPanelResult(null);
+      clearTimeout(panelTimer);
+      panelTimer = setTimeout(renderPanel, 300);
+    }
+
+    async function renderPanel() {
+      const seq = ++panelSeq;
+      if (!panelText.value.trim()) {
+        showPanelError('');
+        panelPreview.hidden = true;
+        panelStatus.textContent = 'The preview appears here as you type.';
+        return;
+      }
+      panelStatus.textContent = panelPreview.hidden ? 'Rendering…' : panelStatus.textContent;
+      try {
+        const result = await TextPanel.render(panelOptions());
+        if (seq !== panelSeq) return; // a newer edit is on its way
+        showPanelError('');
+        setPanelResult(result);
+      } catch (e) {
+        if (seq !== panelSeq) return;
+        setPanelResult(null);
+        showPanelError((e && e.message) || 'The panel could not be rendered.');
+      }
+    }
+
+    function openPanelEditor(gallery) {
+      panelGallery = gallery;
+      panelRoomName.textContent = gallery.name;
+      panelText.value = '';
+      panelName.value = '';
+      showPanelError('');
+      panelEditor.hidden = false;
+      schedulePanelRender();
+      panelEditor.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      panelText.focus({ preventScroll: true });
+    }
+
+    function closePanelEditor() {
+      clearTimeout(panelTimer);
+      panelSeq++;
+      panelGallery = null;
+      setPanelResult(null);
+      panelPreview.hidden = true;
+      panelEditor.hidden = true;
+    }
+
+    // Two files with one name would share one path in the manifest and the ZIP.
+    function withFreeName(gallery, file) {
+      const taken = new Set(gallery.files.map(function(f) { return f.name; }));
+      if (!taken.has(file.name)) return file;
+      const base = file.name.replace(/\.png$/i, '');
+      let n = 2;
+      while (taken.has(base + '-' + n + '.png')) n++;
+      return new File([file], base + '-' + n + '.png', { type: file.type });
+    }
+
+    panelText.addEventListener('input', schedulePanelRender);
+    panelName.addEventListener('input', schedulePanelRender);
+    panelEditor.querySelectorAll('.panel-seg input').forEach(function(el) {
+      el.addEventListener('change', schedulePanelRender);
+    });
+    document.getElementById('panelCloseBtn').addEventListener('click', closePanelEditor);
+
+    panelAddBtn.addEventListener('click', function() {
+      const gallery = panelGallery;
+      if (!panelResult || !gallery || galleries.indexOf(gallery) === -1) return;
+      const file = withFreeName(gallery, panelResult.file);
+      file.openvgalStart = {
+        width: panelResult.widthCm,
+        metadata: { title: '', subtitle: '', panel: panelResult.panel }
+      };
+      generatedPanels.add(file);
+      gallery.files.push(file);
+      // Re-sort in place: an in-flight downsize holds this array.
+      const ordered = orderBySequence(gallery.files.slice());
+      gallery.files.splice.apply(gallery.files, [0, gallery.files.length].concat(ordered.files));
+      gallery.sequence = ordered.sequence;
+      closePanelEditor();
+      updateGalleryList();
+    });
 
     function showResults() {
       resultSection.style.display = 'block';

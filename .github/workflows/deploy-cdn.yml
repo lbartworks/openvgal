@@ -22,6 +22,8 @@ on:
       - 'site/js/style-picker.js'
       - 'site/js/pack-definition.js'
       - 'site/js/gallery-generator.js'
+      - 'site/js/text-panel.js'
+      - 'site/fonts/**'
       - 'site/css/brand.css'
       - 'site/viewer.html'
       - 'site/icons/**'
@@ -38,11 +40,13 @@ jobs:
 
       - name: Build CDN core
         run: |
-          mkdir -p cdn/core/icons cdn/core/js
+          mkdir -p cdn/core/icons cdn/core/js cdn/core/fonts
           cp site/js/gallery-settings.js cdn/core/js/
           cp site/js/style-picker.js cdn/core/js/
           cp site/js/pack-definition.js cdn/core/js/
           cp site/js/gallery-generator.js cdn/core/js/
+          cp site/js/text-panel.js cdn/core/js/
+          cp site/fonts/* cdn/core/fonts/
           cp site/css/brand.css cdn/core/
           cp site/declarations.js cdn/core/
           cp site/room_builder_aux.js cdn/core/
