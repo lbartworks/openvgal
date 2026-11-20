@@ -488,12 +488,20 @@
   }
 
   /* Text panels */
-  .cz-panel-bar { display: flex; padding: 0 0 0.8rem; }
-  .cz-panel-bar[hidden] { display: none; }
-  @media (max-width: 600px) {
-    .cz-panel-bar .btn { width: 100%; justify-content: center; }
+  .cz-add-row {
+    display: block; width: 100%; box-sizing: border-box;
+    min-height: calc(56px + 1.5rem);
+    margin-top: 0.25rem; padding: 0 1rem;
+    background: none;
+    border: 1px dashed var(--rule);
+    border-radius: 6px;
+    font: inherit; font-size: 0.8rem; color: var(--ink-3);
+    cursor: pointer;
   }
-  .cz-panel-move { display: inline-flex; gap: 0.25rem; }
+  .cz-add-row[hidden] { display: none; }
+  .cz-add-row:hover,
+  .cz-add-row:focus-visible { color: var(--ink); }
+  .cz-add-row:focus-visible { outline: 2px solid var(--wood-deep); outline-offset: 2px; }
   .cz-panel-summary { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
   .cz-panel-summary[hidden] { display: none; }
   .cz-panel-excerpt {
@@ -586,12 +594,6 @@
       </span>
     </button>
     <div class="cz-room-body">
-      <div class="cz-panel-bar" data-cz-panel-bar hidden>
-        <button class="btn btn-default" data-cz-add-panel type="button">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Add text panel
-        </button>
-      </div>
       <div class="cz-batch">
         <div class="cz-batch-label">Apply to all in this room</div>
         <div class="cz-batch-groups">
@@ -631,8 +633,9 @@
           </div>
         </div>
       </div>
-      <div class="cz-panel-slot"></div>
       <div class="cz-rows"></div>
+      <div class="cz-panel-slot"></div>
+      <button class="cz-add-row" data-cz-add-panel type="button" hidden>+ Add text panel</button>
     </div>
   </div>
 </template>
@@ -711,14 +714,6 @@
       <div class="cz-filename"></div>
       <div class="cz-panel-summary" hidden>
         <span class="cz-panel-excerpt"></span>
-        <span class="cz-panel-move">
-          <button class="cz-icon-btn" data-panel-up type="button" aria-label="Move up" title="Move up">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 15 12 9 18 15"/></svg>
-          </button>
-          <button class="cz-icon-btn" data-panel-down type="button" aria-label="Move down" title="Move down">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-        </span>
         <button class="cz-mini-btn" data-panel-edit type="button">Edit text</button>
         <button class="cz-mini-btn" data-panel-remove type="button">Remove</button>
       </div>
