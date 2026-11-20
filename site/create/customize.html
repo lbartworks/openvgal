@@ -486,6 +486,60 @@
     .cz-footer { flex-direction: column; }
     .cz-footer .btn { width: 100%; justify-content: center; }
   }
+
+  /* Text panels */
+  .cz-panel-bar { display: flex; justify-content: flex-end; padding: 0.6rem 0 0.2rem; }
+  .cz-panel-summary { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+  .cz-panel-summary[hidden] { display: none; }
+  .cz-panel-excerpt {
+    flex: 1; min-width: 140px;
+    font-size: 0.8rem; color: var(--ink);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .cz-row.cz-panel-row .cz-thumb { object-fit: contain; }
+  .cz-row.cz-panel-light-text .cz-thumb { background: #3f3f46; }
+  .cz-panel-tool {
+    margin: 0.5rem 0 0.75rem;
+    padding: 0.8rem 0.9rem 0.9rem;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    background: var(--paper);
+  }
+  .cz-panel-tool-head { font-size: 0.85rem; font-weight: 600; color: var(--ink); margin-bottom: 0.5rem; }
+  .cz-panel-label { display: block; font-size: 0.7rem; font-weight: 500; color: var(--ink-3); margin: 0.6rem 0 0.25rem; }
+  .cz-root textarea.cz-panel-text { min-height: 9rem; resize: vertical; overflow: auto; }
+  .cz-panel-hint { font-size: 0.7rem; color: var(--ink-3); margin-top: 0.25rem; }
+  .cz-panel-hint.cz-over { color: #c0392b; }
+  .cz-panel-options { display: flex; flex-wrap: wrap; gap: 0.6rem 1rem; margin-top: 0.7rem; }
+  .cz-panel-options .cz-panel-label { margin-top: 0; }
+  .cz-panel-tool select {
+    width: 100%;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    color: var(--ink);
+    padding: 0.35rem 0.5rem;
+    border-radius: 5px;
+    font-size: 0.78rem;
+    font-family: inherit;
+  }
+  .cz-panel-error { font-size: 0.74rem; color: #c0392b; margin-top: 0.6rem; }
+  .cz-panel-error[hidden] { display: none; }
+  .cz-panel-preview {
+    margin-top: 0.7rem;
+    padding: 0.75rem;
+    min-height: 4rem;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.4rem;
+    background: #e4e4e7;
+    border: 1px solid var(--rule-soft);
+    border-radius: 6px;
+  }
+  .cz-panel-preview.cz-panel-light-text { background: #3f3f46; }
+  .cz-panel-preview.cz-panel-light-text .cz-panel-hint { color: #d4d4d8; }
+  .cz-panel-preview img { display: block; max-width: 100%; max-height: 360px; }
+  .cz-panel-preview img[hidden] { display: none; }
+  .cz-panel-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.7rem; }
+  .cz-panel-actions a { text-decoration: none; }
+  .cz-panel-actions a[aria-disabled="true"] { opacity: 0.4; pointer-events: none; }
 </style>
 
 <div class="cz-root">
@@ -576,7 +630,64 @@
           </div>
         </div>
       </div>
+      <div class="cz-panel-bar">
+        <button class="cz-mini-btn" data-cz-add-panel type="button" hidden>+ Add text panel</button>
+      </div>
+      <div class="cz-panel-slot"></div>
       <div class="cz-rows"></div>
+    </div>
+  </div>
+</template>
+
+<template data-cz-panel-tool-template>
+  <div class="cz-panel-tool">
+    <div class="cz-panel-tool-head" data-panel-heading>Text panel</div>
+    <label class="cz-panel-label">Text</label>
+    <textarea class="cz-panel-text" data-panel-text spellcheck="true"
+      placeholder="# On water&#10;&#10;A paragraph with *italic* and **bold** words.&#10;&#10;## A subheading&#10;&#10;Another paragraph."></textarea>
+    <div class="cz-panel-hint"><span data-panel-count></span> · # heading, ## subheading, a blank line between paragraphs, *italic*, **bold**</div>
+    <div class="cz-panel-options">
+      <div>
+        <span class="cz-panel-label">Font</span>
+        <span class="cz-bucket-group" data-panel-opt="font">
+          <button class="cz-bucket" data-value="serif" type="button">Serif</button>
+          <button class="cz-bucket" data-value="sans" type="button">Sans</button>
+        </span>
+      </div>
+      <div>
+        <span class="cz-panel-label">Align</span>
+        <span class="cz-bucket-group" data-panel-opt="align">
+          <button class="cz-bucket" data-value="left" type="button">Left</button>
+          <button class="cz-bucket" data-value="center" type="button">Center</button>
+        </span>
+      </div>
+      <div>
+        <span class="cz-panel-label">Lettering</span>
+        <span class="cz-bucket-group" data-panel-opt="scheme">
+          <button class="cz-bucket" data-value="light" type="button">Dark text</button>
+          <button class="cz-bucket" data-value="dark" type="button">Light text</button>
+        </span>
+      </div>
+      <div>
+        <span class="cz-panel-label">Width</span>
+        <span class="cz-bucket-group" data-panel-opt="size">
+          <button class="cz-bucket" data-value="S" type="button">S 60 cm</button>
+          <button class="cz-bucket" data-value="M" type="button">M 120 cm</button>
+          <button class="cz-bucket" data-value="L" type="button">L 180 cm</button>
+        </span>
+      </div>
+    </div>
+    <label class="cz-panel-label">Position</label>
+    <select data-panel-position aria-label="Position in the room"></select>
+    <div class="cz-panel-error" data-panel-error hidden></div>
+    <div class="cz-panel-preview" data-panel-preview-wrap>
+      <img data-panel-preview alt="Text panel preview" hidden>
+      <span class="cz-panel-hint" data-panel-status></span>
+    </div>
+    <div class="cz-panel-actions">
+      <a class="cz-mini-btn" data-panel-download aria-disabled="true">Download PNG</a>
+      <button class="cz-mini-btn" data-panel-cancel type="button">Cancel</button>
+      <button class="cz-mini-btn" data-panel-save type="button" disabled>Add panel</button>
     </div>
   </div>
 </template>
@@ -602,6 +713,11 @@
     <img class="cz-thumb" alt="">
     <div class="cz-row-fields">
       <div class="cz-filename"></div>
+      <div class="cz-panel-summary" hidden>
+        <span class="cz-panel-excerpt"></span>
+        <button class="cz-mini-btn" data-panel-edit type="button">Edit text</button>
+        <button class="cz-mini-btn" data-panel-remove type="button">Remove</button>
+      </div>
       <input type="text" class="cz-title" placeholder="Title">
       <input type="text" class="cz-subtitle" placeholder="Subtitle (optional)">
       <details class="cz-info">

@@ -187,7 +187,7 @@ A text panel is wall text (an intro, a statement) hung like an artwork. The arti
 
 ```json
 "intro": {
-  "resource": "/gallery1/005_intro.png",
+  "resource": "/gallery1/text-panel.png",
   "resource_type": "image",
   "width": "120.00",
   "height": "70.31",
@@ -208,13 +208,13 @@ An entry is a panel exactly when `metadata.panel` is present.
 | `text` | The text as typed, at most **2,000 characters** (code points). A small Markdown subset: a line starting `# ` is a heading, `## ` a subheading, a blank line separates paragraphs, `*italic*` and `**bold**` inline. Anything else renders as typed. |
 | `font` | `"serif"` (Source Serif 4) or `"sans"` (Inter). |
 | `align` | `"left"` or `"center"`. |
-| `scheme` | `"light"` (dark text on light) or `"dark"` (light text on dark). |
+| `scheme` | `"light"` (dark text, for light walls) or `"dark"` (light text, for dark walls). The PNG background is always transparent. |
 
 - The `title` stays empty, so the viewer draws no plaque under the panel.
 - The panel's width is the entry's `width` (60, 120 or 180 cm when made); the height follows from the text, at most 250 cm.
 - Nothing is stored inside the PNG: hosted storage strips image metadata, so `metadata.panel` is the only copy of the text.
 - **Editors must keep `panel` through a load/save round-trip, and write the object form of `metadata` whenever it is present**, even when no info field has a value.
-- The viewer needs nothing special: it shows the PNG like any image.
+- The viewer draws a panel frameless and transparent: a bare plane at `width` × `height`, close to the wall, using the PNG's alpha. No mount, frame margin, shadow or plaque, whatever `show_frames` says. Clicking it opens the artwork sheet like any image.
 
 The tool is `site/js/text-panel.js`, also served from the CDN as `core/js/text-panel.js` with its fonts in `core/fonts/` (see [Generator](generator.md#text-panels)).
 

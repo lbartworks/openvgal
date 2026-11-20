@@ -17,6 +17,7 @@
 	var SCENE_M_PER_CM = 2.5 / 120;	// mirror of populate_template
 	var MIN_CM = 20, MAX_CM = 250;	// longest-edge clamp
 	var ART_OFFSET = 3 * item_separation / 2;	// artwork plane distance from its location
+	var PANEL_OFFSET = typeof PANEL_WALL_OFFSET !== 'undefined' ? PANEL_WALL_OFFSET : 0.01;	// text panels hang bare
 
 	var original = null;	// manifest as it was when the mode started
 	var room = null;	// { name, arts, framesMesh, frameMargin }
@@ -48,7 +49,12 @@
 		a.normal = new V3(v[0], 0, v[1]).normalize();
 		a.wCm = Number(entry.width);
 		a.hCm = Number(entry.height);
+		a.panel = typeof isTextPanel === 'function' && isTextPanel(entry);
 	}
+
+	// A text panel has no frame or mount, so no margin, and hangs close to the wall.
+	function marginOf(a) { return a.panel ? 0 : room.frameMargin; }
+	function offsetOf(a) { return a.panel ? PANEL_OFFSET : ART_OFFSET; }
 
 	function writeEntry(a, entry, fields) {
 		if (fields.location) entry.location = '[' + a.loc.x.toFixed(3) + ',' + a.loc.z.toFixed(3) + ',' + a.loc.y.toFixed(3) + ']';
@@ -112,7 +118,7 @@
 	var SLACK_MIN = 0.001;
 	function slack(a) {
 		var o = a.occ;
-		return { u: (o.maxU - o.minU) - (sceneW(a) + room.frameMargin), y: (o.maxY - o.minY) - (sceneH(a) + room.frameMargin) };
+		return { u: (o.maxU - o.minU) - (sceneW(a) + marginOf(a)), y: (o.maxY - o.minY) - (sceneH(a) + marginOf(a)) };
 	}
 
 	// Along the wall the whole frame stays inside the plane (an artwork wider than the
@@ -120,7 +126,7 @@
 	// stays above the floor (y = 0).
 	function clampToPlane(a, u, y) {
 		var o = a.occ, s = slack(a);
-		var hw = (sceneW(a) + room.frameMargin) / 2, hh = (sceneH(a) + room.frameMargin) / 2;
+		var hw = (sceneW(a) + marginOf(a)) / 2, hh = (sceneH(a) + marginOf(a)) / 2;
 		u = (s.u <= SLACK_MIN) ? (o.minU + o.maxU) / 2 : Math.min(Math.max(u, o.minU + hw), o.maxU - hw);
 		y = Math.max(y, hh);
 		return { u: u, y: y };
@@ -131,7 +137,7 @@
 	// that already overhangs its plane isn't shrunk on the first resize move.
 	function planeScaleCap(a, w0) {
 		var o = a.occ;
-		var fitW = (o.maxU - o.minU - room.frameMargin) / SCENE_M_PER_CM;
+		var fitW = (o.maxU - o.minU - marginOf(a)) / SCENE_M_PER_CM;
 		return Math.max(fitW, a.origW) / w0;
 	}
 
@@ -145,7 +151,7 @@
 	// ---- scene rebuild --------------------------------------------------------
 
 	function applyArtMesh(a) {
-		a.mesh.position = a.loc.add(a.normal.scale(ART_OFFSET));
+		a.mesh.position = a.loc.add(a.normal.scale(offsetOf(a)));
 		a.mesh.setDirection(a.normal.scale(-1));
 		a.mesh.scaling.x = sceneW(a) / a.baseW;
 		a.mesh.scaling.y = sceneH(a) / a.baseH;
@@ -154,7 +160,9 @@
 	// Rebuilds the merged frames mesh in place (same mesh, material and draw call).
 	function rebuildFrames() {
 		if (!room.framesMesh || room.framesMesh.isDisposed()) return;
-		var boxes = room.arts.map(function (a) {
+		var framed = room.arts.filter(function (a) { return !a.panel; });
+		if (!framed.length) return;
+		var boxes = framed.map(function (a) {
 			return frame_box('placement_box', a.loc, { width: sceneW(a), height: sceneH(a) }, a.normal.clone(), room.frameMargin, scene);
 		});
 		var merged = BABYLON.Mesh.MergeMeshes(boxes, true);
@@ -169,7 +177,7 @@
 		if (root) root.getChildMeshes().forEach(function (m) { m.dispose(false, true); });
 		var gallery = config_file_content[room.name];
 		room.arts.forEach(function (a) {
-			if (!gallery[a.key].metadata) return;
+			if (!gallery[a.key].metadata || a.panel) return;
 			plaque_builder(a.key + '_' + (a.idx + 3), { x: a.loc.x, y: a.loc.y, z: a.loc.z },
 				{ width: sceneW(a), height: sceneH(a) }, a.normal.clone(), gallery[a.key].metadata, scene);
 		});
@@ -194,7 +202,7 @@
 	function frameRect(a) {
 		var along = V3.Cross(a.normal, UP).normalize();
 		return { u: V3.Dot(a.loc, along), y: a.loc.y,
-			hw: (sceneW(a) + room.frameMargin) / 2, hh: (sceneH(a) + room.frameMargin) / 2 };
+			hw: (sceneW(a) + marginOf(a)) / 2, hh: (sceneH(a) + marginOf(a)) / 2 };
 	}
 
 	function sameWall(a, b) {
@@ -326,7 +334,7 @@
 		var cam = scene.activeCamera;
 		if (!cam || !cam.rotation) return;
 		stopFlight();
-		var centre = a.loc.add(a.normal.scale(ART_OFFSET));
+		var centre = a.loc.add(a.normal.scale(offsetOf(a)));
 		// Frame the artwork inside the screen area the toolbars leave free: the band
 		// below the placement bar (plus room for the selection bar above the frame),
 		// mirrored at the bottom so the frame stays centred, and a side gutter.
@@ -334,7 +342,7 @@
 		var reserve = ui.top.getBoundingClientRect().bottom + 48;
 		var fy = Math.max(0.3, 1 - 2 * reserve / window.innerHeight);
 		var fx = Math.max(0.5, 1 - 2 * 40 / window.innerWidth);
-		var hw = (sceneW(a) + room.frameMargin) / 2, hh = (sceneH(a) + room.frameMargin) / 2;
+		var hw = (sceneW(a) + marginOf(a)) / 2, hh = (sceneH(a) + marginOf(a)) / 2;
 		var dist = 1.1 * Math.max(hh / (t * fy), hw / (t * engine.getAspectRatio(cam) * fx), 1.5);
 		// Stop short of whatever faces the artwork (opposite wall, a panel), keeping
 		// the camera's collision radius clear of it.
@@ -511,8 +519,8 @@
 	function screenQuad(a) {
 		var cam = scene.activeCamera;
 		var along = V3.Cross(a.normal, UP).normalize();
-		var hw = (sceneW(a) + room.frameMargin) / 2, hh = (sceneH(a) + room.frameMargin) / 2;
-		var c = a.loc.add(a.normal.scale(ART_OFFSET));
+		var hw = (sceneW(a) + marginOf(a)) / 2, hh = (sceneH(a) + marginOf(a)) / 2;
+		var c = a.loc.add(a.normal.scale(offsetOf(a)));
 		var view = cam.getViewMatrix();
 		var w = engine.getRenderWidth(), h = engine.getRenderHeight();
 		var vp = cam.viewport.toGlobal(w, h);

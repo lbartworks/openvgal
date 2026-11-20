@@ -1,7 +1,8 @@
 /**
  * OpenVGAL Text Panel
  *
- * Renders typed text to a PNG that hangs like any other artwork. The typed text
+ * Renders typed text to a PNG with a transparent background: only the letters
+ * are painted, so the viewer hangs it as lettering on the wall. The typed text
  * travels in the entry's metadata as `panel` (docs/gallery-json.md § Text panels);
  * nothing is stored inside the PNG.
  *
@@ -31,9 +32,11 @@ var TextPanel = (function() {
     body: { size: 3.0, lead: 1.45, bold: false, before: 2.4 }
   };
 
+  // Lettering colour: 'light' paints dark text (for light walls), 'dark' paints
+  // light text (for dark walls). The background is always transparent.
   var SCHEMES = {
-    light: { bg: '#f6f3ec', ink: '#1d1c21' },
-    dark:  { bg: '#18171c', ink: '#ece8df' }
+    light: { ink: '#1d1c21' },
+    dark:  { ink: '#ece8df' }
   };
 
   var FAMILIES = {
@@ -262,10 +265,7 @@ var TextPanel = (function() {
     canvas.width = Math.round(MAX_PX * f);
     canvas.height = Math.round(heightPx * f);
     ctx.scale(f, f);
-    var scheme = SCHEMES[o.scheme];
-    ctx.fillStyle = scheme.bg;
-    ctx.fillRect(0, 0, MAX_PX, heightPx);
-    ctx.fillStyle = scheme.ink;
+    ctx.fillStyle = SCHEMES[o.scheme].ink;
     ctx.textBaseline = 'alphabetic';
     var innerW = MAX_PX - 2 * margin;
     lay.lines.forEach(function(line) {

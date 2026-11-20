@@ -332,10 +332,19 @@ var frame_box = function(name, item_position, item_size, vector, frame_margin, s
 	return box;
 }
 
-var item_builder= function(name, item_position, item_size, vector, material,scene, item_shadow_material=null, frame_margin=margin){
+// A text panel (metadata.panel, docs/gallery-json.md § Text panels) hangs as bare
+// lettering: no mount, frame, shadow or plaque, and its PNG's alpha shows the wall.
+function isTextPanel(entry) {
+	var m = entry && entry.metadata;
+	return !!(m && typeof m === 'object' && m.panel);
+}
+var PANEL_WALL_OFFSET = 0.01;	// a bare panel plane's distance from the wall
+
+var item_builder= function(name, item_position, item_size, vector, material,scene, item_shadow_material=null, frame_margin=margin, bare=false){
 	//places artwork as an image texture
 	//adds a frame and both elements have a customizable separation from the wall
 	//the thickness of the frame is half the separation
+	//bare: the plane alone, close to the wall (text panels)
 	
 	const shadow_scale=1.3;
 	var base_vector=new BABYLON.Vector3(0, 0, 0);
@@ -361,13 +370,14 @@ var item_builder= function(name, item_position, item_size, vector, material,scen
 	
 	
 	//the position is shifted away from the wall in the direction of the item vector (normal)
-	item.position=new BABYLON.Vector3(item_position.x, item_position.y, item_position.z).add(vector.scale(3*item_separation/2));
+	item.position=new BABYLON.Vector3(item_position.x, item_position.y, item_position.z).add(vector.scale(bare ? PANEL_WALL_OFFSET : 3*item_separation/2));
 	item.checkCollisions= true;
 	if (material!=  undefined){
 		item.material=material;
 		item.material.specularColor=new BABYLON.Color3(0,0,0);
 
 	}
+	if (bare) return item;
 
 
 
@@ -398,7 +408,8 @@ var item_builder= function(name, item_position, item_size, vector, material,scen
 // smaller DynamicTexture as it lands, so the full-size bitmap never reaches the
 // GPU. That makes the texture asynchronous, hence onLoaded instead of the caller
 // hooking onLoadObservable itself.
-var artwork_texture = function(url, material, scene, onLoaded){
+// alpha: keep the image's transparency (text panels).
+var artwork_texture = function(url, material, scene, onLoaded, alpha){
 	// The material is frozen before it has a texture, so re-point it and refreeze.
 	var apply = function(tex){
 		material.unfreeze();
@@ -423,6 +434,7 @@ var artwork_texture = function(url, material, scene, onLoaded){
 			full.dispose();
 			onFailed();
 		});
+		full.hasAlpha = !!alpha;
 		apply(full);
 		full.onLoadObservable.add(onLoaded);
 		return;
@@ -433,7 +445,8 @@ var artwork_texture = function(url, material, scene, onLoaded){
 	// placeholder from the start keeps the diffuse texture in the shader; the real
 	// image then only swaps the sampler, which Babylon re-binds every frame.
 	var placeholder = new BABYLON.DynamicTexture("artPlaceholder", {width: 1, height: 1}, scene, false);
-	placeholder.getContext().fillRect(0, 0, 1, 1);
+	if (alpha) placeholder.hasAlpha = true;	// transparent until the image lands
+	else placeholder.getContext().fillRect(0, 0, 1, 1);
 	placeholder.update();
 	apply(placeholder);
 
@@ -447,6 +460,7 @@ var artwork_texture = function(url, material, scene, onLoaded){
 		var w = Math.max(1, Math.round(img.width * scale));
 		var h = Math.max(1, Math.round(img.height * scale));
 		var tex = new BABYLON.DynamicTexture(url, {width: w, height: h}, scene, true);
+		tex.hasAlpha = !!alpha;
 		tex.getContext().drawImage(img, 0, 0, w, h);
 		tex.update();
 		apply(tex);
@@ -490,8 +504,11 @@ function populate_template(config_file, room_name,scene){
 		//get location
 		let location=JSON.parse(gallery[item]["location"]);
 
+		let panel = isTextPanel(gallery[item]);
+
 		//get material
 		let items_material=new BABYLON.StandardMaterial("item_mat_"+ item);
+		items_material.useAlphaFromDiffuseTexture = panel;
 		items_material.freeze();
 		items_material.specularColor=new BABYLON.Color3(0,0,0);
 		items_material.maxSimultaneousLights=max_lights;
@@ -503,7 +520,7 @@ function populate_template(config_file, room_name,scene){
 					markArtworksDone();
 				}
 			};
-		})(100/num_items));
+		})(100/num_items), panel);
 		items_material.emissiveColor=new BABYLON.Color3(1, 1, 1);
 		items_material.disableLighting=true;
 
@@ -516,7 +533,7 @@ function populate_template(config_file, room_name,scene){
 		scaled_height = Number(gallery[item]["height"]) * SCENE_M_PER_CM;
 
 		//notice that y and z are flippped
-		let artwork_plane = item_builder(item + "_" + i ,{x:location[0], y:location[2], z:location[1]}, {width:scaled_width, height:scaled_height}, orientation, items_material, scene, null, frame_margin);
+		let artwork_plane = item_builder(item + "_" + i ,{x:location[0], y:location[2], z:location[1]}, {width:scaled_width, height:scaled_height}, orientation, items_material, scene, null, frame_margin, panel);
 
 		// Tag the plane with its position among the gallery's image items. The viewer
 		// uses this to drive click→navigate, so the index can never drift even when the
@@ -525,7 +542,7 @@ function populate_template(config_file, room_name,scene){
 		if (artwork_plane) artwork_plane.metadata = { ovgal_artwork_idx: i - 3 };
 
 		//plaque below artwork (only if metadata has content beyond the ID prefix)
-		if (gallery[item]["metadata"]) {
+		if (gallery[item]["metadata"] && !panel) {
 			plaque_builder(item + "_" + i, {x:location[0], y:location[2], z:location[1]}, {width:scaled_width, height:scaled_height}, orientation, gallery[item]["metadata"], scene);
 		}
 
@@ -539,9 +556,12 @@ function populate_template(config_file, room_name,scene){
 	}
 	
 	if (dict_items.length>0)	{
-		scene.getMeshByName("frames").createNormals(true);
-		scene.getMeshByName("frames").material=BJS_materials["frames"];
-		scene.getMeshByName("frames").alwaysSelectAsActiveMesh=true;
+		let framesMesh=scene.getMeshByName("frames");	// absent when every item is a text panel
+		if (framesMesh) {
+			framesMesh.createNormals(true);
+			framesMesh.material=BJS_materials["frames"];
+			framesMesh.alwaysSelectAsActiveMesh=true;
+		}
 		let shadowMesh=scene.getMeshByName("shadows");
 		if (shadowMesh) shadowMesh.alwaysSelectAsActiveMesh=true;
 	} else {

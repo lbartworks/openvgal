@@ -105,6 +105,33 @@ function _composeMetadata(originalMetadata, title, subtitle, values, removedIds)
   return prefix + t + '\n' + s;
 }
 
+// Text panels (docs/gallery-json.md § Text panels): an image entry whose
+// metadata object carries `panel`. Its text is edited through the panel tool,
+// never through the title/subtitle/info inputs.
+function _isPanel(entry) {
+  const m = entry && entry.metadata;
+  return !!(m && typeof m === 'object' && m.panel && typeof m.panel === 'object');
+}
+function _panelExcerpt(panel) {
+  const t = String((panel && panel.text) || '')
+    .replace(/^#{1,2}\s+/gm, '').replace(/\*+/g, '').replace(/\s+/g, ' ').trim();
+  const chars = Array.from(t);
+  return chars.length > 80 ? chars.slice(0, 80).join('') + '…' : t;
+}
+function _nearestBucket(cm) {
+  let best = 'M';
+  Object.keys(SIZE_BUCKETS).forEach((k) => {
+    if (Math.abs(cm - SIZE_BUCKETS[k]) < Math.abs(cm - SIZE_BUCKETS[best])) best = k;
+  });
+  return best;
+}
+function _freeKey(obj, base) {
+  if (!(base in obj)) return base;
+  let n = 2;
+  while ((base + '-' + n) in obj) n++;
+  return base + '-' + n;
+}
+
 function _bucketForSize(cm, buckets) {
   for (const key of Object.keys(buckets)) {
     const mid = buckets[key];
@@ -156,9 +183,17 @@ export function mountCustomize(hostEl, opts) {
   // Track which DOM node represents which room name so we can decorate on relayout.
   const roomNodes = {};
 
+  // Text panels rendered in this session: manifest path -> PNG File. The host
+  // merges them into its file map on Apply (getFiles); Cancel drops them.
+  const TextPanel = typeof window !== 'undefined' ? window.TextPanel : undefined;
+  const panelFiles = {};
+  let panelsDirty = false;  // a panel was added, edited or removed: re-lay out on Apply
+  let openTool = null;      // the panel tool currently shown, { roomName, editKey, node, close }
+
   const accordion = hostEl.querySelector('[data-cz-accordion]');
   const roomTemplate = hostEl.querySelector('[data-cz-room-template]');
   const rowTemplate = hostEl.querySelector('[data-cz-row-template]');
+  const panelToolTemplate = hostEl.querySelector('[data-cz-panel-tool-template]');
 
   const galleryKeys = Object.keys(working).filter((k) => _isGalleryRoom(k, working[k]));
 
@@ -287,6 +322,442 @@ export function mountCustomize(hostEl, opts) {
 
   renderFieldList();
 
+  // One editable row for an image entry of working[roomName].
+  function buildRow(roomName, itemKey) {
+    const room = working[roomName];
+    const entry = room[itemKey];
+    const stateKey = roomName + '::' + itemKey;
+    const parsed = _parseMetadata(entry.metadata);
+    const currentLongest = _currentLongestCm(entry);
+    const initialSize = currentLongest > 0 ? currentLongest : DEFAULT_SIZE_CM;
+    const state = {
+      roomName,
+      itemKey,
+      title: parsed.title,
+      subtitle: parsed.subtitle,
+      values: parsed.fields,
+      sizeCm: initialSize,
+      unit: 'cm',
+      sizeDirty: false,
+      textDirty: false
+    };
+    rowState[stateKey] = state;
+
+    const rowNode = rowTemplate.content.firstElementChild.cloneNode(true);
+    rowNode.dataset.stateKey = stateKey;
+
+    const thumb = rowNode.querySelector('.cz-thumb');
+    const file = panelFiles[entry.resource] || fileMap[entry.resource];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      blobUrls.push(url);
+      thumb.src = url;
+    } else {
+      thumb.style.background = 'color-mix(in oklab, var(--wood) 18%, transparent)';
+    }
+    thumb.alt = itemKey;
+
+    rowNode.querySelector('.cz-filename').textContent = itemKey;
+
+    const titleInput = rowNode.querySelector('.cz-title');
+    const subtitleInput = rowNode.querySelector('.cz-subtitle');
+    titleInput.value = state.title;
+    subtitleInput.value = state.subtitle;
+
+    // Info disclosure: summary counts filled fields and the shared budget.
+    const info = rowNode.querySelector('.cz-info');
+    const infoCount = rowNode.querySelector('.cz-info-count');
+    const infoBudget = rowNode.querySelector('.cz-info-budget');
+    const infoBody = rowNode.querySelector('.cz-info-body');
+
+    function refreshInfoSummary() {
+      const filled = infoFields.filter((f) => _filledText(state.values[f.id])).length;
+      infoCount.textContent = filled + ' of ' + infoFields.length + ' filled';
+      infoBudget.textContent = _artworkChars(state).toLocaleString('en-US') + ' / ' +
+        MAX_ARTWORK_CHARS.toLocaleString('en-US');
+    }
+    // Caps an edit at what the rest of this artwork's text leaves free.
+    function capToBudget(el, current) {
+      const room = MAX_ARTWORK_CHARS - (_artworkChars(state) - _cp(current));
+      const capped = _truncateCp(el.value, room);
+      if (capped !== el.value) el.value = capped;
+      return capped;
+    }
+
+    function renderInfoFields() {
+      infoBody.innerHTML = '';
+      infoFields.forEach((field) => {
+        const wrap = document.createElement('div');
+        wrap.className = 'cz-info-field';
+        const label = document.createElement('label');
+        label.textContent = field.label;
+        const ta = document.createElement('textarea');
+        ta.rows = 1;
+        ta.value = state.values[field.id] || '';
+        ta.addEventListener('input', () => {
+          state.values[field.id] = capToBudget(ta, state.values[field.id]);
+          state.textDirty = true;
+          _autoGrow(ta);
+          refreshInfoSummary();
+        });
+        wrap.appendChild(label);
+        wrap.appendChild(ta);
+        infoBody.appendChild(wrap);
+      });
+      if (info.open) infoBody.querySelectorAll('textarea').forEach(_autoGrow);
+      refreshInfoSummary();
+    }
+    info.addEventListener('toggle', () => {
+      if (info.open) infoBody.querySelectorAll('textarea').forEach(_autoGrow);
+    });
+    renderInfoFields();
+    fieldListeners.push(renderInfoFields);
+    state.renderInfo = renderInfoFields;
+
+    titleInput.addEventListener('input', () => {
+      state.title = capToBudget(titleInput, state.title);
+      state.textDirty = true;
+      refreshInfoSummary();
+    });
+    subtitleInput.addEventListener('input', () => {
+      state.subtitle = capToBudget(subtitleInput, state.subtitle);
+      state.textDirty = true;
+      refreshInfoSummary();
+    });
+
+    const slider = rowNode.querySelector('.cz-slider');
+    slider.min = SLIDER_MIN;
+    slider.max = SLIDER_MAX;
+    slider.value = state.sizeCm;
+
+    const readout = rowNode.querySelector('.cz-size-readout');
+    const buckets = rowNode.querySelectorAll('.cz-bucket');
+    const units = rowNode.querySelectorAll('.cz-unit');
+
+    function refreshRow() {
+      const dims = _aspectDims(entry, state.sizeCm);
+      readout.textContent = _formatSize(dims.wCm, dims.hCm, state.unit);
+      const bucket = _bucketForSize(state.sizeCm, SIZE_BUCKETS);
+      buckets.forEach((b) => {
+        b.classList.toggle('cz-active', b.dataset.size === bucket);
+      });
+      units.forEach((u) => {
+        u.classList.toggle('cz-active', u.dataset.unit === state.unit);
+      });
+      if (Number(slider.value) !== Math.round(state.sizeCm)) {
+        slider.value = Math.round(state.sizeCm);
+      }
+    }
+
+    slider.addEventListener('input', () => {
+      state.sizeCm = Number(slider.value);
+      state.sizeDirty = true;
+      refreshRow();
+    });
+
+    buckets.forEach((b) => {
+      b.addEventListener('click', () => {
+        const size = SIZE_BUCKETS[b.dataset.size];
+        if (!size) return;
+        state.sizeCm = size;
+        state.sizeDirty = true;
+        refreshRow();
+      });
+    });
+
+    units.forEach((u) => {
+      u.addEventListener('click', () => {
+        state.unit = u.dataset.unit;
+        refreshRow();
+      });
+    });
+
+    refreshRow();
+    state.refreshRow = refreshRow;
+    if (_isPanel(entry)) _setupPanelRow(rowNode, state, entry);
+    return rowNode;
+  }
+
+  // A panel row shows the start of its text with Edit text and Remove in place
+  // of the title, subtitle and info inputs; its size controls stay.
+  function _setupPanelRow(rowNode, state, entry) {
+    rowNode.classList.add('cz-panel-row');
+    rowNode.querySelector('.cz-title').hidden = true;
+    rowNode.querySelector('.cz-subtitle').hidden = true;
+    rowNode.querySelector('.cz-info').hidden = true;
+    rowNode.querySelector('.cz-panel-summary').hidden = false;
+    const excerpt = rowNode.querySelector('.cz-panel-excerpt');
+    const thumb = rowNode.querySelector('.cz-thumb');
+    state.refreshPanel = () => {
+      const panel = entry.metadata.panel;
+      excerpt.textContent = _panelExcerpt(panel) || '(empty)';
+      rowNode.classList.toggle('cz-panel-light-text', panel.scheme === 'dark');
+      const file = panelFiles[entry.resource];
+      if (file) {
+        const url = URL.createObjectURL(file);
+        blobUrls.push(url);
+        thumb.src = url;
+        thumb.style.background = '';
+      }
+    };
+    state.refreshPanel();
+    const editBtn = rowNode.querySelector('[data-panel-edit]');
+    if (!TextPanel) editBtn.hidden = true;
+    editBtn.addEventListener('click', () => openPanelTool(state.roomName, state.itemKey));
+    rowNode.querySelector('[data-panel-remove]').addEventListener('click', () => {
+      if (openTool && openTool.roomName === state.roomName && openTool.editKey === state.itemKey) openTool.close();
+      const room = working[state.roomName];
+      if (room) delete room[state.itemKey];
+      delete panelFiles[entry.resource];
+      delete rowState[state.roomName + '::' + state.itemKey];
+      rowNode.remove();
+      panelsDirty = true;
+      _refreshRoomCount(state.roomName);
+    });
+  }
+
+  function _imageKeys(roomName) {
+    const room = working[roomName] || {};
+    return Object.keys(room).filter((k) => _isImage(room[k]));
+  }
+
+  function _refreshRoomCount(roomName) {
+    const node = roomNodes[roomName];
+    if (!node) return;
+    const n = _imageKeys(roomName).length;
+    node.querySelector('.cz-room-count').textContent = n + ' artwork' + (n === 1 ? '' : 's');
+  }
+
+  // Puts `key` in the room right after `afterKey`, or before the first artwork
+  // when `afterKey` is null. Image order in the room object is hanging order.
+  function _placeInRoom(roomName, key, entry, afterKey) {
+    const room = working[roomName];
+    const keys = Object.keys(room).filter((k) => k !== key);
+    const firstImage = keys.find((k) => _isImage(room[k]));
+    const ordered = [];
+    let placed = false;
+    keys.forEach((k) => {
+      if (!placed && afterKey === null && k === firstImage) { ordered.push([key, entry]); placed = true; }
+      ordered.push([k, room[k]]);
+      if (!placed && k === afterKey) { ordered.push([key, entry]); placed = true; }
+    });
+    if (!placed) ordered.push([key, entry]);
+    Object.keys(room).forEach((k) => { delete room[k]; });
+    ordered.forEach((kv) => { room[kv[0]] = kv[1]; });
+  }
+
+  // Moves (or inserts) a row to match _placeInRoom.
+  function _placeRow(roomName, rowNode, afterKey) {
+    const container = roomNodes[roomName].querySelector('.cz-rows');
+    const anchor = afterKey === null ? null : Array.from(container.children)
+      .find((n) => n.dataset.stateKey === roomName + '::' + afterKey);
+    if (anchor) anchor.after(rowNode);
+    else if (afterKey === null) container.prepend(rowNode);
+    else container.appendChild(rowNode);
+  }
+
+  // A filename no other artwork uses, beside the room's other images.
+  function _freePanelPath(roomName) {
+    const room = working[roomName];
+    const first = _imageKeys(roomName).map((k) => room[k].resource).find((r) => typeof r === 'string');
+    const dir = first ? first.slice(0, first.lastIndexOf('/')) : '/' + roomName;
+    const taken = new Set(Object.keys(fileMap).concat(Object.keys(panelFiles)));
+    Object.keys(working).forEach((rn) => {
+      const r = working[rn];
+      if (!r || typeof r !== 'object') return;
+      Object.keys(r).forEach((k) => { if (_isImage(r[k])) taken.add(r[k].resource); });
+    });
+    let name = 'text-panel.png', n = 2;
+    while (taken.has(dir + '/' + name)) name = 'text-panel-' + (n++) + '.png';
+    return dir + '/' + name;
+  }
+
+  // The panel tool: add a panel to a room, or (editKey) re-render an existing one.
+  function openPanelTool(roomName, editKey) {
+    if (!TextPanel) return;
+    if (openTool) openTool.close();
+    const roomNode = roomNodes[roomName];
+    const room = working[roomName];
+    if (!roomNode || !room) return;
+    const editing = editKey ? room[editKey] : null;
+    const stored = editing ? editing.metadata.panel : {};
+    const choice = {
+      font: stored.font === 'sans' ? 'sans' : 'serif',
+      align: stored.align === 'center' ? 'center' : 'left',
+      scheme: stored.scheme === 'dark' ? 'dark' : 'light',
+      size: editing ? _nearestBucket(parseFloat(editing.width) || SIZE_BUCKETS.M) : 'M',
+    };
+
+    const node = panelToolTemplate.content.firstElementChild.cloneNode(true);
+    const textEl = node.querySelector('[data-panel-text]');
+    const countEl = node.querySelector('[data-panel-count]');
+    const positionEl = node.querySelector('[data-panel-position]');
+    const errorEl = node.querySelector('[data-panel-error]');
+    const previewWrap = node.querySelector('[data-panel-preview-wrap]');
+    const previewImg = node.querySelector('[data-panel-preview]');
+    const statusEl = node.querySelector('[data-panel-status]');
+    const downloadEl = node.querySelector('[data-panel-download]');
+    const saveBtn = node.querySelector('[data-panel-save]');
+    node.querySelector('[data-panel-heading]').textContent = (editing ? 'Edit text panel in ' : 'New text panel in ') + roomName;
+    saveBtn.textContent = editing ? 'Save panel' : 'Add panel';
+    textEl.value = typeof stored.text === 'string' ? stored.text : '';
+
+    let result = null, url = null, timer = null, seq = 0;
+
+    // Position: after which artwork. A new panel defaults to the end, an edited
+    // one to where it hangs now.
+    const others = _imageKeys(roomName).filter((k) => k !== editKey);
+    const startOpt = document.createElement('option');
+    startOpt.value = '';
+    startOpt.textContent = 'At the start';
+    positionEl.appendChild(startOpt);
+    others.forEach((k) => {
+      const opt = document.createElement('option');
+      opt.value = k;
+      opt.textContent = 'After ' + (_isPanel(room[k])
+        ? 'text panel "' + Array.from(_panelExcerpt(room[k].metadata.panel)).slice(0, 30).join('') + '"'
+        : k);
+      positionEl.appendChild(opt);
+    });
+    if (editing) {
+      const all = _imageKeys(roomName);
+      const idx = all.indexOf(editKey);
+      positionEl.value = idx > 0 ? all[idx - 1] : '';
+    } else {
+      positionEl.value = others.length ? others[others.length - 1] : '';
+    }
+
+    function setResult(r) {
+      result = r;
+      if (url) URL.revokeObjectURL(url);
+      url = null;
+      saveBtn.disabled = !r;
+      if (!r) {
+        downloadEl.removeAttribute('href');
+        downloadEl.setAttribute('aria-disabled', 'true');
+        return;
+      }
+      url = URL.createObjectURL(r.file);
+      previewImg.src = url;
+      previewImg.hidden = false;
+      downloadEl.href = url;
+      downloadEl.download = r.file.name;
+      downloadEl.removeAttribute('aria-disabled');
+      statusEl.textContent = r.widthCm + ' × ' + Math.round(r.heightCm) + ' cm · ' + r.width + ' × ' + r.height + ' px';
+    }
+    function showError(message) {
+      errorEl.textContent = message;
+      errorEl.hidden = !message;
+      if (message) { previewImg.hidden = true; statusEl.textContent = ''; }
+    }
+    function updateCount() {
+      const n = Array.from(textEl.value).length;
+      countEl.textContent = n.toLocaleString('en-US') + ' / ' + TextPanel.MAX_CHARS.toLocaleString('en-US') + ' characters';
+      countEl.parentNode.classList.toggle('cz-over', n > TextPanel.MAX_CHARS);
+    }
+    async function render() {
+      const mySeq = ++seq;
+      if (!textEl.value.trim()) {
+        showError('');
+        previewImg.hidden = true;
+        statusEl.textContent = 'The preview appears here as you type.';
+        return;
+      }
+      if (previewImg.hidden) statusEl.textContent = 'Rendering…';
+      try {
+        const r = await TextPanel.render({
+          text: textEl.value, font: choice.font, align: choice.align, scheme: choice.scheme, size: choice.size,
+          name: 'text-panel'
+        });
+        if (mySeq !== seq) return; // a newer edit is on its way
+        showError('');
+        setResult(r);
+      } catch (e) {
+        if (mySeq !== seq) return;
+        setResult(null);
+        showError((e && e.message) || 'The panel could not be rendered.');
+      }
+    }
+    // Any change voids the last render at once (so Save never takes a stale
+    // one), then re-renders after a short pause in typing.
+    function schedule() {
+      updateCount();
+      previewWrap.classList.toggle('cz-panel-light-text', choice.scheme === 'dark');
+      setResult(null);
+      clearTimeout(timer);
+      timer = setTimeout(render, 300);
+    }
+
+    node.querySelectorAll('[data-panel-opt]').forEach((group) => {
+      const name = group.dataset.panelOpt;
+      const buttons = group.querySelectorAll('.cz-bucket');
+      const mark = () => buttons.forEach((b) => b.classList.toggle('cz-active', b.dataset.value === choice[name]));
+      buttons.forEach((b) => b.addEventListener('click', () => { choice[name] = b.dataset.value; mark(); schedule(); }));
+      mark();
+    });
+    textEl.addEventListener('input', schedule);
+
+    function close() {
+      clearTimeout(timer);
+      seq++;
+      setResult(null);
+      node.remove();
+      if (openTool && openTool.node === node) openTool = null;
+    }
+    node.querySelector('[data-panel-cancel]').addEventListener('click', close);
+
+    saveBtn.addEventListener('click', () => {
+      if (!result) return;
+      if (editing && room[editKey] !== editing) { close(); return; } // removed meanwhile
+      const afterKey = positionEl.value || null;
+      let key = editKey, entry = editing;
+      if (!entry) {
+        const near = room[afterKey] || room[others[0]];
+        key = _freeKey(room, 'text-panel');
+        entry = {
+          resource: _freePanelPath(roomName),
+          resource_type: 'image',
+          width: '',
+          height: '',
+          // Placeholders until Apply re-lays out the room.
+          location: near ? near.location : '[0.000,0.000,0.000]',
+          vector: near ? near.vector : '[0.0,-1.0]',
+          metadata: { title: '', subtitle: '', panel: result.panel },
+        };
+      } else {
+        entry.metadata = Object.assign({}, entry.metadata, { panel: result.panel });
+      }
+      // Width is the chosen size; height follows the PNG's aspect.
+      entry.width = result.widthCm.toFixed(2);
+      entry.height = (result.widthCm * result.height / result.width).toFixed(2);
+      panelFiles[entry.resource] = new File([result.file], entry.resource.split('/').pop(), { type: 'image/png' });
+      _placeInRoom(roomName, key, entry, afterKey);
+      panelsDirty = true;
+
+      const stateKey = roomName + '::' + key;
+      let rowNode;
+      if (editing) {
+        const state = rowState[stateKey];
+        state.sizeCm = _currentLongestCm(entry);
+        state.sizeDirty = false;
+        state.refreshRow();
+        state.refreshPanel();
+        rowNode = Array.from(roomNode.querySelector('.cz-rows').children).find((n) => n.dataset.stateKey === stateKey);
+      } else {
+        rowNode = buildRow(roomName, key);
+      }
+      if (rowNode) _placeRow(roomName, rowNode, afterKey);
+      _refreshRoomCount(roomName);
+      close();
+    });
+
+    roomNode.querySelector('.cz-panel-slot').appendChild(node);
+    openTool = { roomName, editKey, node, close };
+    schedule();
+    node.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    textEl.focus({ preventScroll: true });
+  }
+
   // Build accordion entries.
   galleryKeys.forEach((roomName, roomIdx) => {
     const room = working[roomName];
@@ -300,155 +771,7 @@ export function mountCustomize(hostEl, opts) {
     const rowsContainer = roomNode.querySelector('.cz-rows');
 
     itemKeys.forEach((itemKey) => {
-      const entry = room[itemKey];
-      const stateKey = roomName + '::' + itemKey;
-      const parsed = _parseMetadata(entry.metadata);
-      const currentLongest = _currentLongestCm(entry);
-      const initialSize = currentLongest > 0 ? currentLongest : DEFAULT_SIZE_CM;
-      const state = {
-        roomName,
-        itemKey,
-        title: parsed.title,
-        subtitle: parsed.subtitle,
-        values: parsed.fields,
-        sizeCm: initialSize,
-        unit: 'cm',
-        sizeDirty: false,
-        textDirty: false
-      };
-      rowState[stateKey] = state;
-
-      const rowNode = rowTemplate.content.firstElementChild.cloneNode(true);
-      rowNode.dataset.stateKey = stateKey;
-
-      const thumb = rowNode.querySelector('.cz-thumb');
-      const file = fileMap[entry.resource];
-      if (file) {
-        const url = URL.createObjectURL(file);
-        blobUrls.push(url);
-        thumb.src = url;
-      } else {
-        thumb.style.background = 'color-mix(in oklab, var(--wood) 18%, transparent)';
-      }
-      thumb.alt = itemKey;
-
-      rowNode.querySelector('.cz-filename').textContent = itemKey;
-
-      const titleInput = rowNode.querySelector('.cz-title');
-      const subtitleInput = rowNode.querySelector('.cz-subtitle');
-      titleInput.value = state.title;
-      subtitleInput.value = state.subtitle;
-
-      // Info disclosure: summary counts filled fields and the shared budget.
-      const info = rowNode.querySelector('.cz-info');
-      const infoCount = rowNode.querySelector('.cz-info-count');
-      const infoBudget = rowNode.querySelector('.cz-info-budget');
-      const infoBody = rowNode.querySelector('.cz-info-body');
-
-      function refreshInfoSummary() {
-        const filled = infoFields.filter((f) => _filledText(state.values[f.id])).length;
-        infoCount.textContent = filled + ' of ' + infoFields.length + ' filled';
-        infoBudget.textContent = _artworkChars(state).toLocaleString('en-US') + ' / ' +
-          MAX_ARTWORK_CHARS.toLocaleString('en-US');
-      }
-      // Caps an edit at what the rest of this artwork's text leaves free.
-      function capToBudget(el, current) {
-        const room = MAX_ARTWORK_CHARS - (_artworkChars(state) - _cp(current));
-        const capped = _truncateCp(el.value, room);
-        if (capped !== el.value) el.value = capped;
-        return capped;
-      }
-
-      function renderInfoFields() {
-        infoBody.innerHTML = '';
-        infoFields.forEach((field) => {
-          const wrap = document.createElement('div');
-          wrap.className = 'cz-info-field';
-          const label = document.createElement('label');
-          label.textContent = field.label;
-          const ta = document.createElement('textarea');
-          ta.rows = 1;
-          ta.value = state.values[field.id] || '';
-          ta.addEventListener('input', () => {
-            state.values[field.id] = capToBudget(ta, state.values[field.id]);
-            state.textDirty = true;
-            _autoGrow(ta);
-            refreshInfoSummary();
-          });
-          wrap.appendChild(label);
-          wrap.appendChild(ta);
-          infoBody.appendChild(wrap);
-        });
-        if (info.open) infoBody.querySelectorAll('textarea').forEach(_autoGrow);
-        refreshInfoSummary();
-      }
-      info.addEventListener('toggle', () => {
-        if (info.open) infoBody.querySelectorAll('textarea').forEach(_autoGrow);
-      });
-      renderInfoFields();
-      fieldListeners.push(renderInfoFields);
-      state.renderInfo = renderInfoFields;
-
-      titleInput.addEventListener('input', () => {
-        state.title = capToBudget(titleInput, state.title);
-        state.textDirty = true;
-        refreshInfoSummary();
-      });
-      subtitleInput.addEventListener('input', () => {
-        state.subtitle = capToBudget(subtitleInput, state.subtitle);
-        state.textDirty = true;
-        refreshInfoSummary();
-      });
-
-      const slider = rowNode.querySelector('.cz-slider');
-      slider.min = SLIDER_MIN;
-      slider.max = SLIDER_MAX;
-      slider.value = state.sizeCm;
-
-      const readout = rowNode.querySelector('.cz-size-readout');
-      const buckets = rowNode.querySelectorAll('.cz-bucket');
-      const units = rowNode.querySelectorAll('.cz-unit');
-
-      function refreshRow() {
-        const dims = _aspectDims(entry, state.sizeCm);
-        readout.textContent = _formatSize(dims.wCm, dims.hCm, state.unit);
-        const bucket = _bucketForSize(state.sizeCm, SIZE_BUCKETS);
-        buckets.forEach((b) => {
-          b.classList.toggle('cz-active', b.dataset.size === bucket);
-        });
-        units.forEach((u) => {
-          u.classList.toggle('cz-active', u.dataset.unit === state.unit);
-        });
-        if (Number(slider.value) !== Math.round(state.sizeCm)) {
-          slider.value = Math.round(state.sizeCm);
-        }
-      }
-
-      slider.addEventListener('input', () => {
-        state.sizeCm = Number(slider.value);
-        state.sizeDirty = true;
-        refreshRow();
-      });
-
-      buckets.forEach((b) => {
-        b.addEventListener('click', () => {
-          const size = SIZE_BUCKETS[b.dataset.size];
-          if (!size) return;
-          state.sizeCm = size;
-          state.sizeDirty = true;
-          refreshRow();
-        });
-      });
-
-      units.forEach((u) => {
-        u.addEventListener('click', () => {
-          state.unit = u.dataset.unit;
-          refreshRow();
-        });
-      });
-
-      refreshRow();
-      rowsContainer.appendChild(rowNode);
+      rowsContainer.appendChild(buildRow(roomName, itemKey));
     });
 
     // Accordion toggle: only one room open at a time.
@@ -471,11 +794,19 @@ export function mountCustomize(hostEl, opts) {
     const batchTitle = roomNode.querySelector('.cz-batch-title');
     const batchSubtitle = roomNode.querySelector('.cz-batch-subtitle');
     const allRowNodes = () => rowsContainer.querySelectorAll('.cz-row');
+    // Title, subtitle and info batches leave text panels alone.
+    const textRowNodes = () => rowsContainer.querySelectorAll('.cz-row:not(.cz-panel-row)');
+
+    const addPanelBtn = roomNode.querySelector('[data-cz-add-panel]');
+    if (TextPanel) {
+      addPanelBtn.hidden = false;
+      addPanelBtn.addEventListener('click', () => openPanelTool(roomName, null));
+    }
 
     roomNode.querySelector('[data-batch-apply-prefix]').addEventListener('click', () => {
       const prefix = batchTitle.value;
       if (!prefix) return;
-      allRowNodes().forEach((rn) => {
+      textRowNodes().forEach((rn) => {
         const s = rowState[rn.dataset.stateKey];
         const titleInput = rn.querySelector('.cz-title');
         const room = MAX_ARTWORK_CHARS - (_artworkChars(s) - _cp(s.title));
@@ -488,7 +819,7 @@ export function mountCustomize(hostEl, opts) {
 
     roomNode.querySelector('[data-batch-apply-subtitle]').addEventListener('click', () => {
       const sub = batchSubtitle.value;
-      allRowNodes().forEach((rn) => {
+      textRowNodes().forEach((rn) => {
         const s = rowState[rn.dataset.stateKey];
         const subInput = rn.querySelector('.cz-subtitle');
         const room = MAX_ARTWORK_CHARS - (_artworkChars(s) - _cp(s.subtitle));
@@ -536,7 +867,7 @@ export function mountCustomize(hostEl, opts) {
       const id = batchField.value;
       const value = batchFieldValue.value;
       let copied = 0, skipped = 0;
-      allRowNodes().forEach((rn) => {
+      textRowNodes().forEach((rn) => {
         const s = rowState[rn.dataset.stateKey];
         if (_artworkChars(s) - _cp(s.values[id]) + _cp(value) > MAX_ARTWORK_CHARS) {
           skipped++;
@@ -556,7 +887,7 @@ export function mountCustomize(hostEl, opts) {
       const value = batchFieldValue.value;
       if (!id || !value.trim()) return;
       batchFieldResult.textContent = '';
-      const different = Array.from(allRowNodes()).filter((rn) => {
+      const different = Array.from(textRowNodes()).filter((rn) => {
         const v = rowState[rn.dataset.stateKey].values[id];
         return _filledText(v) && v !== value;
       }).length;
@@ -814,7 +1145,14 @@ export function mountCustomize(hostEl, opts) {
     return working;
   }
 
+  // Panel PNGs rendered in this session, by manifest path. The host adds them to
+  // its file map and drops paths the edited manifest no longer references.
+  function getFiles() {
+    return cancelled ? {} : Object.assign({}, panelFiles);
+  }
+
   function unmount() {
+    if (openTool) openTool.close();
     blobUrls.forEach((url) => URL.revokeObjectURL(url));
     blobUrls.length = 0;
     hostEl.innerHTML = '';
@@ -838,9 +1176,10 @@ export function mountCustomize(hostEl, opts) {
     _setApplyBtnsDisabled(true);
     _setStatus('Applying…', 'busy');
     try {
-      const sizesChanged = commitEditsToWorking();
+      const sizesChanged = commitEditsToWorking() || panelsDirty;
       if (sizesChanged && styleConfig) {
         const summary = await applyRelayout();
+        panelsDirty = false;
         _setStatus(summary, 'ok');
       } else if (sizesChanged) {
         _setStatus('Sizes committed (relayout skipped — no style configured).', 'ok');
@@ -875,5 +1214,5 @@ export function mountCustomize(hostEl, opts) {
     });
   }
 
-  return { unmount, getEdited, onApply, onCancel };
+  return { unmount, getEdited, getFiles, onApply, onCancel };
 }

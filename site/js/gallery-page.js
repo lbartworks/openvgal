@@ -10,8 +10,7 @@ var GalleryPage = (function() {
 
   var SVG_ICONS = {
     folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>',
-    remove: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>',
-    text: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7V5h16v2M12 5v14M9 19h6"/></svg>'
+    remove: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>'
   };
 
   // Recursively read all files from a dropped directory entry.
@@ -142,11 +141,9 @@ var GalleryPage = (function() {
 
   // Append editable rows for each gallery to `container`. Caller is responsible
   // for clearing the container before calling.
-  // `onChange` runs after a row is renamed or removed. With `onAddPanel`, each
-  // row gets an "Add text panel" button that calls it with the gallery object.
+  // `onChange` runs after a row is renamed or removed.
   function renderGalleryItems(container, galleries, opts) {
     var onChange = (opts && opts.onChange) || function() {};
-    var onAddPanel = opts && opts.onAddPanel;
 
     galleries.forEach(function(gallery, index) {
       var item = document.createElement('div');
@@ -194,15 +191,6 @@ var GalleryPage = (function() {
       item.appendChild(iconDiv);
       item.appendChild(detailsDiv);
       item.appendChild(countSpan);
-      if (onAddPanel) {
-        var panelBtn = document.createElement('button');
-        panelBtn.type = 'button';
-        panelBtn.className = 'gallery-add-panel';
-        panelBtn.title = 'Add text panel';
-        panelBtn.innerHTML = SVG_ICONS.text + '<span>Add text panel</span>';
-        panelBtn.addEventListener('click', function() { onAddPanel(gallery); });
-        item.appendChild(panelBtn);
-      }
       item.appendChild(removeBtn);
       container.appendChild(item);
     });
