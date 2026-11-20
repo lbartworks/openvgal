@@ -504,6 +504,8 @@ export function mountCustomize(hostEl, opts) {
     const editBtn = rowNode.querySelector('[data-panel-edit]');
     if (!TextPanel) editBtn.hidden = true;
     editBtn.addEventListener('click', () => openPanelTool(state.roomName, state.itemKey));
+    rowNode.querySelector('[data-panel-up]').addEventListener('click', () => _movePanel(state.roomName, state.itemKey, -1));
+    rowNode.querySelector('[data-panel-down]').addEventListener('click', () => _movePanel(state.roomName, state.itemKey, 1));
     rowNode.querySelector('[data-panel-remove]').addEventListener('click', () => {
       if (openTool && openTool.roomName === state.roomName && openTool.editKey === state.itemKey) openTool.close();
       const room = working[state.roomName];
@@ -513,6 +515,7 @@ export function mountCustomize(hostEl, opts) {
       rowNode.remove();
       panelsDirty = true;
       _refreshRoomCount(state.roomName);
+      _refreshMoveButtons(state.roomName);
     });
   }
 
@@ -528,32 +531,48 @@ export function mountCustomize(hostEl, opts) {
     node.querySelector('.cz-room-count').textContent = n + ' artwork' + (n === 1 ? '' : 's');
   }
 
-  // Puts `key` in the room right after `afterKey`, or before the first artwork
-  // when `afterKey` is null. Image order in the room object is hanging order.
-  function _placeInRoom(roomName, key, entry, afterKey) {
+  // Image order in the room object is the order relayoutRoom receives the
+  // items in, and the rows mirror it. Moves a panel one place among the images.
+  function _movePanel(roomName, key, dir) {
     const room = working[roomName];
-    const keys = Object.keys(room).filter((k) => k !== key);
-    const firstImage = keys.find((k) => _isImage(room[k]));
-    const ordered = [];
-    let placed = false;
-    keys.forEach((k) => {
-      if (!placed && afterKey === null && k === firstImage) { ordered.push([key, entry]); placed = true; }
-      ordered.push([k, room[k]]);
-      if (!placed && k === afterKey) { ordered.push([key, entry]); placed = true; }
-    });
-    if (!placed) ordered.push([key, entry]);
-    Object.keys(room).forEach((k) => { delete room[k]; });
-    ordered.forEach((kv) => { room[kv[0]] = kv[1]; });
+    const images = _imageKeys(roomName);
+    const i = images.indexOf(key), j = i + dir;
+    if (i === -1 || j < 0 || j >= images.length) return;
+    images[i] = images[j];
+    images[j] = key;
+    // Rebuild the room with the images in their new order; other keys keep their slots.
+    const saved = Object.assign({}, room);
+    let next = 0;
+    const keys = Object.keys(room).map((k) => (_isImage(room[k]) ? images[next++] : k));
+    keys.forEach((k) => { delete room[k]; });
+    keys.forEach((k) => { room[k] = saved[k]; });
+    _syncRows(roomName);
+    panelsDirty = true;
   }
 
-  // Moves (or inserts) a row to match _placeInRoom.
-  function _placeRow(roomName, rowNode, afterKey) {
+  // Puts the rows in the room's actual image order (an integer-like key such as
+  // "12" always sorts first in a JS object, so the object has the last word).
+  function _syncRows(roomName) {
     const container = roomNodes[roomName].querySelector('.cz-rows');
-    const anchor = afterKey === null ? null : Array.from(container.children)
-      .find((n) => n.dataset.stateKey === roomName + '::' + afterKey);
-    if (anchor) anchor.after(rowNode);
-    else if (afterKey === null) container.prepend(rowNode);
-    else container.appendChild(rowNode);
+    const byKey = {};
+    Array.from(container.children).forEach((n) => { byKey[n.dataset.stateKey] = n; });
+    _imageKeys(roomName).forEach((k) => {
+      const n = byKey[roomName + '::' + k];
+      if (n) container.appendChild(n);
+    });
+    _refreshMoveButtons(roomName);
+  }
+
+  function _refreshMoveButtons(roomName) {
+    const node = roomNodes[roomName];
+    if (!node) return;
+    const rows = Array.from(node.querySelector('.cz-rows').children);
+    rows.forEach((n, idx) => {
+      const up = n.querySelector('[data-panel-up]');
+      const down = n.querySelector('[data-panel-down]');
+      if (up) up.disabled = idx === 0;
+      if (down) down.disabled = idx === rows.length - 1;
+    });
   }
 
   // A filename no other artwork uses, beside the room's other images.
@@ -591,7 +610,6 @@ export function mountCustomize(hostEl, opts) {
     const node = panelToolTemplate.content.firstElementChild.cloneNode(true);
     const textEl = node.querySelector('[data-panel-text]');
     const countEl = node.querySelector('[data-panel-count]');
-    const positionEl = node.querySelector('[data-panel-position]');
     const errorEl = node.querySelector('[data-panel-error]');
     const previewWrap = node.querySelector('[data-panel-preview-wrap]');
     const previewImg = node.querySelector('[data-panel-preview]');
@@ -603,29 +621,6 @@ export function mountCustomize(hostEl, opts) {
     textEl.value = typeof stored.text === 'string' ? stored.text : '';
 
     let result = null, url = null, timer = null, seq = 0;
-
-    // Position: after which artwork. A new panel defaults to the end, an edited
-    // one to where it hangs now.
-    const others = _imageKeys(roomName).filter((k) => k !== editKey);
-    const startOpt = document.createElement('option');
-    startOpt.value = '';
-    startOpt.textContent = 'At the start';
-    positionEl.appendChild(startOpt);
-    others.forEach((k) => {
-      const opt = document.createElement('option');
-      opt.value = k;
-      opt.textContent = 'After ' + (_isPanel(room[k])
-        ? 'text panel "' + Array.from(_panelExcerpt(room[k].metadata.panel)).slice(0, 30).join('') + '"'
-        : k);
-      positionEl.appendChild(opt);
-    });
-    if (editing) {
-      const all = _imageKeys(roomName);
-      const idx = all.indexOf(editKey);
-      positionEl.value = idx > 0 ? all[idx - 1] : '';
-    } else {
-      positionEl.value = others.length ? others[others.length - 1] : '';
-    }
 
     function setResult(r) {
       result = r;
@@ -709,10 +704,10 @@ export function mountCustomize(hostEl, opts) {
     saveBtn.addEventListener('click', () => {
       if (!result) return;
       if (editing && room[editKey] !== editing) { close(); return; } // removed meanwhile
-      const afterKey = positionEl.value || null;
       let key = editKey, entry = editing;
       if (!entry) {
-        const near = room[afterKey] || room[others[0]];
+        const images = _imageKeys(roomName);
+        const near = room[images[images.length - 1]];
         key = _freeKey(room, 'text-panel');
         entry = {
           resource: _freePanelPath(roomName),
@@ -731,22 +726,19 @@ export function mountCustomize(hostEl, opts) {
       entry.width = result.widthCm.toFixed(2);
       entry.height = (result.widthCm * result.height / result.width).toFixed(2);
       panelFiles[entry.resource] = new File([result.file], entry.resource.split('/').pop(), { type: 'image/png' });
-      _placeInRoom(roomName, key, entry, afterKey);
+      if (!editing) room[key] = entry;  // a new panel hangs last; editing keeps its place
       panelsDirty = true;
 
-      const stateKey = roomName + '::' + key;
-      let rowNode;
       if (editing) {
-        const state = rowState[stateKey];
+        const state = rowState[roomName + '::' + key];
         state.sizeCm = _currentLongestCm(entry);
         state.sizeDirty = false;
         state.refreshRow();
         state.refreshPanel();
-        rowNode = Array.from(roomNode.querySelector('.cz-rows').children).find((n) => n.dataset.stateKey === stateKey);
       } else {
-        rowNode = buildRow(roomName, key);
+        roomNode.querySelector('.cz-rows').appendChild(buildRow(roomName, key));
+        _syncRows(roomName);
       }
-      if (rowNode) _placeRow(roomName, rowNode, afterKey);
       _refreshRoomCount(roomName);
       close();
     });
@@ -797,10 +789,9 @@ export function mountCustomize(hostEl, opts) {
     // Title, subtitle and info batches leave text panels alone.
     const textRowNodes = () => rowsContainer.querySelectorAll('.cz-row:not(.cz-panel-row)');
 
-    const addPanelBtn = roomNode.querySelector('[data-cz-add-panel]');
     if (TextPanel) {
-      addPanelBtn.hidden = false;
-      addPanelBtn.addEventListener('click', () => openPanelTool(roomName, null));
+      roomNode.querySelector('[data-cz-panel-bar]').hidden = false;
+      roomNode.querySelector('[data-cz-add-panel]').addEventListener('click', () => openPanelTool(roomName, null));
     }
 
     roomNode.querySelector('[data-batch-apply-prefix]').addEventListener('click', () => {
@@ -938,6 +929,7 @@ export function mountCustomize(hostEl, opts) {
 
     accordion.appendChild(roomNode);
     roomNodes[roomName] = roomNode;
+    _refreshMoveButtons(roomName);
   });
 
   let cancelled = false;

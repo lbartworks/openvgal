@@ -539,7 +539,8 @@ function populate_template(config_file, room_name,scene){
 		// uses this to drive click→navigate, so the index can never drift even when the
 		// template GLB contains decorative meshes whose names also end in _<digits>
 		// (Fixture_0, Col_*_1, …). i starts at 3, so i-3 is the 0-based dict_items index.
-		if (artwork_plane) artwork_plane.metadata = { ovgal_artwork_idx: i - 3 };
+		// ovgal_text_panel keeps a panel out of the lightmap bake (see _isBakeOccluder).
+		if (artwork_plane) artwork_plane.metadata = panel ? { ovgal_artwork_idx: i - 3, ovgal_text_panel: true } : { ovgal_artwork_idx: i - 3 };
 
 		//plaque below artwork (only if metadata has content beyond the ID prefix)
 		if (gallery[item]["metadata"] && !panel) {

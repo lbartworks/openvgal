@@ -214,7 +214,7 @@ An entry is a panel exactly when `metadata.panel` is present.
 - The panel's width is the entry's `width` (60, 120 or 180 cm when made); the height follows from the text, at most 250 cm.
 - Nothing is stored inside the PNG: hosted storage strips image metadata, so `metadata.panel` is the only copy of the text.
 - **Editors must keep `panel` through a load/save round-trip, and write the object form of `metadata` whenever it is present**, even when no info field has a value.
-- The viewer draws a panel frameless and transparent: a bare plane at `width` × `height`, close to the wall, using the PNG's alpha. No mount, frame margin, shadow or plaque, whatever `show_frames` says. Clicking it opens the artwork sheet like any image.
+- The viewer draws a panel frameless and transparent: a bare plane at `width` × `height`, close to the wall, using the PNG's alpha. No mount, frame margin, shadow or plaque, whatever `show_frames` says, and the lightmap bake ignores it (it neither occludes the wall nor receives a lightmap). Clicking it opens the artwork sheet like any image.
 
 The tool is `site/js/text-panel.js`, also served from the CDN as `core/js/text-panel.js` with its fonts in `core/fonts/` (see [Generator](generator.md#text-panels)).
 

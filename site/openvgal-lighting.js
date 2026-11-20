@@ -1004,9 +1004,14 @@ function _isBakeableMesh(m) {
 // occluders they cast shadows (depth maps) and darken ambient (AO grid) onto the
 // wall around/behind them — the "ghost shadows". They carry no UV2 so they were
 // never bake targets anyway; exclude them from both occlusion passes so they stay
-// purely decorative.
+// purely decorative. Text panels (metadata.ovgal_text_panel, set by populate_template)
+// are the same kind of bare lettering a centimetre off the wall.
 function _isBakeOccluder(m) {
-	return _isBakeableMesh(m) && !m.name.match(/^lbl_plaque_/) && !m.name.match(/^T_/);
+	return _isBakeableMesh(m) && !m.name.match(/^lbl_plaque_/) && !m.name.match(/^T_/) && !_isTextPanelMesh(m);
+}
+
+function _isTextPanelMesh(m) {
+	return !!(m.metadata && m.metadata.ovgal_text_panel);
 }
 
 // Combined world-space AABB of a mesh list (each mesh's world bounding box unioned).
@@ -1753,7 +1758,7 @@ function setupLightmapBake(scene, onComplete, onProgress) {
 	// glowing under the baked view. Leaving them out keeps their original glow
 	// material, so they stay decorative once the runtime lights are gone.
 	var meshes = scene.meshes.filter(function (m) {
-		if (!_isBakeableMesh(m)) return false;
+		if (!_isBakeableMesh(m) || _isTextPanelMesh(m)) return false;
 		if (m.material && /glow/i.test(m.material.name || '')) return false;
 		if (!m.isVerticesDataPresent || !m.isVerticesDataPresent(BABYLON.VertexBuffer.UV2Kind)) return false;
 		return true;
