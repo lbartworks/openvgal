@@ -491,7 +491,7 @@
   .cz-add-row {
     display: block; width: 100%; box-sizing: border-box;
     min-height: calc(56px + 1.5rem);
-    margin-top: 0.25rem; padding: 0 1rem;
+    margin-bottom: 0.8rem; padding: 0 1rem;
     background: none;
     border: 1px dashed var(--rule);
     border-radius: 6px;
@@ -594,6 +594,8 @@
       </span>
     </button>
     <div class="cz-room-body">
+      <button class="cz-add-row" data-cz-add-panel type="button" hidden>+ Add text panel</button>
+      <div class="cz-panel-slot"></div>
       <div class="cz-batch">
         <div class="cz-batch-label">Apply to all in this room</div>
         <div class="cz-batch-groups">
@@ -634,8 +636,6 @@
         </div>
       </div>
       <div class="cz-rows"></div>
-      <div class="cz-panel-slot"></div>
-      <button class="cz-add-row" data-cz-add-panel type="button" hidden>+ Add text panel</button>
     </div>
   </div>
 </template>
