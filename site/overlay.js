@@ -65,7 +65,7 @@ function artworkMetadata(item) {
 		return readArtworkMetadata(item.metadata, technical && technical.info_fields);
 	}
 	const lines = (typeof item.metadata === 'string' ? item.metadata : '').replace(/^ID\s*#\d+\s*/, '').split('\n');
-	return { title: lines[0] || '', subtitle: lines[1] || '', fields: [] };
+	return { title: lines[0] || '', subtitle: lines[1] || '', fields: [], panel: '' };
 }
 
 function manual_move(){
@@ -356,7 +356,7 @@ function buildUi() {
 		+ '<button type="button" id="ovg-sheet-close" class="ovg-btn" aria-label="Close">'
 		+ '<svg ' + ICON_ATTRS + '><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'
 		+ '<div id="ovg-sheet-actions"></div>'
-		+ '<div id="ovg-sheet-body"><h2 id="ovg-sheet-title"></h2><p id="ovg-sheet-subtitle"></p><div id="ovg-sheet-fields" hidden></div></div>'
+		+ '<div id="ovg-sheet-body"><h2 id="ovg-sheet-title"></h2><p id="ovg-sheet-subtitle"></p><p id="ovg-sheet-panel" hidden></p><div id="ovg-sheet-fields" hidden></div></div>'
 		+ '</section>');
 	document.getElementById('ovg-sheet-backdrop').addEventListener('pointerdown', closeArtworkSheet);
 	document.getElementById('ovg-sheet-close').addEventListener('click', closeArtworkSheet);
@@ -444,6 +444,9 @@ function openArtworkSheet(idx) {
 	const sub = document.getElementById('ovg-sheet-subtitle');
 	sub.textContent = pose.meta.subtitle;
 	sub.hidden = !sub.textContent;
+	const panel = document.getElementById('ovg-sheet-panel');
+	panel.textContent = pose.meta.panel || '';
+	panel.hidden = !panel.textContent;
 	const fields = document.getElementById('ovg-sheet-fields');
 	fields.replaceChildren();
 	const rows = pose.meta.fields.slice();

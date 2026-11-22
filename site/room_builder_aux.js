@@ -184,14 +184,49 @@ var canvasLabel_builder=function(texto, maxLength, item_position, vector, parent
 
 // Artwork `metadata` is either "Title\nSubtitle" (legacy "ID #N " prefix stripped)
 // or { title, subtitle, fields: { id: text } } (docs/gallery-json.md § Metadata).
-// Returns { title, subtitle, fields: [{ label, text }] }: fields follow the order of
-// infoFields (Technical.info_fields, first 5 only) and skip empty values. Output
-// stops after 2,000 code points across title, subtitle and field texts.
+// Returns { title, subtitle, fields: [{ label, text }], panel }: fields follow the order
+// of infoFields (Technical.info_fields, first 5 only) and skip empty values. panel is a
+// text panel's words as plain text ('' for other entries). Output stops after 2,000
+// code points across title, subtitle, field texts and panel.
 var METADATA_MAX_FIELDS = 5;
 var METADATA_MAX_CHARS = 2000;
 
+// Text panel Markdown (docs/gallery-json.md § Text panels) without its markers, read
+// the way site/js/text-panel.js renders it: "# "/"## " line prefixes, and paired
+// *italic*, **bold**, ***both***. An asterisk without a partner stays as typed.
+function panelPlainText(text) {
+	function inline(s) {
+		var out = '', i = 0, j;
+		function closeSingle(from) {
+			for (var k = from; k < s.length; k++) {
+				if (s.charAt(k) !== '*') continue;
+				if (s.charAt(k + 1) === '*') { k++; continue; }
+				return k;
+			}
+			return -1;
+		}
+		while (i < s.length) {
+			if (s.substr(i, 3) === '***' && (j = s.indexOf('***', i + 3)) > i + 3) {
+				out += inline(s.slice(i + 3, j)); i = j + 3; continue;
+			}
+			if (s.substr(i, 2) === '**' && (j = s.indexOf('**', i + 2)) > i + 2) {
+				out += inline(s.slice(i + 2, j)); i = j + 2; continue;
+			}
+			if (s.charAt(i) === '*' && s.charAt(i + 1) !== '*' && (j = closeSingle(i + 1)) > i + 1) {
+				out += inline(s.slice(i + 1, j)); i = j + 1; continue;
+			}
+			out += s.charAt(i);
+			i++;
+		}
+		return out;
+	}
+	return String(text).replace(/\r\n?/g, '\n').split('\n').map(function(line) {
+		return inline(line.replace(/^#{1,2}\s+/, '').replace(/\s+$/, ''));
+	}).join('\n').trim();
+}
+
 function readArtworkMetadata(metadata, infoFields) {
-	var title = '', subtitle = '', values = {};
+	var title = '', subtitle = '', values = {}, panel = '';
 	if (typeof metadata === 'string') {
 		var lines = metadata.replace(/^ID\s*#\d+\s*/, '').split('\n');
 		title = lines[0] || '';
@@ -200,6 +235,7 @@ function readArtworkMetadata(metadata, infoFields) {
 		if (typeof metadata.title === 'string') title = metadata.title;
 		if (typeof metadata.subtitle === 'string') subtitle = metadata.subtitle;
 		if (metadata.fields && typeof metadata.fields === 'object') values = metadata.fields;
+		if (metadata.panel && typeof metadata.panel.text === 'string') panel = panelPlainText(metadata.panel.text);
 	}
 
 	var budget = METADATA_MAX_CHARS;
@@ -209,7 +245,7 @@ function readArtworkMetadata(metadata, infoFields) {
 		return chars.join('');
 	}
 
-	var result = { title: clamp(title), subtitle: clamp(subtitle), fields: [] };
+	var result = { title: clamp(title), subtitle: clamp(subtitle), panel: clamp(panel), fields: [] };
 	var listed = Array.isArray(infoFields) ? infoFields.slice(0, METADATA_MAX_FIELDS) : [];
 	listed.forEach(function(f) {
 		if (!f || typeof f.id !== 'string' || typeof f.label !== 'string') return;

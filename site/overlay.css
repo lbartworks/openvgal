@@ -338,6 +338,21 @@ body.ovg-sheet-open #ovg-sheet {
     color: #a1a1aa;
 }
 
+/* A text panel's words (docs/gallery-json.md § Text panels). */
+#ovg-sheet-panel {
+    margin: 12px 0 0;
+    font-size: 15px;
+    line-height: 1.6;
+    color: #d4d4d8;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+/* No title or subtitle above it (a panel's usual case): start below the icon row. */
+#ovg-sheet-title:empty + #ovg-sheet-subtitle[hidden] + #ovg-sheet-panel {
+    margin-top: 40px;
+}
+
 /* Clear one icon plus close. Under an empty title the subtitle sits beside them. */
 #ovg-sheet.ovg-sheet-has-actions #ovg-sheet-title,
 #ovg-sheet.ovg-sheet-has-actions #ovg-sheet-title:empty + #ovg-sheet-subtitle {

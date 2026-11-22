@@ -178,8 +178,9 @@ An object `title` never carries the `ID #N` prefix.
 **What the viewer shows**
 
 - Title and subtitle: the artwork sheet (opens when a visitor clicks an artwork) and the artwork plaque.
+- Text panel (`metadata.panel` present): the artwork sheet shows the panel's `text` below the subtitle, as plain selectable text with line breaks kept. The Markdown markers are removed (the leading `# ` or `## ` of a heading line, the asterisks of `*italic*`, `**bold**` and `***both***`); an unpaired asterisk stays, as on the panel itself.
 - Info fields: only in the artwork sheet, below the subtitle. Each listed field with a non-empty value, in list order, as a small label heading over its text, line breaks preserved.
-- The viewer ignores unknown keys and unlisted field ids, renders at most the first 5 listed fields, and stops rendering an artwork's text after 2,000 characters.
+- The viewer ignores unknown keys and unlisted field ids, renders at most the first 5 listed fields, and stops rendering an artwork's text after 2,000 characters (panel text included).
 
 ### Text panels
 
