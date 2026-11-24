@@ -247,7 +247,11 @@
 		// answering. Treat that as "not there" so callers fall back to the default.
 		try {
 			const response = await fetch(urlToFile, { method: 'HEAD' });
-			return response.ok;
+			if (!response.ok) return false;
+			// SPA-style hosts answer unknown paths with 200 + index.html. None of
+			// the files probed here are HTML, so an HTML answer means "missing".
+			const type = (response.headers.get('content-type') || '').toLowerCase();
+			return !type.startsWith('text/html');
 		} catch (e) {
 			return false;
 		}

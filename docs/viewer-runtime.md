@@ -68,7 +68,7 @@ You can radically change the galleries' look just by editing or replacing the ma
 | `window.openvgal_location` | `.` | `.` | Base path for `building_v2.json` and images |
 | `window.openvgal_cdn_base` | `https://cdn.openvgal.com` | (empty or `.`) | Base URL for templates and materials |
 
-When running from a ZIP, the CDN base is overridden to local files. The viewer checks for local templates/materials first with `doesFileExist()`, which tests for a **2xx status** (not merely "not 404") so it behaves correctly across origins.
+When running from a ZIP, the CDN base is overridden to local files. The viewer checks for local templates/materials first with `doesFileExist()`, which tests for a **2xx status** (not merely "not 404") so it behaves correctly across origins, and treats a `text/html` answer as missing (SPA-style hosts serve `index.html` with 200 for unknown paths).
 
 ---
 
