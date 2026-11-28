@@ -248,6 +248,17 @@ var GalleryPage = (function() {
       }
       window.openvgal_config = json;
 
+      var embedMode = document.body.classList.contains('embed-mode');
+      // Ask the host to pin the frame to its viewport while the overlay is up.
+      // iPhone Safari has no Element.requestFullscreen, so without this the
+      // overlay is as tall as the builder's content (docs/embed.md).
+      function postPreview(isOpen) {
+        if (!embedMode) return;
+        try {
+          window.parent.postMessage({ type: 'openvgal:preview', open: isOpen }, '*');
+        } catch (_) {}
+      }
+
       var overlay = document.createElement('div');
       overlay.id = 'previewOverlay';
       overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:9999;';
@@ -261,6 +272,7 @@ var GalleryPage = (function() {
         document.removeEventListener('fullscreenchange', onFullscreenChange);
         if (!overlay.isConnected) return;
         overlay.remove();
+        postPreview(false);
         if (window.openvgal_blobUrls) {
           Object.values(window.openvgal_blobUrls).forEach(function(url) {
             try { URL.revokeObjectURL(url); } catch (e) {}
@@ -288,13 +300,14 @@ var GalleryPage = (function() {
       overlay.appendChild(closeBtn);
       overlay.appendChild(iframe);
       document.body.appendChild(overlay);
+      postPreview(true);
 
       // In embed mode the iframe viewport is as tall as the builder's full
       // content (parent-driven resize), so a fixed overlay renders a huge
       // frame the user only sees a crop of. Go fullscreen instead; the host
       // iframe grants allow="fullscreen". Listener is attached only after
       // fullscreen engages so a rejected request leaves plain-overlay behavior.
-      if (document.body.classList.contains('embed-mode') && overlay.requestFullscreen) {
+      if (embedMode && overlay.requestFullscreen) {
         overlay.requestFullscreen().then(function() {
           document.addEventListener('fullscreenchange', onFullscreenChange);
         }).catch(function() {});

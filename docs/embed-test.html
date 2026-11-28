@@ -11,6 +11,7 @@
     header select, header button { background: #222; color: #eee; border: 1px solid #333; padding: 0.25rem 0.5rem; font: inherit; border-radius: 4px; }
     main { display: grid; grid-template-columns: 1fr 320px; min-height: 0; }
     iframe { border: 0; width: 100%; height: 100%; background: #000; }
+    iframe.pinned { position: fixed; inset: 0; height: 100dvh; z-index: 10; }
     aside { background: #161616; border-left: 1px solid #2a2a2a; padding: 0.6rem; overflow: auto; font-size: 0.78rem; }
     aside h2 { font-size: 0.78rem; margin: 0 0 0.4rem; color: #a5b4fc; letter-spacing: 0.04em; text-transform: uppercase; }
     #log { font-family: ui-monospace, monospace; white-space: pre-wrap; word-break: break-word; line-height: 1.45; }
@@ -121,6 +122,14 @@
       if (msg.type === 'openvgal:customize') {
         entry('openvgal:customize', 'open: <code>' + msg.open + '</code>');
         // A real host would hide its own save actions while open is true.
+        return;
+      }
+
+      if (msg.type === 'openvgal:preview') {
+        entry('openvgal:preview', 'open: <code>' + msg.open + '</code>');
+        // Pin the frame to the viewport while the viewer overlay is up. A real
+        // host would also restore its last openvgal:resize height on close.
+        frame.classList.toggle('pinned', msg.open === true);
         return;
       }
 

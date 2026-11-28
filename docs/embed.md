@@ -78,12 +78,16 @@ unchanged.
    with `open: true`, and posts it again with `open: false` when the editor
    closes (apply, cancel, or failure to load). The parent hides its own save
    group while the editor is open.
-7. **User clicks a Save action.** The parent posts `openvgal:export-request` to
+7. **(Optional) User opens Preview or Interactive placement.** The child posts
+   `openvgal:preview` with `open: true` when the viewer overlay mounts, and
+   `open: false` when it closes. The parent pins the iframe to the viewport
+   while it is open, then restores the last `openvgal:resize` height.
+8. **User clicks a Save action.** The parent posts `openvgal:export-request` to
    the child, naming the `flavor` that action wants.
-8. **Child posts zero or more `openvgal:export-progress`** as it packages.
+9. **Child posts zero or more `openvgal:export-progress`** as it packages.
    Progress is advisory — a host may ignore it and render its own indeterminate
    state.
-9. **Child replies exactly once.** Either `openvgal:zip-ready` with the blob and
+10. **Child replies exactly once.** Either `openvgal:zip-ready` with the blob and
    metadata — the parent uploads it (draft) or downloads it (local copy) — or
    `openvgal:export-failed` if the pack could not be built. Every
    `export-request` ends in exactly one of the two: never both, never neither.
@@ -151,6 +155,33 @@ dropped event can't wedge the host's UI into the wrong state. That also makes
 the load-failure case safe: `open: true` is posted before the editor module is
 imported, so a failure posts `true` then `false`, and the host ends up with its
 action row back.
+
+#### `openvgal:preview`
+
+```js
+{
+  type: 'openvgal:preview',
+  open: boolean  // true when the viewer overlay mounts, false when it closes
+}
+```
+
+Sent when the **Preview** or **Interactive placement** overlay opens, and again
+when it closes, on every path: **Close Preview**, leaving fullscreen, and
+placement **Done** / **Cancel**. The child still requests fullscreen, but
+iPhone Safari has no `Element.requestFullscreen`. Without fullscreen the overlay
+is as tall as the iframe, which the host sized to the builder's full content.
+The user then sees only a slice of the viewer, and the loading bars and
+**Close Preview** button are off-screen.
+
+While `open` is `true`, the host makes the iframe cover the viewport
+(`position: fixed; inset: 0; height: 100dvh`, above its own UI) and hides any
+controls it shows next to the frame. When `open` is `false`, it puts the frame
+back at its last `openvgal:resize` height. The message is posted whether or not
+fullscreen works, so the host needs no browser detection. Pinning a frame that
+is already fullscreen does no harm.
+
+Like `openvgal:customize`, it carries a boolean so a duplicate message does no
+harm. Hosts that ignore it see no change.
 
 #### `openvgal:export-progress`
 
